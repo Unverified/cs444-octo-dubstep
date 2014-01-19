@@ -1,53 +1,67 @@
 #lang racket
 
 (define epsilon #\ε)
-
-;(struct: state ([id : Symbol] [accepting : Boolean]))
-(struct state (id accepting))
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
 (struct transition (from char to))
-;(struct: machine ([states : (Listof state)] [start : Symbol] [transitions : (Listof transition)]))
-(struct machine (states start transitions))
+;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [transitions : (Listof transition)]))
+(struct machine (states start accepting transitions))
 
-;(: process-char (machine Symbol Char -> (Listof Symbol)))
+;(: process-char : machine Symbol Char -> (Listof Symbol))
 (define [process-char m state char]
-  ;(: get-transitions (transition -> Boolean))
+  ;(: get-transitions : transition -> Boolean)
   (define [get-transitions trans] (and (equal? (transition-from trans) state) 
                                        (equal? (transition-char trans) char)))
-  (append (remove-duplicates (map (lambda (x) (process-char m x char)) (e-closure m state)))
+  (append (append-map (lambda (x) (process-char m x char)) (e-closure m state))
           (map transition-to (filter get-transitions (machine-transitions m)))))
 
-;(: e-closure (machine Symbol -> (Listof Symbol)))
+;(: e-closure : machine Symbol -> (Listof Symbol))
 (define [e-closure m state]
-  ;(: get-e-transitions (transition -> Boolean))
+  ;(: get-e-transitions : transition -> Boolean)
   (define [get-e-transitions trans] (and (equal? (transition-from trans) state)
-                                         (equal? (transition-to trans) epsilon)))
-  (map transition-to (remove-duplicates (filter get-e-transitions (machine-transitions m)))))
+                                         (equal? (transition-char trans) epsilon)))
+  (map transition-to (filter get-e-transitions (machine-transitions m))))
 
-;(: union ((Listof machine) -> machine))
+;(: union : (Listof machine) -> machine)
 (define [union machines]
-  (define new-start (state (gensym) #f))
+  (define new-start (gensym))
   (machine (cons new-start (append-map machine-states machines))
-           (state-id new-start)
-           (append (map (lambda (x) (transition (state-id new-start) epsilon (machine-start x))) machines) 
+           new-start
+           (append-map machine-accepting machines)
+           (append (map (lambda (x) (transition new-start epsilon (machine-start x))) machines) 
                         (append-map machine-transitions machines))
            ))
+
+;(: concat : (Listof machine) -> machine)
+(define [concat machines]
+  (cond [(empty? machines) (error "can't concatinate empty list of machines")]
+        [(equal? (length machines) 1) (first machines)]
+        [else (concat-2 (first machines) (concat (rest machines)))]
+        ))
+
+;(: concat-2 : machine machine -> machine)
+(define [concat-2 m1 m2]
+  (define new-states (append (machine-states m1) (machine-states m2)))
+  (define added-transitions (map (lambda (x) (transition x epsilon (machine-start m2)))(machine-accepting m1)))
+  (machine new-states (machine-start m1) (machine-accepting m2) (append added-transitions (machine-transitions m1) (machine-transitions m2)))
+  )
+           
 
 ;==============================================================================================
 ;==== Printing
 ;==============================================================================================
-;(: print-machine (machine -> Symbol))
+;(: print-machine : machine -> Symbol)
 (define [print-machine m]
   (print-states m)
+  (printf "~n")
   (print-transitions m)
   'ok)
 
-;(: print-states (machine -> Symbol))
+;(: print-states : machine -> Symbol)
 (define [print-states m]
-  (for-each (lambda (x) (printf "~a: ~a~n" (state-id x) (state-accepting x))) (machine-states m))
+  (for-each (lambda (x) (if (equal? x (machine-start m)) (printf "~a* " x) (printf "~a " x))) (machine-states m))
   'ok)
 
-;(: print-transitions (machine -> Symbol))
+;(: print-transitions : machine -> Symbol)
 (define [print-transitions m]
   (for-each (lambda (x) (printf "~a(~a) -> ~a~n" (transition-from x) (transition-char x) (transition-to x))) (machine-transitions m))
   'ok)
@@ -55,23 +69,39 @@
 ;==============================================================================================
 ;==== Testing
 ;==============================================================================================
-(define start  (state (gensym) #f))
-(define state1 (state (gensym) #f))
-(define state2 (state (gensym) #f))
-(define state3 (state (gensym) #t))
+(define 1start  (gensym))
+(define 1state1 (gensym))
+(define 1state2 (gensym))
+(define 1state3 (gensym))
+(define 2start  (gensym))
+(define 2state1 (gensym))
 
-(define test1 (machine (list start state1 state2 state3)
-                       (state-id start)
-                       (list (transition (state-id start)  #\c (state-id state1))
-                             (transition (state-id state1) #\a (state-id state2))
-                             (transition (state-id state2) #\t (state-id state3)))))
-(define test2 (union (list test1)))
+(define test1 (machine (list 1start 1state1 1state2 1state3)
+                       1start
+                       (list 1state3)
+                       (list (transition 1start  #\c 1state1)
+                             (transition 1state1 #\a 1state2)
+                             (transition 1state2 #\t 1state3))))
+(define test2 (machine (list 2start 2state1)
+                       2start
+                       (list 2state1)
+                       (list (transition 2start epsilon 2state1)
+                             (transition 2state1 #\a 2start))))
+                       
+(define test3 (union (list test1 test2)))
+(define test4 (concat (list test1 test2)))
 
 (printf "Test1:~n")
 (print-machine test1)
 (printf "Test2:~n")
 (print-machine test2)
+(printf "Test3:~n")
+(print-machine test3)
+(printf "Test4:~n")
+(print-machine test4)
 (printf "~n")
 
+(e-closure test2 (machine-start test2))
 (process-char test1 (machine-start test1) #\c)
-(process-char test2 (machine-start test1) #\c)
+(process-char test3 (machine-start test3) #\c)
+(process-char test2 (machine-start test2) #\a)
