@@ -6,6 +6,10 @@
 ;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [transitions : (Listof transition)]))
 (struct machine (states start accepting transitions))
 
+;==============================================================================================
+;==== Machine Processing
+;==============================================================================================
+
 ;(: process-char : machine Symbol Char -> (Listof Symbol))
 (define [process-char m state char]
   ;(: get-transitions : transition -> Boolean)
@@ -21,30 +25,74 @@
                                          (equal? (transition-char trans) epsilon)))
   (map transition-to (filter get-e-transitions (machine-transitions m))))
 
+;==============================================================================================
+;==== Transformations
+;==============================================================================================
+
 ;(: union : (Listof machine) -> machine)
+;generates a machine that is the union of 2 machines
 (define [union machines]
   (define new-start (gensym))
   (machine (cons new-start (append-map machine-states machines))
            new-start
            (append-map machine-accepting machines)
            (append (map (lambda (x) (transition new-start epsilon (machine-start x))) machines) 
-                        (append-map machine-transitions machines))
-           ))
+                        (append-map machine-transitions machines))))
 
 ;(: concat : (Listof machine) -> machine)
 (define [concat machines]
   (cond [(empty? machines) (error "can't concatinate empty list of machines")]
         [(equal? (length machines) 1) (first machines)]
-        [else (concat-2 (first machines) (concat (rest machines)))]
-        ))
+        [else (concat-2 (first machines) (concat (rest machines)))]))
 
 ;(: concat-2 : machine machine -> machine)
+;concats 2 machines together used as base case
 (define [concat-2 m1 m2]
   (define new-states (append (machine-states m1) (machine-states m2)))
   (define added-transitions (map (lambda (x) (transition x epsilon (machine-start m2)))(machine-accepting m1)))
-  (machine new-states (machine-start m1) (machine-accepting m2) (append added-transitions (machine-transitions m1) (machine-transitions m2)))
-  )
-           
+  (machine new-states (machine-start m1) (machine-accepting m2) (append added-transitions (machine-transitions m1) (machine-transitions m2))))
+
+;(: kleene-star : machine -> machine)
+;add the kleene-star property to a machine (complete 0.. times)
+(define [kleene-star m]
+  (define new-start (gensym))
+  (define add-rec-transitions (lambda (y) (append y (map (lambda (x) (transition x epsilon new-start)) (machine-accepting m)))))
+  (define add-new-start (lambda (x) (cons new-start x)))
+    (machine (add-new-start (machine-states m)) 
+             new-start 
+             (list new-start) 
+             (cons (transition new-start epsilon (machine-start m)) (add-rec-transitions (machine-transitions m)))))
+
+;(: kleene-plus : machine -> machine)
+;add the kleene-plus property to a machine (complete 1.. times)
+(define [kleene-plus m]
+  (define rec-transitions (map (lambda (x) (transition x epsilon (machine-start m))) (machine-accepting m)))
+  (machine (machine-states m) (machine-start m) (machine-accepting m) (append (machine-transitions m) rec-transitions)))
+
+;==============================================================================================
+;==== Base Cases
+;==============================================================================================
+
+;(: m-only-epsilon : -> machine)
+(define [m-only-epsilon]
+  (define start (gensym))
+  (machine (list start) start (list start) empty)) 
+
+;(: m-single-char : Char -> machine)
+;creates a machine that recognises a single character
+(define [m-single-char ch]
+  (define start (gensym))
+  (define char  (gensym))
+  (machine (list start char) start (list char) (list (transition start ch char))))
+
+;==============================================================================================
+;==== Creation
+;==============================================================================================
+
+;(: string->machine : String -> machine)
+;create a machine that accepts a string of characters
+(define [string-machine str]
+  (concat (map m-single-char (string->list str))))
 
 ;==============================================================================================
 ;==== Printing
@@ -67,7 +115,7 @@
   'ok)
 
 ;==============================================================================================
-;==== Testing
+;==== Testing, remove when done
 ;==============================================================================================
 (define 1start  (gensym))
 (define 1state1 (gensym))
