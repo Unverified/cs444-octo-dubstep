@@ -30,7 +30,6 @@
   (define (get-rules x) (set! added-lhs (add-lhss x)) x)
   (define should-add-lritem (lambda (x) (not (list? (member (list-ref (rule-rhs (lritem-rule x)) (lritem-dot x)) added-lhs)))))
   (define new-lritems (append-map (lambda (x) (if (should-add-lritem x) (get-rules (get-new-lr-state-rules x rules)) empty)) lritems))
-  (print-lritems new-lritems)
   (if (empty? new-lritems) lritems (append lritems (create-lr-state new-lritems rules added-lhs))))
 
 (define (get-rule-pos item rules)
@@ -41,7 +40,7 @@
     [else (+ 1 (get-rule-pos item (rest rules)))]))
 
 
-;(: parse=grammar : lritem (Listof Symbol) (Listof Symbol) (Listof rule) -> (Listof something)
+;(: parse-grammar : lritem (Listof Symbol) (Listof Symbol) (Listof rule) -> (Listof something)
 ;takes in an lritem and a list of terminals, non-terminals, and rules. It will return some data structure
 ;used to parse an lr grammar probably something of the form (state symbol action reaction) where
 ; - "state" is the lr grammars state we are looking at
@@ -60,16 +59,26 @@
         [else (cons (dfa-item state (get-dot-sym x) 'shift next-state) (parse-grammar next-item next-state terminals non-terminals rules))])))
   (append-map handle-lritem (create-lr-state (list item) rules empty)))
 
+;(: replace-state : Symbol Symbol (Listof dfa-item) -> (Listof dfa-item)
+;used to replace all instances of old-state with new-state in dfa-items
 (define (replace-state new-state old-state dfa-items)
-  (append-map (lambda (x) (if (equal? old-state (dfa-item-state x)) (dfa-item new-state (dfa-item-input x) (dfa-item-action x) (dfa-item-reaction x)) x)) dfa-items))
+  (map (lambda (x) (if (equal? old-state (dfa-item-state x)) (dfa-item new-state (dfa-item-input x) (dfa-item-action x) (dfa-item-reaction x)) x)) dfa-items))
 
+;(: merge-state dfa-item (Listof dfa-item)
+;looks through dfa-items for any items that match dfa-item state and input, if we find on then we have a state that is branching to
+;two different states on the same input so we need to merge those states using replace-state
 (define (merge-state dfa-item dfa-items)
-  (append-map (lambda (x) (if (and (equal? (dfa-item-state dfa-item) (dfa-item-state x)) (equal? (dfa-item-input dfa-item) (dfa-item-input x))) (replace-state (dfa-item-state dfa-item) (dfa-item-state x) dfa-items) x)) dfa-items))
+  (cond
+    [(empty? dfa-items) empty]
+    [(and (equal? (dfa-item-state dfa-item) (dfa-item-state (first dfa-items))) (equal? (dfa-item-input dfa-item) (dfa-item-input (first dfa-items)))) (merge-state dfa-item (replace-state (dfa-item-reaction dfa-item) (dfa-item-reaction (first dfa-items)) (rest dfa-items)))]
+    [else (append (list (first dfa-items)) (merge-state dfa-item (rest dfa-items)))]))
 
+;(: merge-states (Listof dfa-item)
+;goes through dfa-items, merging any states that have shifts on the same input to different states
 (define (merge-states dfa-items)
   (cond
-    [(equal? 1 (length dfa-items)) (first dfa-items)]
-    [else (append (merge-state (first dfa-items) (rest dfa-items)) (merge-states (rest dfa-items)))]))
+    [(equal? 1 (length dfa-items)) dfa-items]
+    [else (append (list (first dfa-items)) (merge-states (merge-state (first dfa-items) (rest dfa-items))))]))
     
 ;==============================================================================================
 ;==== Printing
@@ -90,18 +99,19 @@
 ;==== Testing
 ;==============================================================================================
 
-(define start-rule (rule 'S (list 'Ep '$)))
-(define terminals (list 'a 'b))
-(define non-terminals (list 'S 'E 'A 'B))
+(define start-rule (rule 'S (list 'jclass '$)))
+(define terminals (list 'PUBLIC 'CLASS 'FINAL 'ABSTRACT 'ID 'LBRACE 'RBRACT))
+(define non-terminals (list 'S 'jclass 'class))
 (define rules 
    (list start-rule
-    (rule 'Ep (list 'Ep 'E))
-    (rule 'E (list 'A '+ 'a))
-    (rule 'E (list 'A '+ 'b))
-    (rule 'A (list 'a))))
+    (rule 'jclass (list 'PUBLIC 'class 'ID 'LBRACE 'RBRACE))
+    (rule 'class (list 'FINAL 'CLASS))
+    (rule 'class (list 'ABSTRACT 'CLASS))
+    (rule 'class (list 'CLASS))))
     ;(rule 'B (list 'b))))
 
 ;(print-lritems (create-lr-state (list startrule) rules empty))
-(print-dfa (parse-grammar (lritem 0 start-rule) (gensym) terminals non-terminals rules))
+(define temp (merge-states (parse-grammar (lritem 0 start-rule) (gensym) terminals non-terminals rules)))
+(print-dfa temp)
 ;(printf "~n")
-(create-lr-state (list (lritem 1 (rule 'Ep (list 'Ep 'E)))) rules empty)
+;(create-lr-state (list (lritem 1 (rule 'Ep (list 'Ep 'E)))) rules empty)
