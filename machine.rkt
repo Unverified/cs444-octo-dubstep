@@ -10,20 +10,35 @@
 ;==== Machine Processing
 ;==============================================================================================
 
+;(: contains-state? : machine Symbol -> Boolean )
+(define [contains-state? m s] 
+  (ormap (lambda (x) (equal? x s)) (machine-states m)))
+
+;(: get-m-trans : (transition -> Boolean) machine -> (Listof transition) )
+(define [get-trans F m]
+  (filter F (machine-transitions m)))
+
+;(: get-m-state-trans : machine state -> (Listof transition) )
+(define [get-m-state-trans m s]
+  (get-trans (lambda(x) (equal? (transition-from x) s)) m))
+
+;(: get-trans-char : (Listof transition) char -> (Listof transition) )
+(define [get-trans-char t c]
+  (filter (lambda (x) (equal? (transition-char x) c)) t))
+
+
+;==============================================================================================
+;==== Machine Processing
+;==============================================================================================
+
 ;(: process-char : machine Symbol Char -> (Listof Symbol))
 (define [process-char m state char]
-  ;(: get-transitions : transition -> Boolean)
-  (define [get-transitions trans] (and (equal? (transition-from trans) state) 
-                                       (equal? (transition-char trans) char)))
   (append (append-map (lambda (x) (process-char m x char)) (e-closure m state))
-          (map transition-to (filter get-transitions (machine-transitions m)))))
+          (map transition-to (get-trans-char (get-m-state-trans m state) char))))
 
 ;(: e-closure : machine Symbol -> (Listof Symbol))
 (define [e-closure m state]
-  ;(: get-e-transitions : transition -> Boolean)
-  (define [get-e-transitions trans] (and (equal? (transition-from trans) state)
-                                         (equal? (transition-char trans) epsilon)))
-  (map transition-to (filter get-e-transitions (machine-transitions m))))
+  (cons state (map transition-to (get-trans-char (get-m-state-trans m state) epsilon))))
 
 ;==============================================================================================
 ;==== Transformations
@@ -68,6 +83,9 @@
 (define [kleene-plus m]
   (define rec-transitions (map (lambda (x) (transition x epsilon (machine-start m))) (machine-accepting m)))
   (machine (machine-states m) (machine-start m) (machine-accepting m) (append (machine-transitions m) rec-transitions)))
+
+;(:nfa->dfa  : machine -> machine )
+
 
 ;==============================================================================================
 ;==== Base Cases
