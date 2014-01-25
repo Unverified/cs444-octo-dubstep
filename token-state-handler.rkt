@@ -183,10 +183,11 @@
   (string-append x (make-string 1 y)))
 
 (define (set-transition from transitions to)
-  (cond
-    [(empty? transitions) void]
-    [else (hash-set! state-transitions (get-key from (first transitions)) to)
-          (set-transition from (rest transitions) to)]))
+  (for-each (lambda (transition) (hash-set! state-transitions (get-key from transition) to)) transitions))
+;  (cond
+;    [(empty? transitions) void]
+;    [else (hash-set! state-transitions (get-key from (first transitions)) to)
+;          (set-transition from (rest transitions) to)]))
 
 (define (set-state-type state type)
   (hash-set! state-types state type))

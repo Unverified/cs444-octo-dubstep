@@ -1,5 +1,1 @@
-public class Something {
-    public static main( int[] args ) {
-        return 1 + 1;
-    }
-}  
+public final class Something { }
