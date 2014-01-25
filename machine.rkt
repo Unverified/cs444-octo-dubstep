@@ -47,11 +47,11 @@
 
 ;(: m-transition-table : machine -> (Listof (Listof (Setof Symbol))) )
 (define [m-transition-table m]
-  (cons (cons empty (cons epsilon (get-m-alphabet m)))
-        (for*/list ([st (machine-states m)])
+  (cons (cons 'State (cons epsilon (get-m-alphabet m)))
+        (for/list ([st (machine-states m)])
           (cons st
                 (cons (list->set (e-closure m st))
-                      (for*/list ([ch (get-m-alphabet m)])
+                      (for/list ([ch (get-m-alphabet m)])
                         (list->set (process-char m st ch))))))))
 
 ;==============================================================================================
@@ -99,10 +99,33 @@
              (cons (transition new-start epsilon (machine-start m)) (add-rec-transitions (machine-transitions m)))))
 
 ;(: kleene-plus : machine -> machine)
-;add the kleene-plus property to a machine (complete 1.. times)
-(define [kleene-plus m]
+;add the kleene-cross property to a machine (complete 1.. times)
+(define [kleene-cross m]
   (define rec-transitions (map (lambda (x) (transition x epsilon (machine-start m))) (machine-accepting m)))
   (machine (machine-states m) (machine-start m) (machine-accepting m) (append (machine-transitions m) rec-transitions)))
+
+;(: nfa->dfa : machine -> machine )
+(define (nfa->dfa m)
+  ;(: process-states-char : machine (Listof Symbol) Char -> (Setof Symbol)
+  (define (process-states m states ch)
+    (list->set (foldr append empty (for/list ([st states]) (process-char m st ch)))))
+  ;(: g : machine (Listof Symbol) -> (Listof transitions)
+  (define (new-dfa-trans m states)
+    (define trans-set (map (lambda (x) (list (list->set states) x (process-states m states x))) (get-m-alphabet m)))
+    (filter-not (lambda (x) (set-empty? (transition-to x))) (map (curry apply transition) trans-set)))
+  
+  (define (compose-dfa dfa-states m-out)
+    (cond [(empty? dfa-states) m-out]
+          [(contains-state? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
+          [else (let* ([new-trans (new-dfa-trans m (set->list (first dfa-states)))]
+                       [next-states (filter-not (curry contains-state? m-out) (map transition-to new-trans))])
+                  (compose-dfa (append (rest dfa-states) next-states) 
+                               (machine (cons (first dfa-states) (machine-states m-out))
+                                        (machine-start m-out)
+                                        (machine-accepting m-out)
+                                        (append new-trans (machine-transitions m-out)))))]))
+  (let ([new-start (list->set (e-closure m (machine-start m)))])
+    (compose-dfa (list new-start) (machine empty new-start empty empty))))
 
 ;==============================================================================================
 ;==== Creation
@@ -133,17 +156,30 @@
 (define [print-machine m]
   (print-states m)
   (printf "~n")
-  (print-transitions m)
+  (print-m-transitions m)
   'ok)
 
 ;(: print-states : machine -> Symbol)
 (define [print-states m]
-  (for-each (lambda (x) (if (equal? x (machine-start m)) (printf "~a* " x) (printf "~a " x))) (machine-states m))
+  (for-each (lambda (x) (cond 
+                          [(and (equal? x (machine-start m))
+                                (member x (machine-accepting m)))(printf "~a! ~n" x)] ;i failed fizzbuzz
+                          [(equal? x (machine-start m))          (printf "~a* ~n" x)]
+                          [(member x (machine-accepting m))      (printf "~a? ~n" x)]
+                          [else                                  (printf "~a~n" x)])) (machine-states m))
   'ok)
 
-;(: print-transitions : machine -> Symbol)
-(define [print-transitions m]
-  (for-each (lambda (x) (printf "~a(~a) -> ~a~n" (transition-from x) (transition-char x) (transition-to x))) (machine-transitions m))
+;(: print-m-transitions : machine -> Symbol)
+(define [print-m-transitions m]
+  (apply print-transition (machine-transitions m))
+  'ok)
+
+;(: print-transitions : transition.. -> Symbol )
+(define [print-transition . t]
+  ;(: print-translation-1 : translation -> Symbol )
+  (define [print-transition-1 t]
+    (printf "~a(~a) -> ~a~n" (transition-from t) (transition-char t) (transition-to t)))
+  (for-each print-transition-1 t)
   'ok)
 
 ;==============================================================================================
@@ -172,20 +208,18 @@
 (define test4 (concat (list test1 test2)))
 (define test5 (kleene-star test1))
 
-(printf "Test1:~n")
-(print-machine test1)
-(printf "Test2:~n")
-(print-machine test2)
-(printf "Test3:~n")
-(print-machine test3)
-(printf "Test4:~n")
-(print-machine test4)
-(printf "Test5:~n")
-(print-machine test5)
-(printf "~n")
+;a NFA that was defined in class in the second lecture
+(define classex (machine '(A B C D)
+                         'A
+                         '(C D)
+                         (list (transition 'A #\0 'B)
+                               (transition 'A epsilon 'C)
+                               (transition 'B #\1 'B)
+                               (transition 'B #\1 'D)
+                               (transition 'C epsilon 'B)
+                               (transition 'C #\0 'D)
+                               (transition 'D #\0 'C))))
 
-(e-closure test2 (machine-start test2))
-(e-closure test3 (machine-start test3))
-(process-char test1 (machine-start test1) #\c)
-(process-char test3 (machine-start test3) #\c)
-(process-char test2 (machine-start test2) #\a)
+(printf "~n")
+(printf "~n~n~nDFA of ClassEx:~n")
+(print-machine (nfa->dfa classex))
