@@ -1,5 +1,3 @@
-#lang racket
-
 ;(struct: rule ([lhs : Symbol] [rhs : (Listof Symbol)]))
 (struct rule (lhs rhs))
 
@@ -32,12 +30,12 @@
   (define new-lritems (append-map (lambda (x) (if (should-add-lritem x) (get-rules (get-new-lr-state-rules x rules)) empty)) lritems))
   (if (empty? new-lritems) lritems (append lritems (create-lr-state new-lritems rules added-lhs))))
 
-(define (get-rule-pos item rules)
+(define (get-rule item rules)
   (define rule (lritem-rule item))
   (cond
-    [(empty? rules) 0]
-    [(and (equal? (rule-lhs rule) (rule-lhs (first rules))) (equal? (rule-rhs rule) (rule-rhs (first rules)))) 0]
-    [else (+ 1 (get-rule-pos item (rest rules)))]))
+    [(empty? rules) (rule 'RULE_NOT_FOUND empty)]
+    [(and (equal? (rule-lhs rule) (rule-lhs (first rules))) (equal? (rule-rhs rule) (rule-rhs (first rules)))) (first rules)]
+    [else (get-rule item (rest rules))]))
 
 
 ;(: parse-grammar : lritem (Listof Symbol) (Listof Symbol) (Listof rule) -> (Listof something)
@@ -55,7 +53,7 @@
       (define next-item (inc-dot-pos x))
       (define next-state (gensym))
       (cond
-        [(can-reduce next-item) (cons (dfa-item state (get-dot-sym x) 'reduce (get-rule-pos x rules)) empty)]
+        [(can-reduce next-item) (cons (dfa-item state (get-dot-sym x) 'reduce (get-rule x rules)) empty)]
         [else (cons (dfa-item state (get-dot-sym x) 'shift next-state) (parse-grammar next-item next-state terminals non-terminals rules))])))
   (append-map handle-lritem (create-lr-state (list item) rules empty)))
 
@@ -79,7 +77,7 @@
   (cond
     [(equal? 1 (length dfa-items)) dfa-items]
     [else (append (list (first dfa-items)) (merge-states (merge-state (first dfa-items) (rest dfa-items))))]))
-    
+
 ;==============================================================================================
 ;==== Printing
 ;==============================================================================================
@@ -96,7 +94,7 @@
 (define (print-dfa dfa-items) (for-each (lambda (x) (printf "From:~a, Input:~a, Action:~a, Reaction:~a~n" (dfa-item-state x) (dfa-item-input x) (dfa-item-action x) (dfa-item-reaction x))) dfa-items))
 
 ;==============================================================================================
-;==== Testing
+;==== Creation
 ;==============================================================================================
 
 (define start-rule (rule 'S (list 'jclass '$)))
@@ -108,10 +106,29 @@
     (rule 'class (list 'FINAL 'CLASS))
     (rule 'class (list 'ABSTRACT 'CLASS))
     (rule 'class (list 'CLASS))))
-    ;(rule 'B (list 'b))))
+  
+(define lr-dfa (merge-states (parse-grammar (lritem 0 start-rule) (gensym) terminals non-terminals rules)))
+(define lr-dfa-start-state (dfa-item-state (first lr-dfa)))
 
-;(print-lritems (create-lr-state (list startrule) rules empty))
-(define temp (merge-states (parse-grammar (lritem 0 start-rule) (gensym) terminals non-terminals rules)))
-(print-dfa temp)
-;(printf "~n")
-;(create-lr-state (list (lritem 1 (rule 'Ep (list 'Ep 'E)))) rules empty)
+(printf "====== lr-dfa ======~n")
+(print-dfa lr-dfa)
+
+;==============================================================================================
+;==== Access
+;==============================================================================================
+
+(define (lr-dfa-reduce state input)
+  (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)))) lr-dfa))
+  (cond
+    [(list? item) (dfa-item-reaction (first item))]
+    [else #f]))
+
+(define (lr-dfa-shift state input)
+  (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)))) lr-dfa))
+    (cond
+    [(list? item) (dfa-item-reaction (first item))]
+    [else #f]))
+;==============================================================================================
+;==== Testing
+;==============================================================================================
+  
