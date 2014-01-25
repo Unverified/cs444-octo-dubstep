@@ -1,4 +1,5 @@
 #lang racket
+(require racket/set)
 
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
@@ -14,18 +15,22 @@
 (define [contains-state? m s] 
   (ormap (lambda (x) (equal? x s)) (machine-states m)))
 
-;(: get-m-trans : (transition -> Boolean) machine -> (Listof transition) )
+;(: get-m-trans : (transition -> Boolean) machine -> (Listof transition))
 (define [get-trans F m]
   (filter F (machine-transitions m)))
 
-;(: get-m-state-trans : machine state -> (Listof transition) )
+;(: get-m-state-trans : machine state -> (Listof transition))
 (define [get-m-state-trans m s]
   (get-trans (lambda(x) (equal? (transition-from x) s)) m))
 
-;(: get-trans-char : (Listof transition) char -> (Listof transition) )
+;(: get-trans-char : (Listof transition) char -> (Listof transition))
 (define [get-trans-char t c]
   (filter (lambda (x) (equal? (transition-char x) c)) t))
 
+;(: get-m-alphabet : machine -> (Listof Char))
+;gets the alphabet of the machine, removes epsilon
+(define [get-m-alphabet m]
+  (rest (remove-duplicates (cons epsilon (map transition-char (machine-transitions m))))))
 
 ;==============================================================================================
 ;==== Machine Processing
@@ -33,26 +38,32 @@
 
 ;(: process-char : machine Symbol Char -> (Listof Symbol))
 (define [process-char m state char]
-  (append (append-map (lambda (x) (process-char m x char)) (e-closure m state))
-          (map transition-to (get-trans-char (get-m-state-trans m state) char))))
+  (remove-duplicates (append (append-map (lambda (x) (process-char m x char)) (rest (e-closure m state)))
+                             (append-map (curry e-closure m) (map transition-to (get-trans-char (get-m-state-trans m state) char))))))
 
 ;(: e-closure : machine Symbol -> (Listof Symbol))
 (define [e-closure m state]
-  (cons state (map transition-to (get-trans-char (get-m-state-trans m state) epsilon))))
+  (remove-duplicates (cons state (append-map (curry e-closure m) (map transition-to (get-trans-char (get-m-state-trans m state) epsilon))))))
 
 ;==============================================================================================
 ;==== Transformations
 ;==============================================================================================
+;(: m-add-state : machine Symbol -> machine)
+(define (m-add-state m state)
+  (machine (cons state (machine-states m)) (machine-start m) (machine-accepting m) (machine-transitions m)))
 
 ;(: union : (Listof machine) -> machine)
 ;generates a machine that is the union of 2 machines
 (define [union machines]
   (define new-start (gensym))
-  (machine (cons new-start (append-map machine-states machines))
+  (define new-end   (gensym))
+  (define end-trans (map (lambda (x) (transition x epsilon new-end)) (append-map machine-accepting machines)))
+  (machine (cons new-start (cons new-end (append-map machine-states machines)))
            new-start
-           (append-map machine-accepting machines)
-           (append (map (lambda (x) (transition new-start epsilon (machine-start x))) machines) 
-                        (append-map machine-transitions machines))))
+           (list new-end)
+           (append (map (lambda (x) (transition new-start epsilon (machine-start x))) machines)
+                   end-trans
+                   (append-map machine-transitions machines))))
 
 ;(: concat : (Listof machine) -> machine)
 (define [concat machines]
@@ -71,11 +82,11 @@
 ;add the kleene-star property to a machine (complete 0.. times)
 (define [kleene-star m]
   (define new-start (gensym))
-  (define add-rec-transitions (lambda (y) (append y (map (lambda (x) (transition x epsilon new-start)) (machine-accepting m)))))
-  (define add-new-start (lambda (x) (cons new-start x)))
-    (machine (add-new-start (machine-states m)) 
-             new-start 
-             (list new-start) 
+  (define add-new-start (curry cons new-start))
+  (define add-rec-transitions (curry append (map (lambda (x) (transition x epsilon new-start)) (machine-accepting m))))
+    (machine (add-new-start (machine-states m))
+             new-start
+             (list new-start)
              (cons (transition new-start epsilon (machine-start m)) (add-rec-transitions (machine-transitions m)))))
 
 ;(: kleene-plus : machine -> machine)
@@ -84,11 +95,8 @@
   (define rec-transitions (map (lambda (x) (transition x epsilon (machine-start m))) (machine-accepting m)))
   (machine (machine-states m) (machine-start m) (machine-accepting m) (append (machine-transitions m) rec-transitions)))
 
-;(:nfa->dfa  : machine -> machine )
-
-
 ;==============================================================================================
-;==== Base Cases
+;==== Creation
 ;==============================================================================================
 
 ;(: m-only-epsilon : -> machine)
@@ -102,10 +110,6 @@
   (define start (gensym))
   (define char  (gensym))
   (machine (list start char) start (list char) (list (transition start ch char))))
-
-;==============================================================================================
-;==== Creation
-;==============================================================================================
 
 ;(: string->machine : String -> machine)
 ;create a machine that accepts a string of characters
@@ -156,6 +160,7 @@
                        
 (define test3 (union (list test1 test2)))
 (define test4 (concat (list test1 test2)))
+(define test5 (kleene-star test1))
 
 (printf "Test1:~n")
 (print-machine test1)
@@ -165,9 +170,12 @@
 (print-machine test3)
 (printf "Test4:~n")
 (print-machine test4)
+(printf "Test5:~n")
+(print-machine test5)
 (printf "~n")
 
 (e-closure test2 (machine-start test2))
+(e-closure test3 (machine-start test3))
 (process-char test1 (machine-start test1) #\c)
 (process-char test3 (machine-start test3) #\c)
 (process-char test2 (machine-start test2) #\a)
