@@ -156,9 +156,14 @@
 (define [string-machine str]
   (concat (map m-single-char (string->list str))))
 
+
+
+
 ;==============================================================================================
 ;==== Printing
 ;==============================================================================================
+
+
 
 ;(: print-machine : machine -> Symbol)
 (define [print-machine m]
@@ -220,3 +225,11 @@
 (process-char test1 (machine-start test1) #\c)
 (process-char test3 (machine-start test3) #\c)
 (process-char test2 (machine-start test2) #\a)
+
+(m-transition-table test1)
+(m-transition-table test2)
+
+
+(m-transition-table (string-machine "private"))
+(print-machine (string-machine "public"))
+
