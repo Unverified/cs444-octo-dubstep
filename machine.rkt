@@ -111,7 +111,7 @@
 
 
 ;;nfa-to-dfa : machine -> machine
-'(define [nfa-to-dfa m]
+(define [nfa-to-dfa m]
 	(define symbol-list-equal? (lambda (m n)
 					(cond
 						[(empty? m) (empty? n)]
@@ -120,7 +120,7 @@
 	;;record-state : (machine  listof(listof(symbol)) listof(listof(symbol)) -> void) machine machine (listof symbol) (listof symbol) -> listof(symbol)
 	(define record-state (lambda (k m d s wl) 
 				((lambda (s)
-					(if (empty? (filter (lambda (x) (symbol-list-equal? x s) (machine-states d))))
+					(if (empty? (filter (lambda (x) (symbol-list-equal? x s)) (machine-states d)))
 						(k (machine 
 							(cons s (machine-states d))
 							(machine-start d)
@@ -129,7 +129,8 @@
 						   s
 						   (cons s wl))
 						(k d s wl)))
-					(append-map (lambda (x) (e-closure m x)) s)))))
+					(append-map (lambda (x) (e-closure m x)) s))))
+				(record-state (lambda (d s wl) (print-machine (machine (machine-states d) s (machine-accepting d) (machine-transitions d)))) m (machine empty (gensym) empty empty) (list (machine-start m)) empty))
 
 
 	
@@ -232,4 +233,6 @@
 
 (m-transition-table (string-machine "private"))
 (print-machine (string-machine "public"))
+(nfa-to-dfa (string-machine "public"))
 
+(print-machine (concat (list (union (foldr (lambda (x y) (cons (string-machine x) y)) empty (map number->string '(1 2 3 4 5 6 7 8 9)))) (kleene-star (union (foldr (lambda (x y) (cons (string-machine x) y)) empty (map number->string '(0 1 2 3 4 5 6 7 8 9))))) (string-machine ".") (union (foldr (lambda (x y) (cons (string-machine x) y)) empty (map number->string '(0 1 2 3 4 5 6 7 8 9)))))))
