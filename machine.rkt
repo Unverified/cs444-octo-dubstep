@@ -45,6 +45,15 @@
 (define [e-closure m state]
   (remove-duplicates (cons state (append-map (curry e-closure m) (map transition-to (get-trans-char (get-m-state-trans m state) epsilon))))))
 
+;(: m-transition-table : machine -> (Listof (Listof (Setof Symbol))) )
+(define [m-transition-table m]
+  (cons (cons empty (cons epsilon (get-m-alphabet m)))
+        (for*/list ([st (machine-states m)])
+          (cons st
+                (cons (list->set (e-closure m st))
+                      (for*/list ([ch (get-m-alphabet m)])
+                        (list->set (process-char m st ch))))))))
+
 ;==============================================================================================
 ;==== Transformations
 ;==============================================================================================
@@ -119,6 +128,7 @@
 ;==============================================================================================
 ;==== Printing
 ;==============================================================================================
+
 ;(: print-machine : machine -> Symbol)
 (define [print-machine m]
   (print-states m)
