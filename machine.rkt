@@ -69,11 +69,42 @@
   (define rec-transitions (map (lambda (x) (transition x epsilon (machine-start m))) (machine-accepting m)))
   (machine (machine-states m) (machine-start m) (machine-accepting m) (append (machine-transitions m) rec-transitions)))
 
+
+;==============================================================================================
+;==== Converting NFAs to DFAs
+;==============================================================================================
+
+
+;;nfa-to-dfa : machine -> machine
+'(define [nfa-to-dfa m]
+	(define symbol-list-equal? (lambda (m n)
+					(cond
+						[(empty? m) (empty? n)]
+						[(empty? n) (empty? m)]
+						[else (and (equal? (first m) (first n)) (symbol-list-equal? (rest m) (rest n)))])))
+	;;record-state : (machine  listof(listof(symbol)) listof(listof(symbol)) -> void) machine machine (listof symbol) (listof symbol) -> listof(symbol)
+	(define record-state (lambda (k m d s wl) 
+				((lambda (s)
+					(if (empty? (filter (lambda (x) (symbol-list-equal? x s) (machine-states d))))
+						(k (machine 
+							(cons s (machine-states d))
+							(machine-start d)
+							(machine-accepting d)
+							(machine-transitions d))
+						   s
+						   (cons s wl))
+						(k d s wl)))
+					(append-map (lambda (x) (e-closure m x)) s)))))
+
+
+	
+						
+
 ;==============================================================================================
 ;==== Base Cases
 ;==============================================================================================
 
-;(: m-only-epsilon : -> machine)
+;(: m-only-epsilon : void -> machine)
 (define [m-only-epsilon]
   (define start (gensym))
   (machine (list start) start (list start) empty)) 
