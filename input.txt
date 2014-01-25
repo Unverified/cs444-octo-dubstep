@@ -1,1 +1,4 @@
-public final class Something { }
+public final class Something {
+  public int func1(){}
+  public int x;
+}

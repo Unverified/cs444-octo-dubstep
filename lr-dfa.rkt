@@ -1,3 +1,4 @@
+
 ;(struct: rule ([lhs : Symbol] [rhs : (Listof Symbol)]))
 (struct rule (lhs rhs))
 
@@ -36,7 +37,6 @@
     [(empty? rules) (rule 'RULE_NOT_FOUND empty)]
     [(and (equal? (rule-lhs rule) (rule-lhs (first rules))) (equal? (rule-rhs rule) (rule-rhs (first rules)))) (first rules)]
     [else (get-rule item (rest rules))]))
-
 
 ;(: parse-grammar : lritem (Listof Symbol) (Listof Symbol) (Listof rule) -> (Listof something)
 ;takes in an lritem and a list of terminals, non-terminals, and rules. It will return some data structure
@@ -91,22 +91,41 @@
 ;(: print-lritems : (Listof lritem) -> Symbol)
 (define (print-lritems lritems) (for-each (lambda (x) (print-lritem x)) lritems))
 
-(define (print-dfa dfa-items) (for-each (lambda (x) (printf "From:~a, Input:~a, Action:~a, Reaction:~a~n" (dfa-item-state x) (dfa-item-input x) (dfa-item-action x) (dfa-item-reaction x))) dfa-items))
+(define (print-dfa dfa-items) (for-each (lambda (x) 
+  (cond
+    [(equal? 'shift (dfa-item-action x)) (printf "From:~a, Input:~a, Action:~a, Reaction:~a~n" (dfa-item-state x) (dfa-item-input x) (dfa-item-action x) (dfa-item-reaction x))]    
+    [(equal? 'reduce (dfa-item-action x)) (printf "From:~a, Input:~a, Action:~a, Rule: " (dfa-item-state x) (dfa-item-input x) (dfa-item-action x)) (print-rule (dfa-item-reaction x))])) dfa-items))
 
 ;==============================================================================================
 ;==== Creation
 ;==============================================================================================
 
 (define start-rule (rule 'S (list 'jclass '$)))
-(define terminals (list 'PUBLIC 'CLASS 'FINAL 'ABSTRACT 'ID 'LBRACE 'RBRACT))
-(define non-terminals (list 'S 'jclass 'class))
+(define terminals (list 'PUBLIC 'SEMI_COLON 'CLASS 'FINAL 'ABSTRACT 'ID 'LBRACE 'RBRACE 'LBRACKET 'LPAREN 'RPAREN 'RBRACKET 'PUBLIC 'PROTECTED 'STATIC 'BOOLEAN 'INT 'CHAR 'BYTE 'SHORT 'ASSIGN))
+(define non-terminals (list 'S 'jclass 'class 'statements 'statement 'declarations 'declaration 'function 'variable 'scope 'type))
 (define rules 
    (list start-rule
-    (rule 'jclass (list 'PUBLIC 'class 'ID 'LBRACE 'RBRACE))
-    (rule 'class (list 'FINAL 'CLASS))
-    (rule 'class (list 'ABSTRACT 'CLASS))
-    (rule 'class (list 'CLASS))))
-  
+    (rule 'jclass (list 'PUBLIC 'modifier 'CLASS 'ID 'LBRACE 'declarations 'RBRACE))
+    (rule 'modifier (list 'FINAL))
+    (rule 'modifier (list 'STATIC))
+    (rule 'modifier (list 'epsilon))
+    (rule 'declarations (list 'declarations 'declaration))
+    (rule 'declarations (list 'declaration))
+    (rule 'declarations (list 'epsilon))
+    (rule 'declaration (list 'function))
+    (rule 'declaration (list 'variable))
+    (rule 'function (list 'scope 'modifier 'type 'ID 'LPAREN 'RPAREN 'LBRACE 'RBRACE))
+    (rule 'scope (list 'PUBLIC))
+    (rule 'scope (list 'PROTECTED))
+    (rule 'type (list 'BOOLEAN))
+    (rule 'type (list 'INT))
+    (rule 'type (list 'CHAR))
+    (rule 'type (list 'BYTE))
+    (rule 'type (list 'SHORT))
+    (rule 'variable (list 'scope 'modifier 'type 'ID 'assignment 'SEMI_COLON))
+    (rule 'assignment (list 'ID 'ASSIGN ))
+    (rule 'assignment (list 'epsilon ))))
+
 (define lr-dfa (merge-states (parse-grammar (lritem 0 start-rule) (gensym) terminals non-terminals rules)))
 (define lr-dfa-start-state (dfa-item-state (first lr-dfa)))
 
@@ -120,14 +139,16 @@
 (define (lr-dfa-reduce state input)
   (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)))) lr-dfa))
   (cond
-    [(list? item) (dfa-item-reaction (first item))]
-    [else #f]))
+    [(list? item) (dfa-item-reaction (first item))]	;we found a reduce rule that applies to state on input
+    [(equal? 'epsilon input) #f]				;we didn't find a rule so we ran this again to see if state this state had a nullable rule
+    [else (lr-dfa-reduce state 'epsilon)]))		;look through the states for a rule that is nullable, there should be only one nullable rule on a state
 
 (define (lr-dfa-shift state input)
   (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)))) lr-dfa))
     (cond
     [(list? item) (dfa-item-reaction (first item))]
     [else #f]))
+
 ;==============================================================================================
 ;==== Testing
 ;==============================================================================================

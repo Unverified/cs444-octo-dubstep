@@ -4,7 +4,14 @@
 (include "tokenizer.rkt")
 (include "lr-dfa.rkt")
 
-(struct parser-stack (state token))
+(struct parser-stack (state token symbol))
+
+;==============================================================================================
+;==== Print Functions
+;==============================================================================================
+
+(define (print-token-stack stack)
+  (for-each (lambda (token) (printf "~a~n" token)) (parser-stack-token stack)))
 
 ;==============================================================================================
 ;==== Stack Operations
@@ -12,19 +19,27 @@
 
 ;(: push-token : Symbol parser-stack) -> parser-stack
 ;push a single token onto the token stack
-(define (push-token token stack) (parser-stack (parser-stack-state stack) (cons token (parser-stack-token stack))))
+(define (push-token token stack)
+;  (printf "pushing: ~a~n" token)
+  (parser-stack (parser-stack-state stack) (cons token (parser-stack-token stack)) (parser-stack-symbol stack)))
 
 ;(: push-state : Symbol parser-stack) -> parser-stack
 ;push a single state onto the state stack
-(define (push-state state stack) (parser-stack (cons state (parser-stack-state stack)) (parser-stack-token stack)))
+(define (push-state state stack) (parser-stack (cons state (parser-stack-state stack)) (parser-stack-token stack) (parser-stack-symbol stack)))
+
+;(: push-state : Symbol parser-stack) -> parser-stack
+;push a single state onto the state stack
+(define (push-symbol symbol stack) (parser-stack (parser-stack-state stack) (parser-stack-token stack) (cons symbol (parser-stack-symbol stack))))
 
 ;(: pop-token : parser-stack) -> parser-stack
 ;pop a single token off the top of the token stack
-(define (pop-token stack) (parser-stack (parser-stack-state stack) (rest (parser-stack-token stack))))
+(define (pop-token stack)
+;  (printf "poping: ~a~n" (first (parser-stack-token stack)))
+  (parser-stack (parser-stack-state stack) (rest (parser-stack-token stack)) (parser-stack-symbol stack)))
 
 ;(: pop-state : parser-stack) -> parser-stack
 ;pop a single state off the top of the state stack
-(define (pop-state stack) (parser-stack (rest (parser-stack-state stack)) (parser-stack-token stack)))
+(define (pop-state stack) (parser-stack (rest (parser-stack-state stack)) (parser-stack-token stack) (parser-stack-symbol stack)))
 
 ;(: pop-n-token : Integer parser-stack) -> parser-stack
 ;pop a total of 'amount' tokens off the top of the token stack
@@ -53,6 +68,12 @@
   (define rule (lr-dfa-reduce (first (parser-stack-state stack)) (first (parser-stack-token stack))))
   (cond
     [(not (rule? rule)) stack]
+    [(equal? 'epsilon (first (rule-rhs rule)))
+     (define top-token (first (parser-stack-token stack)))
+     (set! stack (pop-token stack))
+     (set! stack (push-symbol top-token stack))
+     (set! stack (push-token (rule-lhs rule) stack))
+     (reduce stack)]
     [else 
      (set! stack (pop-n-token (length (rule-rhs rule)) stack))
      (set! stack (pop-n-state (- (length (rule-rhs rule)) 1) stack))
@@ -67,22 +88,26 @@
   ;recurses through tokens, building a token/state stack as it goes. If it runs out of tokens, or it could
   ;find a transition for the input token on the current lf-dfa state then it returns the current parser-stack
   ;which the parser will check to see it the stack it a valid one
-  (define (parser tokens stack)
+  (define (parse stack)
     (cond
       [(empty? tokens) stack]
       [else
-       (set! stack (push-token (token-type (first tokens)) stack))
+       (set! stack (push-token (token-type (first (parser-stack-symbol stack))) stack))
        (set! stack (reduce stack))
        (define next-state (lr-dfa-shift (first (parser-stack-state stack)) (first (parser-stack-token stack))))
-       (if (not (symbol? next-state)) stack (parser (rest tokens) (push-state next-state stack)))]))
+;(printf "next-state: ~a~n" next-state)
+       (if (not (symbol? next-state)) stack (parse (parser-stack (cons next-state (parser-stack-state stack)) (parser-stack-token stack) (rest (parser-stack-symbol stack)))))]))
   
-  (define result-stack (parser tokens (parser-stack (list lr-dfa-start-state) empty))) ;start the recursive parser function and get a stack back
+    (define result-stack (parse (parser-stack (list lr-dfa-start-state) empty tokens))) ;start the recursive parser function and get a stack back
   
-  ;If the resulting stack has the lhs of the lf-dfas' starting rule on it then we correctly parsed a joos1W program, else fail
-  (cond
-    [(empty? result-stack) 'ERROR]
-    [(equal? (first (parser-stack-token result-stack)) (rule-lhs start-rule)) 'OK]
-    [else 'ERROR]))
+    (printf "DONE PARSING, stack:~n")
+    (print-token-stack result-stack)
+
+    ;If the resulting stack has the lhs of the lr-dfas' starting rule on it then we correctly parsed a joos1W program, else fail
+    (cond
+      [(empty? result-stack) 'ERROR]
+      [(equal? (first (parser-stack-token result-stack)) (rule-lhs start-rule)) 'OK]
+      [else 'ERROR]))
 
 ;==============================================================================================
 ;==== Execution
