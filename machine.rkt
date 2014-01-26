@@ -109,11 +109,11 @@
   ;(: process-states-char : machine (Listof Symbol) Char -> (Setof Symbol)
   (define (process-states m states ch)
     (list->set (foldr append empty (for/list ([st states]) (process-char m st ch)))))
-  ;(: g : machine (Listof Symbol) -> (Listof transitions)
+  ;(: new-dfa-trans : machine (Listof Symbol) -> (Listof transitions)
   (define (new-dfa-trans m states)
     (define trans-set (map (lambda (x) (list (list->set states) x (process-states m states x))) (get-m-alphabet m)))
     (filter-not (lambda (x) (set-empty? (transition-to x))) (map (curry apply transition) trans-set)))
-  
+  ;(: compose-dfa : (Listof (Setof Symbol)) machine -> machine
   (define (compose-dfa dfa-states m-out)
     (cond [(empty? dfa-states) m-out]
           [(contains-state? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
@@ -175,6 +175,15 @@
 ;create a machine that accepts a string of characters
 (define [string-machine str]
   (concat (map m-single-char (string->list str))))
+
+;(: copy-machine : machine -> machine )
+(define [copy-machine m]
+  (define translations (apply hash (foldr append empty (map (lambda (x) (list x (gensym))) (machine-states m)))))
+  (define translate (curry hash-ref translations))
+  (machine (map translate (machine-states m))
+           (translate (machine-start m))
+           (map translate (machine-accepting m))
+           (map (lambda (x) (transition (translate (transition-from x)) (transition-char x) (translate (transition-to x)))) (machine-transitions m))))
 
 ;==============================================================================================
 ;==== Printing
@@ -251,3 +260,4 @@
 (printf "~n")
 (printf "~n~n~nDFA of ClassEx:~n")
 (print-machine (nfa->dfa classex))
+(print-machine (copy-machine (nfa->dfa classex)))
