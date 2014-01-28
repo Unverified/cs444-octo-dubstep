@@ -106,14 +106,27 @@
 
 ;(: nfa->dfa : machine -> machine )
 (define (nfa->dfa m)
-  ;(: process-states-char : machine (Listof Symbol) Char -> (Setof Symbol)
+
+  ;(: contains-state? machine (Setof Symbol) -> Boolean)
+  ;Lexically-overridden 
+  (define (contains-state? m state-set)
+	(ormap (curry set=? state-set) (machine-states m)))
+
+  ;(: process-states : machine (Listof Symbol) Char -> (Setof Symbol) )
+  ;generates all states reachable from the given states with input ch.
   (define (process-states m states ch)
     (list->set (foldr append empty (for/list ([st states]) (process-char m st ch)))))
-  ;(: new-dfa-trans : machine (Listof Symbol) -> (Listof transitions)
+
+  ;(: new-dfa-trans : machine (Listof Symbol) -> (Listof transition) )
+  ;;generates the transitions from the set of states for all characters in the machine's alphabet
   (define (new-dfa-trans m states)
+    ;;trans-set: (Listof (Listof Symbol) Char (Setof Symbol))
+    ;;contains all the transitions for the set
     (define trans-set (map (lambda (x) (list (list->set states) x (process-states m states x))) (get-m-alphabet m)))
     (filter-not (lambda (x) (set-empty? (transition-to x))) (map (curry apply transition) trans-set)))
-  ;(: compose-dfa : (Listof (Setof Symbol)) machine -> machine
+
+  ;(: compose-dfa : (Listof (Setof Symbol)) machine -> machine )
+  ;accumulative recursion
   (define (compose-dfa dfa-states m-out)
     (cond [(empty? dfa-states) m-out]
           [(contains-state? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
@@ -124,6 +137,7 @@
                                         (machine-start m-out)
                                         (machine-accepting m-out)
                                         (append new-trans (machine-transitions m-out)))))]))
+
   (let ([new-start (list->set (e-closure m (machine-start m)))])
     (compose-dfa (list new-start) (machine empty new-start empty empty))))
 
