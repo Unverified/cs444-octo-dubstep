@@ -68,7 +68,7 @@
 (define (merge-state dfa-item dfa-items)
   (cond
     [(empty? dfa-items) empty]
-    [(and (equal? (dfa-item-state dfa-item) (dfa-item-state (first dfa-items))) (equal? (dfa-item-input dfa-item) (dfa-item-input (first dfa-items)))) (merge-state dfa-item (replace-state (dfa-item-reaction dfa-item) (dfa-item-reaction (first dfa-items)) (rest dfa-items)))]
+    [(and (equal? 'shift (dfa-item-action (first dfa-items))) (equal? (dfa-item-state dfa-item) (dfa-item-state (first dfa-items))) (equal? (dfa-item-input dfa-item) (dfa-item-input (first dfa-items)))) (merge-state dfa-item (replace-state (dfa-item-reaction dfa-item) (dfa-item-reaction (first dfa-items)) (rest dfa-items)))]
     [else (append (list (first dfa-items)) (merge-state dfa-item (rest dfa-items)))]))
 
 ;(: merge-states (Listof dfa-item)
@@ -76,6 +76,7 @@
 (define (merge-states dfa-items)
   (cond
     [(equal? 1 (length dfa-items)) dfa-items]
+    [(equal? 'reduce (dfa-item-action (first dfa-items))) (append (list (first dfa-items)) (merge-states (rest dfa-items)))]
     [else (append (list (first dfa-items)) (merge-states (merge-state (first dfa-items) (rest dfa-items))))]))
 
 ;==============================================================================================
@@ -114,7 +115,7 @@
     (rule 'declarations (list 'epsilon))
     (rule 'declaration (list 'function))
     (rule 'declaration (list 'variable))
-    (rule 'function (list 'scope 'modifier 'type 'ID 'LPAREN 'RPAREN 'LBRACE 'RBRACE))
+    (rule 'function (list 'scope 'modifier 'type 'ID 'LPAREN 'args 'RPAREN 'LBRACE 'RBRACE))
     (rule 'scope (list 'PUBLIC))
     (rule 'scope (list 'PROTECTED))
     (rule 'type (list 'BOOLEAN))
@@ -122,9 +123,16 @@
     (rule 'type (list 'CHAR))
     (rule 'type (list 'BYTE))
     (rule 'type (list 'SHORT))
-    (rule 'variable (list 'scope 'modifier 'type 'ID 'assignment 'SEMI_COLON))
-    (rule 'assignment (list 'ID 'ASSIGN ))
-    (rule 'assignment (list 'epsilon ))))
+    (rule 'args (list 'arg_list))
+    (rule 'args (list 'epsilon))
+    (rule 'arg_list (list 'arg_list 'COMMA 'arg))
+    (rule 'arg_list (list 'arg))
+    (rule 'arg (list 'type 'ID))
+    (rule 'variable (list 'scope 'modifier 'type 'ID 'assign 'SEMI_COLON))
+    (rule 'assign (list 'ASSIGN 'assignment))
+    (rule 'assign (list 'epsilon ))
+    (rule 'assignment (list 'ID))
+    (rule 'assignment (list 'NUM))))
 
 (define lr-dfa (merge-states (parse-grammar (lritem 0 start-rule) (gensym) terminals non-terminals rules)))
 (define lr-dfa-start-state (dfa-item-state (first lr-dfa)))
@@ -135,18 +143,28 @@
 ;==============================================================================================
 ;==== Access
 ;==============================================================================================
+(define (lr-dfa-action state input)
+  (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)))) lr-dfa))
+  (if (list? item) #t #f))
+
+(define (lr-dfa-shift state input)
+  (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)) (equal? 'shift (dfa-item-action dfa-item)))) lr-dfa))
+  (cond
+    [(list? item) (dfa-item-reaction (first item))]
+    [else #f]))
 
 (define (lr-dfa-reduce state input)
-  (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)))) lr-dfa))
+  (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)) (equal? 'reduce (dfa-item-action dfa-item)))) lr-dfa))
   (cond
     [(list? item) (dfa-item-reaction (first item))]	;we found a reduce rule that applies to state on input
     [(equal? 'epsilon input) #f]				;we didn't find a rule so we ran this again to see if state this state had a nullable rule
-    [else (lr-dfa-reduce state 'epsilon)]))		;look through the states for a rule that is nullable, there should be only one nullable rule on a state
+    [(not (symbol? (lr-dfa-shift state input))) (lr-dfa-reduce state 'epsilon)]))		;look through the states for a rule that is nullable, there should be only one nullable rule on a state
 
-(define (lr-dfa-shift state input)
-  (define item (memf (lambda (dfa-item) (and (equal? state (dfa-item-state dfa-item)) (equal? input (dfa-item-input dfa-item)))) lr-dfa))
-    (cond
-    [(list? item) (dfa-item-reaction (first item))]
+
+(define (dfa-lookahead state top-sym next-sym)
+  (define shift-top-sym (lr-dfa-shift state top-sym))
+  (cond
+    [(symbol? shift-top-sym) (lr-dfa-action shift-top-sym next-sym)]
     [else #f]))
 
 ;==============================================================================================
