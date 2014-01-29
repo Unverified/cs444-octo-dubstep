@@ -1,3 +1,13 @@
+#lang racket
+
+(provide lr-dfa-shift)
+(provide lr-dfa-reduce)
+(provide dfa-lookahead)
+(provide rule?)
+(provide rule-lhs)
+(provide rule-rhs)
+(provide lr-dfa-start-state)
+(provide start-rule)
 
 ;(struct: rule ([lhs : Symbol] [rhs : (Listof Symbol)]))
 (struct rule (lhs rhs))
@@ -137,8 +147,8 @@
 (define lr-dfa (merge-states (parse-grammar (lritem 0 start-rule) (gensym) terminals non-terminals rules)))
 (define lr-dfa-start-state (dfa-item-state (first lr-dfa)))
 
-(printf "====== lr-dfa ======~n")
-(print-dfa lr-dfa)
+;(printf "====== lr-dfa ======~n")
+;(print-dfa lr-dfa)
 
 ;==============================================================================================
 ;==== Access

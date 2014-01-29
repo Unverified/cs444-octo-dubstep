@@ -1,3 +1,14 @@
+#lang racket
+
+(require racket/include)
+(include "tokens.rkt")
+
+(provide get-transition)
+(provide get-state-type)
+(provide STATE_START)
+(provide STATE_NONE)
+(provide TOKEN_WHITESPACE)
+(provide TOKEN_NONE)
 
 
 (define CHARACTERS (string->list "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_"))
@@ -509,9 +520,6 @@
 (set-transition STATE_WHIL (append CHARACTERS NUMBERS-0-TO-9) STATE_ID)
 (set-transition STATE_WHIL '(#\e) STATE_WHILE)
 (set-transition STATE_WHILE (append CHARACTERS NUMBERS-0-TO-9) STATE_ID)
-
-(require racket/include)
-(include "tokens.rkt")
 
 (set-state-type STATE_A TOKEN_ID)
 (set-state-type STATE_AB TOKEN_ID)

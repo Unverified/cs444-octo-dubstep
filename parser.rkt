@@ -1,8 +1,15 @@
 #lang racket
 
-(require racket/include)
-(include "tokenizer.rkt")
-(include "lr-dfa.rkt")
+(require "lr-dfa.rkt")
+(require "scanner.rkt")
+
+(provide parser)
+(provide parser-stack)
+(provide parser-stack-state)
+(provide parser-stack-token)
+(provide parser-stack-symbol)
+(provide parser-stack-node)
+(provide parser-set-debug-mode)
 
 (struct parser-stack (state token symbol node))
 
@@ -10,17 +17,41 @@
 (struct tree (sym child-nodes))
 
 ;==============================================================================================
+;==== Debug
+;==============================================================================================
+(define debug-mode #f)
+
+(define (parser-set-debug-mode mode)
+  (set! debug-mode mode))
+
+;==============================================================================================
 ;==== Print Functions
 ;==============================================================================================
 
 (define (print-token-stack stack)
-  (for-each (lambda (token) (printf "~a~n" token)) (parser-stack-token stack)))
+  (cond
+    [(debug-mode) (for-each (lambda (token) (printf "~a~n" token)) (parser-stack-token stack))]
+    [else (printf "")]))
 
 (define (print-tree tree)
-  (define (print-tree tree indentation)
-    (printf "~anode: ~a~n" indentation (tree-sym tree))
-    (for-each (lambda (child-node) (print-tree child-node (string-append "  " indentation))) (tree-child-nodes tree)))
-  (print-tree tree ""))
+  (cond
+    [(debug-mode)
+      (define (print-tree tree indentation)
+        (printf "~anode: ~a~n" indentation (tree-sym tree))
+        (for-each (lambda (child-node) (print-tree child-node (string-append "  " indentation))) (tree-child-nodes tree)))
+      (print-tree tree "")]
+    [else (printf "")]))
+
+(define (print-parser-result result-stack)
+  (cond
+    [(debug-mode)
+      (printf "DONE PARSING~n")
+      (printf "Token Stack:~n")
+      (print-token-stack result-stack)
+      (printf "Tree:~n")
+      (print-tree (first (parser-stack-node result-stack)))]
+    [else (printf "")]))
+  
 
 ;==============================================================================================
 ;==== Stack Operations
@@ -121,32 +152,6 @@
        (if (not (symbol? next-state)) new-stack (parse (push-state next-state (pop-symbol new-stack))))]))
   
     (define result-stack (parse (parser-stack (list lr-dfa-start-state) empty tokens empty))) ;start the recursive parser function and get a stack back
-  
-    (printf "DONE PARSING~n")
-  
-    (printf "Token Stack:~n")
-    (print-token-stack result-stack)
-  
-    (printf "Tree:~n")
-    (print-tree (first (parser-stack-node result-stack)))
-
-    ;If the resulting stack has the lhs of the lr-dfas' starting rule on it then we correctly parsed a joos1W program, else fail
-    (cond
-      [(empty? result-stack) 'ERROR]
-      [(equal? (first (parser-stack-token result-stack)) (rule-lhs start-rule)) 'OK]
-      [else 'ERROR]))
-
-;==============================================================================================
-;==== Execution
-;==============================================================================================
-
-(define file "input.txt")
-(define clist (string->list (file->string file)))
-(define tokens (append (tokenize clist STATE_START "") (list (token '$ "$")))) ;
-
-(printf "~n====== Scanned Tokens ======~n")
-(for-each (lambda (x) (printf "~a : ~a~n" (token-type x) (token-lexeme x))) tokens)
-
-(printf "~n====== Parsing Result ======~n")
-(parser tokens)
+    (print-parser-result result-stack)
+    result-stack) ;return the result-stack
   
