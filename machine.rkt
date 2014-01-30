@@ -135,7 +135,7 @@
                   (compose-dfa (append (rest dfa-states) next-states) 
                                (machine (cons (first dfa-states) (machine-states m-out))
                                         (machine-start m-out)
-                                        (if (ormap (curry contains-state? m) (set->list (first dfa-states))) (cons (first dfa-states) (machine-accepting m-out))
+                                        (if (ormap (lambda (x) (ormap (curry symbol=? x) (machine-accepting m))) (set->list (first dfa-states))) (cons (first dfa-states) (machine-accepting m-out))
 												 (machine-accepting m-out))
                                         (append new-trans (machine-transitions m-out)))))]))
 
@@ -276,3 +276,23 @@
 (printf "~n~n~nDFA of ClassEx:~n")
 (print-machine (nfa->dfa classex))
 (print-machine (copy-machine (nfa->dfa classex)))
+
+
+;a NFA that was defined in class in the second lecture
+(define classex-2 (machine '(A B C)
+                         'A
+                         '(C)
+                         (list
+                          (transition 'A #\0 'B)
+                          (transition 'A #\1 'A)
+                          (transition 'B #\0 'B)
+                          (transition 'B #\1 'C))))
+                     
+ 
+
+
+
+(printf "~n")
+(printf "~n~n~nDFA of ClassEx-2:~n")
+(print-machine (nfa->dfa classex-2))
+(print-machine (copy-machine (nfa->dfa classex-2)))
