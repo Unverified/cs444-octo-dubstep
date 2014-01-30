@@ -1,8 +1,0 @@
-public final class Something {
-  public int func1(){}
-  public int func1(int a){}
-  public int func1(int c, int a, int b){}sdvcdv
-  public int x;
-  public int y = 12;
-  public int w = y;
-}
