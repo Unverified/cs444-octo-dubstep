@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Usage: bash testscript.sh [-a]
+# Usage: bash testscript.sh [-a] [regex]
 # -a : do not stop the testscript if it encounters an error, if this flag is not included then the script will terminated on the first error it encounters
+# regex : a regular expression, so you can specify what files to run the test script on in tests/in (eg "bash testscript a*" will run all files in tests/in/ beginning with a). If no regex is supplied then all files in tests/in/ are run.
 
 # The script will run the compiler on all the files found in tests/in/ directory and compare the output with the contents of the files found in tests/out/ with the same name. If it finds a difference then it will re-run the compiler with the debug flag set and place the input in tests/failed_out/
 
