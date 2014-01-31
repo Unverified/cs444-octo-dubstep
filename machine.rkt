@@ -193,9 +193,13 @@
   (let ([new-start (list->set (e-closure m (machine-start m)))])
     (compose-dfa (list new-start) (machine empty new-start empty empty empty))))
 
-;(: get-md : machine (Listof Symbol) -> A )
-(define (get-md m states)
-  (map second (filter list? (map (lambda (x) (assoc x (machine-md m))) states))))
+;(: get-md-list : machine (Listof Symbol) -> (Listof A) )
+(define (get-md-list m states)
+  (map second (filter list? (curry get-md m) states)))
+
+;(: get-md : machine Symbol -> A)
+(define (get-md m s)
+  (assoc s (machine-md m)))
 
 ;(: add-md : machine Symbol A -> machine)
 (define (add-md m state data)
