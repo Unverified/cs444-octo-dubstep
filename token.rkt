@@ -6,44 +6,6 @@
                             instanceof int interface long native new package private protected public
                             return short static strictfp super switch synchronized this throw throws
                             transient try void volatile while))
-(define operators '(( "=")
-                    (gt ">")
-                    (lt "<")
-                    (bang "!")
-                    (tilde "~")
-                    (question "?")
-                    (colon ":")
-                    (eq "==")
-                    ( "<=")
-                    ( ">=")
-                    ( "!=")
-                    ( "&&")
-                    ( "||")
-                    ( "++")
-                    ( "--")
-                    ( "+")
-                    ( "-")
-                    ( "*")
-                    ( "/")
-                    ( "&")
-                    ( "|")
-                    ( "^")
-                    ( "%")
-                    ( "<<")
-                    ( ">>")
-                    ( ">>>")
-                    ( "+=")
-                    ( "-=")
-                    ( "*=")
-                    ( "/=")
-                    ( "&=")
-                    ( "|=")
-                    ( "^=")
-                    ( "%=")
-                    ( "<<=")
-                    ( ">>=")
-                    ( ">>>=")))
-
 
 (define [gen-keyword . kw]
   (define [keyword-1 kw]
@@ -53,10 +15,20 @@
   (map keyword-1 kw))
 
 (define keywords (apply gen-keyword keyword-list))
-
+(define operators '((eq "=") (gt ">") (lt "<") (bang "!") (tilde "~") (question "?") (colon ":") (eqeq "==")
+                             (lteq "<=") (gteq ">=") (neq "!=") (and "&&") (or "||") (plusplus "++") (minusminus "--")
+                             (plus "+") (minus "-") (star "*") (slash "/") (amp "&") (bor "|") (carot "^") (mod "%")
+                             (ltlt "<<") (gtgt ">>") (gtgtgt ">>>") (peq "+=") (minuseq "-=") (stareq "*=") (slasheq "/=")
+                             (ampeq "&=") (oreq  "|=") (caroteq "^=") (modeq "%=") (ltlteq "<<=") (gtgteq ">>=") (gtgtgteq ">>>=")))
+(define separators '((oparen "(") (cparen ")") (ocurl "{") (ccurl "}") (osquare "[") (csquare "]") (semi ";") (comma ",") (dot ".")))
+(define literals '((null-lit "null") 
+                   (bool-lit "true|false")
+                   (decimal-lit "")
+                   (octal-lit "")
+                   (hex-lit "")))
 
 (define token-exps (append keywords
                            operators
-                           (list '(null-lit "null"))))
-
+                           separators
+                           literals))
 token-exps
