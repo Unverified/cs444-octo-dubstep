@@ -1,6 +1,11 @@
 #lang racket
 (require racket/set)
 
+(provide m-only-epsilon)
+(provide m-add-new-start)
+(provide m-add-epsilon-transitions)
+(provide print-machine)
+
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
 (struct transition (from char to))
@@ -57,6 +62,33 @@
 ;==============================================================================================
 ;==== Transformations
 ;==============================================================================================
+;(: m-add-new-start : machine Symbol Symbol -> machine)
+;creates a new machine with a new starting state and a transition from the new starting state to
+;starting state of m
+(define [m-add-new-start m sym]
+  (define new-start (gensym))
+  (machine (cons new-start (machine-states m)) 
+           new-start 
+           (machine-accepting m) 
+           (cons (transition new-start sym (machine-start m)) (machine-transitions m))))
+
+;(: m-add-epsilon-transitions : machine machine -> machine)
+;creates a new machine with epsilon transtion from the start state of m1 to the start state m2
+(define [m-add-epsilon-transition m1 m2]
+  (machine (append (machine-states m1) (machine-states m2))
+           (machine-start m1)
+           (append (machine-accepting m1) (machine-accepting m2))
+           (cons (transition (machine-start m1) epsilon (machine-start m2)) (append (machine-transitions m1) (machine-transitions m2)))))
+  
+
+;(: m-add-epsilon-transitions : machine (Listof machine) -> machine)
+;creates a new machine with epsilon transtions from the start state of m to the start states ms
+(define [m-add-epsilon-transitions m ms]
+  (cond
+    [(empty? ms) m]
+    [else (m-add-epsilon-transitions (m-add-epsilon-transition m (first ms)) (rest ms))]))
+  
+
 ;(: m-add-state : machine Symbol -> machine)
 (define (m-add-state m state)
   (machine (cons state (machine-states m)) (machine-start m) (machine-accepting m) (machine-transitions m)))
