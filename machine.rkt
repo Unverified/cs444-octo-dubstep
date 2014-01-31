@@ -113,7 +113,7 @@
            (append (map (lambda (x) (transition new-start epsilon (machine-start x))) machines)
                    end-trans
                    (append-map machine-transitions machines))
-           (append (map machine-md machines))))
+           (apply append (map machine-md machines))))
 
 ;(: concat : (Listof machine) -> machine)
 (define [concat machines]
@@ -202,14 +202,14 @@
 ;(: m-only-epsilon : void -> machine)
 (define [m-only-epsilon]
   (define start (gensym))
-  (machine (list start) start (list start) empty)) 
+  (machine (list start) start (list start) empty empty)) 
 
 ;(: m-single-char : Char -> machine)
 ;creates a machine that recognises a single character
 (define [m-single-char ch]
   (define start (gensym))
   (define char  (gensym))
-  (machine (list start char) start (list char) (list (transition start ch char))))
+  (machine (list start char) start (list char) (list (transition start ch char)) empty))
 
 ;(: string->machine : String -> machine)
 ;create a machine that accepts a string of characters
