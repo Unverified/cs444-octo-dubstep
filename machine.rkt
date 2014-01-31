@@ -9,8 +9,8 @@
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
 (struct transition (from char to))
-;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [accepting : (Listof Symbol)] [transitions : (Listof transition)]))
-(struct machine (states start accepting transitions))
+;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [accepting : (Listof Symbol)] [transitions : (Listof transition)] [md : (Listof (Pair Symbol A)]))
+(struct machine (states start accepting transitions md))
 
 ;==============================================================================================
 ;==== Machine Processing
@@ -104,7 +104,8 @@
            (list new-end)
            (append (map (lambda (x) (transition new-start epsilon (machine-start x))) machines)
                    end-trans
-                   (append-map machine-transitions machines))))
+                   (append-map machine-transitions machines))
+           (append (map machine-md machines))))
 
 ;(: concat : (Listof machine) -> machine)
 (define [concat machines]
@@ -117,7 +118,11 @@
 (define [concat-2 m1 m2]
   (define new-states (append (machine-states m1) (machine-states m2)))
   (define added-transitions (map (lambda (x) (transition x epsilon (machine-start m2)))(machine-accepting m1)))
-  (machine new-states (machine-start m1) (machine-accepting m2) (append added-transitions (machine-transitions m1) (machine-transitions m2))))
+  (machine new-states 
+           (machine-start m1) 
+           (machine-accepting m2) 
+           (append added-transitions (machine-transitions m1) (machine-transitions m2))
+           (append (machine-md m1) (machine-md m2))))
 
 ;(: kleene-star : machine -> machine)
 ;add the kleene-star property to a machine (complete 0.. times)
@@ -128,7 +133,8 @@
     (machine (add-new-start (machine-states m))
              new-start
              (list new-start)
-             (cons (transition new-start epsilon (machine-start m)) (add-rec-transitions (machine-transitions m)))))
+             (cons (transition new-start epsilon (machine-start m)) (add-rec-transitions (machine-transitions m)))
+             (machine-md m)))
 
 ;(: kleene-plus : machine -> machine)
 ;add the kleene-cross property to a machine (complete 1.. times)
@@ -169,38 +175,16 @@
                                         (machine-start m-out)
                                         (if (ormap (lambda (x) (ormap (curry symbol=? x) (machine-accepting m))) (set->list (first dfa-states))) (cons (first dfa-states) (machine-accepting m-out))
 												 (machine-accepting m-out))
-                                        (append new-trans (machine-transitions m-out)))))]))
+                                        (append new-trans (machine-transitions m-out))
+                                        (machine-md m-out))))]))
 
   (let ([new-start (list->set (e-closure m (machine-start m)))])
-    (compose-dfa (list new-start) (machine empty new-start empty empty))))
-
-;==============================================================================================
-;==== Converting NFAs to DFAs
-;==============================================================================================
+    (compose-dfa (list new-start) (machine empty new-start empty empty empty))))
 
 
-;;nfa-to-dfa : machine -> machine
-;(define [nfa-to-dfa m]
-;	(define symbol-list-equal? (lambda (m n)
-;					(cond
-;						[(empty? m) (empty? n)]
-;						[(empty? n) (empty? m)]
-;						[else (and (equal? (first m) (first n)) (symbol-list-equal? (rest m) (rest n)))])))
-;	;;record-state : (machine  listof(listof(symbol)) listof(listof(symbol)) -> void) machine machine (listof symbol) (listof symbol) -> listof(symbol)
-;	(define record-state (lambda (k m d s wl) 
-;				((lambda (s)
-;					(if (empty? (filter (lambda (x) (symbol-list-equal? x s)) (machine-states d)))
-;						(k (machine 
-;							(cons s (machine-states d))
-;							(machine-start d)
-;							(machine-accepting d)
-;							(machine-transitions d))
-;						   s
-;						   (cons s wl))
-;						(k d s wl)))
-;					(append-map (lambda (x) (e-closure m x)) s))))
-;				(record-state (lambda (d s wl) (print-machine (machine (machine-states d) s (machine-accepting d) (machine-transitions d)))) m (machine empty (gensym) empty empty) (list (machine-start m)) empty))
-;
+(define (get-md m states)
+  (map second (filter list? (map (lambda (x) (assoc x (machine-md m))) states))))
+
 
 ;==============================================================================================
 ;==== Creation
@@ -230,7 +214,8 @@
   (machine (map translate (machine-states m))
            (translate (machine-start m))
            (map translate (machine-accepting m))
-           (map (lambda (x) (transition (translate (transition-from x)) (transition-char x) (translate (transition-to x)))) (machine-transitions m))))
+           (map (lambda (x) (transition (translate (transition-from x)) (transition-char x) (translate (transition-to x)))) (machine-transitions m))
+           (map (lambda (x) (list (translate (first x)) (second x))) (machine-md m))))
 
 ;==============================================================================================
 ;==== Printing
@@ -281,12 +266,14 @@
                        (list 1state3)
                        (list (transition 1start  #\c 1state1)
                              (transition 1state1 #\a 1state2)
-                             (transition 1state2 #\t 1state3))))
+                             (transition 1state2 #\t 1state3))
+                       empty))
 (define test2 (machine (list 2start 2state1)
                        2start
                        (list 2state1)
                        (list (transition 2start epsilon 2state1)
-                             (transition 2state1 #\a 2start))))
+                             (transition 2state1 #\a 2start))
+                       empty))
                        
 (define test3 (union (list test1 test2)))
 (define test4 (concat (list test1 test2)))
@@ -302,7 +289,8 @@
                                (transition 'B #\1 'D)
                                (transition 'C epsilon 'B)
                                (transition 'C #\0 'D)
-                               (transition 'D #\0 'C))))
+                               (transition 'D #\0 'C))
+                         empty))
 
 (printf "~n")
 (printf "~n~n~nDFA of ClassEx:~n")
@@ -318,7 +306,10 @@
                           (transition 'A #\0 'B)
                           (transition 'A #\1 'A)
                           (transition 'B #\0 'B)
-                          (transition 'B #\1 'C))))
+                          (transition 'B #\1 'C))
+                         (list
+                          (list 'A 'A_VAL)
+                          (list 'B 'B_VAL))))
                      
  
 
