@@ -58,6 +58,10 @@
 ;(: print-lritems : (Listof lritem) -> Symbol)
 (define (print-lritems lritems) (for-each (lambda (x) (print-lritem x)) lritems))
 
+(define (print-reduce reduce)  (print-rule (reduce-rule reduce)) (printf " : ~a~n" (reduce-follow-set reduce)))
+
+(define (print-reduces reduces) (for-each (lambda (x) (print-reduce x)) reduces))
+
 ;==============================================================================================
 ;==== Functions
 ;==============================================================================================
@@ -179,7 +183,7 @@
   (define new-follow (follow item follow-local terminals non-terminals rules))
   (define new-machines (map (lambda (new-rule) (lr-nfa (lritem 0 new-rule) new-follow terminals non-terminals rules)) new-rules))
   (cond
-    [(equal? dot-sym 'epsilon) (printf "reduce rule: ") (print-rule (lritem-rule item)) (printf "~a~n" follow-local) (m-only-epsilon (reduce (lritem-rule item) follow-local))]
+    [(equal? dot-sym 'epsilon) (printf "reduce rule: ") (print-rule (lritem-rule item)) (printf "~a~n" follow-local) (m-only-epsilon-md (reduce (lritem-rule item) follow-local))]
     [else (m-add-epsilon-transitions (m-add-new-start (lr-nfa (inc-dot item) follow-local terminals non-terminals rules) dot-sym) new-machines)]))
 
 ;==============================================================================================
@@ -193,36 +197,31 @@
     [else (first new-state)]))
 
 (define (lr-dfa-reduce-helper reduces next-sym)
-  (printf "reduces: ~a~n" reduces)
   (define rule-to-reduce (memf (lambda (reduce) (list? (member next-sym (reduce-follow-set reduce)))) reduces))
-  (printf "rule-to-reduce: ~a~n" rule-to-reduce)
   (cond
-    [(list? rule-to-reduce) (print-rule (reduce-rule rule-to-reduce)) (reduce-rule rule-to-reduce)]
+    [(list? rule-to-reduce) (reduce-rule (first rule-to-reduce))]
     [else #f]))
 
 (define (lr-dfa-reduce state next-sym)
-  (printf "lr-dfa-reduce ~a ~a~n" state next-sym)
   (cond
-    [(is-state-accepting lr-dfa state) (printf "is accepting~n") (lr-dfa-reduce-helper (get-m-md-As lr-dfa state) next-sym)]
+    [(is-state-accepting lr-dfa state) (lr-dfa-reduce-helper (get-m-md-As lr-dfa state) next-sym)]
     [else #f]))    
 
 ;==============================================================================================
 ;==== Creation
 ;==============================================================================================
 
-(define start-rule (rule 'S (list 'A 'B '$)))
-(define terminals (list 'a 'b '$))
-(define non-terminals (list 'S 'A 'B))
+(define start-rule (rule 'Sp (list 'S)))
+(define terminals (list 'a '=))
+(define non-terminals (list 'Sp 'S 'E))
 (define rules 
   (list 
    start-rule
-   (rule 'A (list 'a))
-   (rule 'B (list 'b))))
+   (rule 'S (list 'a))
+   (rule 'S (list 'E '= 'E))
+   (rule 'E (list 'a))))
 
-(define the-nfa (lr-nfa (lritem 0 start-rule) (list NULL) terminals non-terminals rules))
-(printf "NFA MDS: ~a~n" (machine-md the-nfa))
-(define lr-dfa (nfa->dfa the-nfa))
-(printf "DFA MDS: ~a~n" (machine-md lr-dfa))
+(define lr-dfa (nfa->dfa (lr-nfa (lritem 0 start-rule) (list 'EOF) terminals non-terminals rules)))
 
 (define lr-dfa-start-state (machine-start lr-dfa))
 (printf "~n====== LR DFA ======~n")

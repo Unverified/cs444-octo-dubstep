@@ -39,8 +39,8 @@
   (cond
     [debug-mode
       (printf "DONE PARSING~n")
-      (printf "Tree:~n")
-      (print-tree (first (parser-stack-node result-stack)))]
+      (printf "Node Stack:~n")
+      (for-each (lambda (x) (print-tree x)) (parser-stack-node result-stack))]
     [else (printf "")]))
   
 
@@ -49,14 +49,10 @@
 ;==============================================================================================
 
 (define (push-state state stack) (parser-stack (cons state (parser-stack-state stack)) (parser-stack-node stack)))
-(define (push-node tree stack)
-  (printf "push: ~a~n" (tree-sym tree))
-  (parser-stack (parser-stack-state stack) (cons tree (parser-stack-node stack))))
+(define (push-node tree stack) (parser-stack (parser-stack-state stack) (cons tree (parser-stack-node stack))))
 
 (define (pop-state stack) (parser-stack (rest (parser-stack-state stack)) (parser-stack-node stack)))
-(define (pop-node stack)
-  (printf "pop: ~a~n" (tree-sym (first (parser-stack-node stack))))
-  (parser-stack (parser-stack-state stack) (rest (parser-stack-node stack))))
+(define (pop-node stack) (parser-stack (parser-stack-state stack) (rest (parser-stack-node stack))))
 
 ;(: pop-n-state : Integer parser-stack) -> parser-stack
 ;pop a total of 'amount' states off the top of the state stack
@@ -94,13 +90,12 @@
   (cond
     [(not (rule? rule)) stack]
     [else
-     (printf "Reducing by: ") (print-rule rule)
      (define rhs-len (length (rule-rhs rule)))
      (define lhs (rule-lhs rule))
      (define new-tree (tree lhs (get-n-nodes rhs-len (parser-stack-node stack))))
      (define new-stack (push-node new-tree (pop-n rhs-len stack)))
      (define new-state (lr-dfa-shift (first (parser-stack-state new-stack)) lhs))
-     (reduce (push-state new-state new-stack))]))
+     (reduce (push-state new-state new-stack) next-token)]))
 
 ;(: parser : (Listof token) parser-stack -> Symbol
 ;Takes in a list of tokesn and currently returns either the symbol 'OK or 'ERROR. If its 'OK
@@ -127,5 +122,5 @@
 ;==== Testing
 ;==============================================================================================
 
-(parser (list 'a 'b '$))
+(parser (list 'a '= 'a 'EOF))
   

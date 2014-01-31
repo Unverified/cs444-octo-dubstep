@@ -16,6 +16,7 @@
 (provide machine-start)
 (provide get-m-md-As)
 (provide machine-md)
+(provide m-only-epsilon-md)
 
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
@@ -49,8 +50,7 @@
   (rest (remove-duplicates (cons epsilon (map transition-char (machine-transitions m))))))
 
 (define [get-m-md-As m state]
-  (printf "mds: ~a~n" (machine-md m))
-  (append-map (lambda (x) (if (equal? state (first x)) (rest x) empty)) (machine-md m)))
+  (append-map (lambda (x) (if (equal? state (first x)) (first (rest x)) empty)) (machine-md m)))
 
 ;(: is-state-accepting : machine Symbol -> Boolean)
 ;checks if state is an accepting state in machine m
@@ -101,7 +101,6 @@
            (append (machine-accepting m1) (machine-accepting m2))
            (cons (transition (machine-start m1) epsilon (machine-start m2)) (append (machine-transitions m1) (machine-transitions m2)))
            (append (machine-md m1) (machine-md m2))))
-  
 
 ;(: m-add-epsilon-transitions : machine (Listof machine) -> machine)
 ;creates a new machine with epsilon transtions from the start state of m to the start states ms
@@ -127,7 +126,7 @@
            (append (map (lambda (x) (transition new-start epsilon (machine-start x))) machines)
                    end-trans
                    (append-map machine-transitions machines))
-           (append (map machine-md machines))))
+           (apply append (map machine-md machines))))
 
 ;(: concat : (Listof machine) -> machine)
 (define [concat machines]
@@ -162,11 +161,14 @@
 ;add the kleene-cross property to a machine (complete 1.. times)
 (define [kleene-cross m]
   (define rec-transitions (map (lambda (x) (transition x epsilon (machine-start m))) (machine-accepting m)))
-  (machine (machine-states m) (machine-start m) (machine-accepting m) (append (machine-transitions m) rec-transitions)))
+  (machine (machine-states m)
+           (machine-start m)
+           (machine-accepting m)
+           (append (machine-transitions m) rec-transitions)
+           (machine-md m)))
 
 ;(: nfa->dfa : machine -> machine )
 (define (nfa->dfa m)
-
   ;(: contains-state-set? machine (Setof Symbol) -> Boolean)
   ;same as contains-state? but works for the sets of states we use here.
   (define (contains-state-set? m state-set)
@@ -184,7 +186,6 @@
     ;;contains all the transitions for the set
     (define trans-set (map (lambda (x) (list (list->set states) x (process-states m states x))) (get-m-alphabet m)))
     (filter-not (lambda (x) (set-empty? (transition-to x))) (map (curry apply transition) trans-set)))
-
   ;(: compose-dfa : (Listof (Setof Symbol)) machine -> machine )
   ;accumulative recursion
   (define (compose-dfa dfa-states m-out)
@@ -192,29 +193,50 @@
           [(contains-state-set? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
           [else (let* ([new-trans (new-dfa-trans m (set->list (first dfa-states)))]
                        [next-states (filter-not (curry contains-state-set? m-out) (map transition-to new-trans))]
-                       [new-md (list new-trans (get-md m (set->list (first dfa-states))))])
+                       [nfa-md (get-md-list m (set->list (first dfa-states)))]
+                       [newdfa-md (cond [(empty? nfa-md) empty]
+                                        [else (list (list (first dfa-states) nfa-md))])])
                   (compose-dfa (append (rest dfa-states) next-states) 
                                (machine (cons (first dfa-states) (machine-states m-out))
                                         (machine-start m-out)
                                         (if (ormap (lambda (x) (ormap (curry symbol=? x) (machine-accepting m))) (set->list (first dfa-states))) (cons (first dfa-states) (machine-accepting m-out))
 												 (machine-accepting m-out))
                                         (append new-trans (machine-transitions m-out))
-                                        (machine-md m-out))))]))
+                                        (append newdfa-md (machine-md m-out)))))]))
 
   (let ([new-start (list->set (e-closure m (machine-start m)))])
     (compose-dfa (list new-start) (machine empty new-start empty empty empty))))
 
+;(: get-md-list : machine (Listof Symbol) -> (Listof A) )
+(define (get-md-list m states)
+  (map second (filter list? (map (curry get-md m) states))))
 
-(define (get-md m states)
-  (map second (filter list? (map (lambda (x) (assoc x (machine-md m))) states))))
+;(: get-md : machine Symbol -> A)
+(define (get-md m s)
+  (assoc s (machine-md m)))
 
+;(: add-md : machine Symbol A -> machine)
+(define (add-md m state data)
+  (machine (machine-states m)
+           (machine-start  m)
+           (machine-accepting m)
+           (machine-transitions m)
+           (cond [(and (contains-state? m state) (false? (assoc (machine-md m))))
+                  (cons (list state data) (machine-md m))]
+                 [(false? (assoc (machine-md m))) (error "metadata already exists for state ~a" state)]
+                 [else (error "can't add metadata for state that doesnt exist")])))
 
 ;==============================================================================================
 ;==== Creation
 ;==============================================================================================
 
 ;(: m-only-epsilon : void -> machine)
-(define [m-only-epsilon md-A]
+(define [m-only-epsilon]
+  (define start (gensym))
+  (machine (list start) start (list start) empty empty)) 
+
+;(: m-only-epsilon : void -> machine)
+(define [m-only-epsilon-md md-A]
   (define start (gensym))
   (machine (list start) start (list start) empty (list (list start md-A)))) 
 
@@ -223,7 +245,7 @@
 (define [m-single-char ch]
   (define start (gensym))
   (define char  (gensym))
-  (machine (list start char) start (list char) (list (transition start ch char))))
+  (machine (list start char) start (list char) (list (transition start ch char)) empty))
 
 ;(: string->machine : String -> machine)
 ;create a machine that accepts a string of characters
@@ -342,3 +364,4 @@
 (printf "~n~n~nDFA of ClassEx-2:~n")
 (print-machine (nfa->dfa classex-2))
 (print-machine (copy-machine (nfa->dfa classex-2)))
+(machine-md (copy-machine (nfa->dfa classex-2)))
