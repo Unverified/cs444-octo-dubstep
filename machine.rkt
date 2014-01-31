@@ -9,7 +9,7 @@
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
 (struct transition (from char to))
-;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [transitions : (Listof transition)]))
+;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [accepting : (Listof Symbol)] [transitions : (Listof transition)]))
 (struct machine (states start accepting transitions))
 
 ;==============================================================================================
@@ -139,9 +139,9 @@
 ;(: nfa->dfa : machine -> machine )
 (define (nfa->dfa m)
 
-  ;(: contains-state? machine (Setof Symbol) -> Boolean)
-  ;Lexically-overridden 
-  (define (contains-state? m state-set)
+  ;(: contains-state-set? machine (Setof Symbol) -> Boolean)
+  ;same as contains-state? but works for the sets of states we use here.
+  (define (contains-state-set? m state-set)
 	(ormap (curry set=? state-set) (machine-states m)))
 
   ;(: process-states : machine (Listof Symbol) Char -> (Setof Symbol) )
@@ -161,13 +161,14 @@
   ;accumulative recursion
   (define (compose-dfa dfa-states m-out)
     (cond [(empty? dfa-states) m-out]
-          [(contains-state? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
+          [(contains-state-set? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
           [else (let* ([new-trans (new-dfa-trans m (set->list (first dfa-states)))]
-                       [next-states (filter-not (curry contains-state? m-out) (map transition-to new-trans))])
+                       [next-states (filter-not (curry contains-state-set? m-out) (map transition-to new-trans))])
                   (compose-dfa (append (rest dfa-states) next-states) 
                                (machine (cons (first dfa-states) (machine-states m-out))
                                         (machine-start m-out)
-                                        (machine-accepting m-out)
+                                        (if (ormap (lambda (x) (ormap (curry symbol=? x) (machine-accepting m))) (set->list (first dfa-states))) (cons (first dfa-states) (machine-accepting m-out))
+												 (machine-accepting m-out))
                                         (append new-trans (machine-transitions m-out)))))]))
 
   (let ([new-start (list->set (e-closure m (machine-start m)))])
@@ -307,3 +308,23 @@
 (printf "~n~n~nDFA of ClassEx:~n")
 (print-machine (nfa->dfa classex))
 (print-machine (copy-machine (nfa->dfa classex)))
+
+
+;a NFA that was defined in class in the second lecture
+(define classex-2 (machine '(A B C)
+                         'A
+                         '(C)
+                         (list
+                          (transition 'A #\0 'B)
+                          (transition 'A #\1 'A)
+                          (transition 'B #\0 'B)
+                          (transition 'B #\1 'C))))
+                     
+ 
+
+
+
+(printf "~n")
+(printf "~n~n~nDFA of ClassEx-2:~n")
+(print-machine (nfa->dfa classex-2))
+(print-machine (copy-machine (nfa->dfa classex-2)))
