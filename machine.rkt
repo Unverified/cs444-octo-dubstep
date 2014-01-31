@@ -87,7 +87,6 @@
            (machine-start m1)
            (append (machine-accepting m1) (machine-accepting m2))
            (cons (transition (machine-start m1) epsilon (machine-start m2)) (append (machine-transitions m1) (machine-transitions m2)))))
-  
 
 ;(: m-add-epsilon-transitions : machine (Listof machine) -> machine)
 ;creates a new machine with epsilon transtions from the start state of m to the start states ms
@@ -148,11 +147,14 @@
 ;add the kleene-cross property to a machine (complete 1.. times)
 (define [kleene-cross m]
   (define rec-transitions (map (lambda (x) (transition x epsilon (machine-start m))) (machine-accepting m)))
-  (machine (machine-states m) (machine-start m) (machine-accepting m) (append (machine-transitions m) rec-transitions)))
+  (machine (machine-states m)
+           (machine-start m)
+           (machine-accepting m)
+           (append (machine-transitions m) rec-transitions)
+           (machine-md m)))
 
 ;(: nfa->dfa : machine -> machine )
 (define (nfa->dfa m)
-
   ;(: contains-state-set? machine (Setof Symbol) -> Boolean)
   ;same as contains-state? but works for the sets of states we use here.
   (define (contains-state-set? m state-set)
@@ -170,7 +172,6 @@
     ;;contains all the transitions for the set
     (define trans-set (map (lambda (x) (list (list->set states) x (process-states m states x))) (get-m-alphabet m)))
     (filter-not (lambda (x) (set-empty? (transition-to x))) (map (curry apply transition) trans-set)))
-
   ;(: compose-dfa : (Listof (Setof Symbol)) machine -> machine )
   ;accumulative recursion
   (define (compose-dfa dfa-states m-out)
@@ -178,22 +179,38 @@
           [(contains-state-set? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
           [else (let* ([new-trans (new-dfa-trans m (set->list (first dfa-states)))]
                        [next-states (filter-not (curry contains-state-set? m-out) (map transition-to new-trans))]
-                       [new-md (list new-trans (get-md m (set->list (first dfa-states))))])
+                       [nfa-md (get-md m (set->list (first dfa-states)))]
+                       [newdfa-md (cond [(empty? nfa-md) empty]
+                                        [else (list (list (first dfa-states) nfa-md))])])
                   (compose-dfa (append (rest dfa-states) next-states) 
                                (machine (cons (first dfa-states) (machine-states m-out))
                                         (machine-start m-out)
                                         (if (ormap (lambda (x) (ormap (curry symbol=? x) (machine-accepting m))) (set->list (first dfa-states))) (cons (first dfa-states) (machine-accepting m-out))
 												 (machine-accepting m-out))
                                         (append new-trans (machine-transitions m-out))
-                                        (machine-md m-out))))]))
+                                        (append newdfa-md (machine-md m-out)))))]))
 
   (let ([new-start (list->set (e-closure m (machine-start m)))])
     (compose-dfa (list new-start) (machine empty new-start empty empty empty))))
 
+;(: get-md-list : machine (Listof Symbol) -> (Listof A) )
+(define (get-md-list m states)
+  (map second (filter list? (curry get-md m) states)))
 
-(define (get-md m states)
-  (map second (filter list? (map (lambda (x) (assoc x (machine-md m))) states))))
+;(: get-md : machine Symbol -> A)
+(define (get-md m s)
+  (assoc s (machine-md m)))
 
+;(: add-md : machine Symbol A -> machine)
+(define (add-md m state data)
+  (machine (machine-states m)
+           (machine-start  m)
+           (machine-accepting m)
+           (machine-transitions m)
+           (cond [(and (contains-state? m state) (false? (assoc (machine-md m))))
+                  (cons (list state data) (machine-md m))]
+                 [(false? (assoc (machine-md m))) (error "metadata already exists for state ~a" state)]
+                 [else (error "can't add metadata for state that doesnt exist")])))
 
 ;==============================================================================================
 ;==== Creation
@@ -328,3 +345,4 @@
 (printf "~n~n~nDFA of ClassEx-2:~n")
 (print-machine (nfa->dfa classex-2))
 (print-machine (copy-machine (nfa->dfa classex-2)))
+(machine-md (copy-machine (nfa->dfa classex-2)))
