@@ -169,7 +169,8 @@
     (cond [(empty? dfa-states) m-out]
           [(contains-state-set? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
           [else (let* ([new-trans (new-dfa-trans m (set->list (first dfa-states)))]
-                       [next-states (filter-not (curry contains-state-set? m-out) (map transition-to new-trans))])
+                       [next-states (filter-not (curry contains-state-set? m-out) (map transition-to new-trans))]
+                       [new-md (list new-trans (get-md m (set->list (first dfa-states))))])
                   (compose-dfa (append (rest dfa-states) next-states) 
                                (machine (cons (first dfa-states) (machine-states m-out))
                                         (machine-start m-out)
