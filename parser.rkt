@@ -28,7 +28,7 @@
 
 (define (print-tree tree)
   (cond
-    [(debug-mode)
+    [debug-mode
       (define (print-tree tree indentation)
         (printf "~anode: ~a~n" indentation (tree-sym tree))
         (for-each (lambda (child-node) (print-tree child-node (string-append "  " indentation))) (tree-child-nodes tree)))
@@ -37,7 +37,7 @@
 
 (define (print-parser-result result-stack)
   (cond
-    [(debug-mode)
+    [debug-mode
       (printf "DONE PARSING~n")
       (printf "Tree:~n")
       (print-tree (first (parser-stack-node result-stack)))]
@@ -55,7 +55,7 @@
 
 (define (pop-state stack) (parser-stack (rest (parser-stack-state stack)) (parser-stack-node stack)))
 (define (pop-node stack)
-  (printf "push: ~a~n" (tree-sym (first (parser-stack-node stack))))
+  (printf "pop: ~a~n" (tree-sym (first (parser-stack-node stack))))
   (parser-stack (parser-stack-state stack) (rest (parser-stack-node stack))))
 
 ;(: pop-n-state : Integer parser-stack) -> parser-stack
@@ -94,6 +94,7 @@
   (cond
     [(not (rule? rule)) stack]
     [else
+     (printf "Reducing by: ") (print-rule rule)
      (define rhs-len (length (rule-rhs rule)))
      (define lhs (rule-lhs rule))
      (define new-tree (tree lhs (get-n-nodes rhs-len (parser-stack-node stack))))
@@ -116,7 +117,7 @@
        (define next-token (first tokens))
        (define new-stack (push-node (tree next-token empty) (reduce stack next-token)))
        (define next-state (lr-dfa-shift (first (parser-stack-state new-stack)) next-token))
-       (if (not (symbol? next-state)) new-stack (parse (push-state next-state new-stack) (rest tokens)))]))
+       (if (not (set? next-state)) new-stack (parse (push-state next-state new-stack) (rest tokens)))]))
   
     (define result-stack (parse (parser-stack (list lr-dfa-start-state) empty) tokens)) ;start the recursive parser function and get a stack back
     (print-parser-result result-stack)

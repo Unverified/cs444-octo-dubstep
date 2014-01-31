@@ -9,14 +9,13 @@
 (provide copy-machine)
 (provide nfa->dfa)
 
-(provide m-only-epsilon)
 (provide m-add-new-start)
 (provide m-add-epsilon-transitions)
-(provide nfa->dfa)
 (provide process-char)
 (provide is-state-accepting)
 (provide machine-start)
-(provide print-machine)
+(provide get-m-md-As)
+(provide machine-md)
 
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
@@ -48,6 +47,10 @@
 ;gets the alphabet of the machine, removes epsilon
 (define [get-m-alphabet m]
   (rest (remove-duplicates (cons epsilon (map transition-char (machine-transitions m))))))
+
+(define [get-m-md-As m state]
+  (printf "mds: ~a~n" (machine-md m))
+  (append-map (lambda (x) (if (equal? state (first x)) (rest x) empty)) (machine-md m)))
 
 ;(: is-state-accepting : machine Symbol -> Boolean)
 ;checks if state is an accepting state in machine m
@@ -87,7 +90,8 @@
   (machine (cons new-start (machine-states m)) 
            new-start 
            (machine-accepting m) 
-           (cons (transition new-start sym (machine-start m)) (machine-transitions m))))
+           (cons (transition new-start sym (machine-start m)) (machine-transitions m))
+           (machine-md m)))
 
 ;(: m-add-epsilon-transitions : machine machine -> machine)
 ;creates a new machine with epsilon transtion from the start state of m1 to the start state m2
@@ -95,7 +99,8 @@
   (machine (append (machine-states m1) (machine-states m2))
            (machine-start m1)
            (append (machine-accepting m1) (machine-accepting m2))
-           (cons (transition (machine-start m1) epsilon (machine-start m2)) (append (machine-transitions m1) (machine-transitions m2)))))
+           (cons (transition (machine-start m1) epsilon (machine-start m2)) (append (machine-transitions m1) (machine-transitions m2)))
+           (append (machine-md m1) (machine-md m2))))
   
 
 ;(: m-add-epsilon-transitions : machine (Listof machine) -> machine)
@@ -209,9 +214,9 @@
 ;==============================================================================================
 
 ;(: m-only-epsilon : void -> machine)
-(define [m-only-epsilon]
+(define [m-only-epsilon md-A]
   (define start (gensym))
-  (machine (list start) start (list start) empty)) 
+  (machine (list start) start (list start) empty (list (list start md-A)))) 
 
 ;(: m-single-char : Char -> machine)
 ;creates a machine that recognises a single character
