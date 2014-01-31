@@ -192,22 +192,20 @@
 (define (lr-dfa-reduce state next-sym)
   (cond
     [(is-state-accepting lr-dfa state) #f] ;TODO: get all rules we can reduce by and their follow sets and reduce by the rule that has next-sym in the follow set
-    [else #f]))
+    [else #f]))    
 
 ;==============================================================================================
 ;==== Creation
 ;==============================================================================================
 
-(define start-rule (rule 'Sp (list 'S '$)))
-(define terminals (list 'a '= '$))
-(define non-terminals (list 'Sp 'S 'E))
+(define start-rule (rule 'S (list 'A 'B '$)))
+(define terminals (list 'a 'b '$))
+(define non-terminals (list 'S 'A 'B))
 (define rules 
   (list 
    start-rule
-   (rule 'S (list 'E '= 'E))
-   (rule 'S (list 'a))
-   (rule 'S empty)
-   (rule 'E (list 'a))))
+   (rule 'A (list 'a))
+   (rule 'B (list 'b))))
 
 (define lr-dfa (nfa->dfa (lr-nfa (lritem 0 start-rule) (list NULL) terminals non-terminals rules)))
 (define lr-dfa-start-state (machine-start lr-dfa))

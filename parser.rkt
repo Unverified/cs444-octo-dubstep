@@ -17,7 +17,7 @@
 ;==============================================================================================
 ;==== Debug
 ;==============================================================================================
-(define debug-mode #f)
+(define debug-mode #t)
 
 (define (parser-set-debug-mode mode)
   (set! debug-mode mode))
@@ -49,10 +49,14 @@
 ;==============================================================================================
 
 (define (push-state state stack) (parser-stack (cons state (parser-stack-state stack)) (parser-stack-node stack)))
-(define (push-node tree stack) (parser-stack (parser-stack-state stack) (cons tree (parser-stack-node stack))))
+(define (push-node tree stack)
+  (printf "push: ~a~n" (tree-sym tree))
+  (parser-stack (parser-stack-state stack) (cons tree (parser-stack-node stack))))
 
 (define (pop-state stack) (parser-stack (rest (parser-stack-state stack)) (parser-stack-node stack)))
-(define (pop-node stack) (parser-stack (parser-stack-state stack) (rest (parser-stack-node stack))))
+(define (pop-node stack)
+  (printf "push: ~a~n" (tree-sym (first (parser-stack-node stack))))
+  (parser-stack (parser-stack-state stack) (rest (parser-stack-node stack))))
 
 ;(: pop-n-state : Integer parser-stack) -> parser-stack
 ;pop a total of 'amount' states off the top of the state stack
@@ -114,7 +118,7 @@
        (define next-state (lr-dfa-shift (first (parser-stack-state new-stack)) next-token))
        (if (not (symbol? next-state)) new-stack (parse (push-state next-state new-stack) (rest tokens)))]))
   
-    (define result-stack (parse (parser-stack (list lr-dfa-start-state) empty empty) tokens)) ;start the recursive parser function and get a stack back
+    (define result-stack (parse (parser-stack (list lr-dfa-start-state) empty) tokens)) ;start the recursive parser function and get a stack back
     (print-parser-result result-stack)
     result-stack) ;return the result-stack
 
@@ -122,5 +126,5 @@
 ;==== Testing
 ;==============================================================================================
 
-
+(parser (list 'a 'b '$))
   
