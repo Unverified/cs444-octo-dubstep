@@ -1,5 +1,13 @@
 #lang racket
 (require racket/set)
+(provide print-machine)
+(provide m-only-epsilon)
+(provide m-single-char)
+(provide concat)
+(provide union)
+(provide kleene-star)
+(provide copy-machine)
+(provide nfa->dfa)
 
 (provide m-only-epsilon)
 (provide m-add-new-start)
