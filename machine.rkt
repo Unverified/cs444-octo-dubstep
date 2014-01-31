@@ -4,6 +4,10 @@
 (provide m-only-epsilon)
 (provide m-add-new-start)
 (provide m-add-epsilon-transitions)
+(provide nfa->dfa)
+(provide process-char)
+(provide is-state-accepting)
+(provide machine-start)
 (provide print-machine)
 
 (define epsilon #\ε)
@@ -36,6 +40,11 @@
 ;gets the alphabet of the machine, removes epsilon
 (define [get-m-alphabet m]
   (rest (remove-duplicates (cons epsilon (map transition-char (machine-transitions m))))))
+
+;(: is-state-accepting : machine Symbol -> Boolean)
+;checks if state is an accepting state in machine m
+(define [is-state-accepting m state]
+  (member state (machine-accepting m)))
 
 ;==============================================================================================
 ;==== Machine Processing
