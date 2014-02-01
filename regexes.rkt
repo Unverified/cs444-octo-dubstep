@@ -8,7 +8,7 @@
 ;;( struct : concatenation ([left : (union concatenation Char k-star alternation)] [right : (Union concatenation Char k-star alternation)]))
 (struct concatenation (left right))
 
-;;( struct : alternation ([options (union]))
+;;( struct : alternation ([options (Listof (union concatenation Char k-star alternation))]))
 (struct alternation (options))
 
 ;;( struct : k-star ([body (union concatenation Char k-star alternation)]))
@@ -21,7 +21,7 @@
     [(empty-regex? R) (m-only-epsilon)]
     [(char? R) (m-single-char R)]
     [(concatenation? R) (concat (list (regex->machine (concatenation-left R)) (regex->machine (concatenation-right R))))]
-    [(alternation? R) (opt (union (list (regex->machine (alternation-option-1 R)) (regex->machine (alternation-option-2 R)))))]
+    [(alternation? R) (opt (union (map regex->machine (alternation-options R))))]
     [(k-star? R) (kleene-star (regex->machine (k-star-body R)))]
     [else (error "Not a regular expression")]))
 
@@ -52,9 +52,8 @@
     [(char=? (first lst) #\|) 
      ((lambda (S)
        (cond
-         [(empty-regex? S) R]
+         [(empty-regex? S) (cons R empty)]
          [(alternation? S) (alternation (cons R (alternation-options S)))]
-         ;[(concatenation? S) (concatenation (alternation R (concatenation-left S)) (concatenation-right S))]
          [else (alternation (cons R (cons S empty)))])) 
       (list->regex (rest lst) (empty-regex)))]
      
@@ -74,4 +73,6 @@
 (print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)") (empty-regex))))))
 (print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)*") (empty-regex))))))
 
-(print-machine (string->machine "(1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*.(0|1|2|3|4|5|6|7|8|9)*)"))
+(print-machine (string->machine "(1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*).((0|1|2|3|4|5|6|7|8|9)*)"))
+
+(print-machine (string->machine "/\\*(a*)\\*/"))
