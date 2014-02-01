@@ -51,20 +51,31 @@
 (define (run-scanner chars)
   (define tokens (scanner chars STATE_START ""))
   (cond
-    [(list? tokens) (append tokens (list (token '$ "$")))]
+    [(list? tokens) tokens]
     [else (error)]))
   
 ;==============================================================================================
 ;==== Parser
 ;==============================================================================================
 
+(define (check-node sym node)
+  (cond
+    [(leafnode? node) (equal? sym (token-type (leafnode-token node)))]
+    [else (equal? sym (node-sym node))]))
+
+(define (check-node-stack node-stack)
+  (define valid-stack (list 'BOF (rule-lhs start-rule) 'EOF))
+  (cond
+    [(not (equal? (length node-stack) (length valid-stack))) #f]
+    [else (andmap (lambda (valid-sym tree) (check-node valid-sym (tree-node tree))) valid-stack node-stack)]))
+
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
 (define (run-parser tokens)
-  (define result-stack (parser tokens))
+  (define node-stack (parser tokens))
   (cond
-    [(empty? result-stack) (error)]
-    [(equal? (first (parser-stack-token result-stack)) (rule-lhs start-rule)) (compiled)]
+    [(empty? node-stack) (error)]
+    [(check-node-stack node-stack) (compiled)]
     [else (error)]))
 
 ;==============================================================================================
