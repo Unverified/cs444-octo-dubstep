@@ -21,7 +21,7 @@
     [(empty-regex? R) (m-only-epsilon)]
     [(char? R) (m-single-char R)]
     [(concatenation? R) (concat (list (regex->machine (concatenation-left R)) (regex->machine (concatenation-right R))))]
-    [(alternation? R) (union (map regex->machine (alternation-options R)))]
+    [(alternation? R) (opt (union (list (regex->machine (alternation-option-1 R)) (regex->machine (alternation-option-2 R)))))]
     [(k-star? R) (kleene-star (regex->machine (k-star-body R)))]
     [else (error "Not a regular expression")]))
 
