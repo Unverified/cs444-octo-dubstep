@@ -104,7 +104,7 @@
      (reduce (push-state new-state new-stack) next-token)]))
 
 ;(: parser : (Listof token) parser-stack -> Symbol
-;Takes in a list of tokesn and currently returns either the symbol 'OK or 'ERROR. If its 'OK
+;Takes in a list of tokens and currently returns either the symbol 'OK or 'ERROR. If its 'OK
 ;then the series of tokens represents a valid joos1w program, if 'ERROR then it was not a valid program.
 (define (parser tokens)
   ;(: parser : (Listof token) parser-stack -> parser-stack
