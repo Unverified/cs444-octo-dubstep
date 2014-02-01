@@ -20,7 +20,7 @@
 ;==============================================================================================
 ;==== Debug
 ;==============================================================================================
-(define debug-mode #f)
+(define debug-mode #t)
 
 (define (parser-set-debug-mode mode)
   (set! debug-mode mode))
@@ -123,6 +123,8 @@
     (define result-stack (parse (parser-stack (list lr-dfa-start-state) (list (tree (leafnode (token 'BOF "BOF")) empty))) (append tokens (list (token 'EOF "EOF"))))) ;start the recursive parser function and get a stack back
     (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
+
+(parser (list (token 'a "a") (token 'a "a") (token 'a "a") (token 'a "a")))
 
 
 

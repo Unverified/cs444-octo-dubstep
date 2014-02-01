@@ -15,7 +15,7 @@
 ;==== Debug
 ;==============================================================================================
 
-(define debug-mode #f)
+(define debug-mode #t)
 
 (define (scanner-set-debug-mode mode)
   (set! debug-mode mode))
@@ -26,12 +26,12 @@
 
 (define (print-token token) 
   (cond
-    [(debug-mode) (printf "~a : ~a~n" (token-type token) (token-lexeme token))]
+    [debug-mode (printf "~a : ~a~n" (token-type token) (token-lexeme token))]
     [else (printf "")]))
   
 (define (print-tokens tokens)
   (cond
-    [(debug-mode) 
+    [debug-mode
       (printf "====== Scanned Tokens ======~n")
       (for-each (lambda (x) (print-token x)) tokens)]
     [else (printf "")]))

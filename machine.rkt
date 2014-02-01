@@ -21,6 +21,11 @@
 (provide get-m-md-As)
 (provide machine-md)
 (provide m-only-epsilon-md)
+(provide get-m-state-trans)
+(provide get-trans-char)
+(provide epsilon)
+(provide m-add-transitons)
+(provide (struct-out transition))
 
 
 (define epsilon #\ε)
@@ -87,16 +92,24 @@
 ;==============================================================================================
 ;==== Transformations
 ;==============================================================================================
+
+(define [m-add-transitons m transitions]
+  (machine (machine-states m)
+           (machine-start m)
+           (machine-accepting m)
+           (append transitions (machine-transitions m))
+           (machine-md m)))
+
 ;(: m-add-new-start : machine Symbol Symbol -> machine)
 ;creates a new machine with a new starting state and a transition from the new starting state to
 ;starting state of m
-(define [m-add-new-start m sym]
+(define [m-add-new-start m sym md-A]
   (define new-start (gensym))
   (machine (cons new-start (machine-states m)) 
            new-start 
            (machine-accepting m) 
            (cons (transition new-start sym (machine-start m)) (machine-transitions m))
-           (machine-md m)))
+           (cons (list new-start (list md-A)) (machine-md m))))
 
 ;(: m-add-epsilon-transitions : machine machine -> machine)
 ;creates a new machine with epsilon transtion from the start state of m1 to the start state m2
@@ -265,7 +278,7 @@
 ;(: m-only-epsilon : void -> machine)
 (define [m-only-epsilon-md md-A]
   (define start (gensym))
-  (machine (list start) start (list start) empty (list (list start md-A)))) 
+  (machine (list start) start (list start) empty (list (list start (list md-A))))) 
 
 ;(: m-single-char : Char -> machine)
 ;creates a machine that recognises a single character

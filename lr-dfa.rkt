@@ -1,6 +1,7 @@
 #lang racket
 
 (require "machine.rkt")
+(require "token.rkt")
 
 (provide start-rule)
 (provide lr-dfa-start-state)
@@ -170,6 +171,27 @@
 ;==============================================================================================
 ;==== NFA
 ;==============================================================================================
+    
+(define (m-complete-loops m)
+  (printf "=== Completing loops ===~n")
+  (define (get-new-epsilon-trans m start state)
+    (printf "=== Getting new trans for ~a ===~n" state)
+    (define state-rules (get-m-md-As m state))
+    (define state-trans (get-m-state-trans m state))
+    (define e-trans (get-trans-char state-trans epsilon))
+    (define non-e-trans (filter (lambda (t) (not (equal? epsilon (transition-char t)))) state-trans))
+    (printf "e-trans: ~a~n" e-trans) 
+    (printf "non-e-trans: ~a~n" non-e-trans) 
+    (define new-trans (append (append-map (lambda (t) (get-new-epsilon-trans m (transition-to t) (transition-to t))) e-trans)
+                              (append-map (lambda (t) (get-new-epsilon-trans m start (transition-to t))) non-e-trans)))
+    (define loop (memf (lambda (t) (list? (memf (lambda (r) (printf "eqaul? ~a ~a~n" (transition-char t) (rule-lhs r)) (equal? (transition-char t) (rule-lhs r))) state-rules))) non-e-trans))	;if this is true we have a loop
+    (printf "loop: ~a~n" loop)
+    (cond
+      [(and (list? loop) (not (equal? start (transition-from (first loop))))) (cons (transition (transition-from (first loop)) epsilon start) new-trans)]
+      [else new-trans]))
+
+  (define new-m-trans (get-new-epsilon-trans m (machine-start m) (machine-start m)))
+  (m-add-transitons m new-m-trans))
 
 ;( lr-nfa : lritem (Listof Symbol) (Listof Symbol) (Listof rule) -> machine
 ;Recursively builds a machine that represents an lr nfa. First if grabs all the rules with the lhs
@@ -178,14 +200,17 @@
 ;epsilon only machine.
 ;If the dot-sym is not null then we increment the dot in item and call lr-nfa with it to get a machine.
 ;We then add an epsilon transition from that machine to all the machines in the list new-machines.
-(define (lr-nfa item follow-local terminals non-terminals rules)
-  (define dot-sym (get-dot-sym item))
-  (define new-rules (if (is-non-terminal dot-sym non-terminals) (get-rules dot-sym rules) empty))
-  (define new-follow (follow item follow-local terminals non-terminals rules))
-  (define new-machines (map (lambda (new-rule) (lr-nfa (lritem 0 new-rule) new-follow terminals non-terminals rules)) new-rules))
-  (cond
-    [(equal? dot-sym 'epsilon) (printf "reduce rule: ") (print-rule (lritem-rule item)) (printf "~a~n" follow-local) (m-only-epsilon-md (reduce (lritem-rule item) follow-local))]
-    [else (m-add-epsilon-transitions (m-add-new-start (lr-nfa (inc-dot item) follow-local terminals non-terminals rules) dot-sym) new-machines)]))
+(define (lr-nfa start terminals non-terminals rules)
+  (define (gen-machine item follow-local terminals non-terminals rules)
+    (define dot-sym (get-dot-sym item))
+    (define new-rules (if (is-non-terminal dot-sym non-terminals) (get-rules-omit dot-sym rules (lritem-rule item)) empty))
+    (define new-follow (follow item follow-local terminals non-terminals rules))
+    (define new-machines (map (lambda (new-rule) (gen-machine (lritem 0 new-rule) new-follow terminals non-terminals rules)) new-rules))
+    (cond
+      [(equal? dot-sym 'epsilon) (m-only-epsilon-md (reduce (lritem-rule item) follow-local))]
+      [else (m-add-epsilon-transitions (m-add-new-start (gen-machine (inc-dot item) follow-local terminals non-terminals rules) dot-sym (lritem-rule item)) new-machines)]))
+  (m-complete-loops (gen-machine (lritem 0 start) (list 'EOF) terminals non-terminals rules)))
+
 
 ;==============================================================================================
 ;==== Shift/Reduce
@@ -198,12 +223,15 @@
     [else (first new-state)]))
 
 (define (lr-dfa-reduce-helper reduces next-sym)
-  (define rule-to-reduce (memf (lambda (reduce) (list? (member next-sym (reduce-follow-set reduce)))) reduces))
+ ; (printf "reduces: ~a~n" reduces)
+;  (print-reduces reduces)
+  (define rule-to-reduce (memf (lambda (reduce) (and (reduce? (first reduce)) (list? (member next-sym (reduce-follow-set (first reduce)))))) reduces))
   (cond
-    [(list? rule-to-reduce) (reduce-rule (first rule-to-reduce))]
+    [(list? rule-to-reduce) (reduce-rule (first (first rule-to-reduce)))]
     [else #f]))
 
 (define (lr-dfa-reduce state next-sym)
+  (printf "lr-dfa-reduce ~a ~a~n" state next-sym)
   (cond
     [(is-state-accepting lr-dfa state) (lr-dfa-reduce-helper (get-m-md-As lr-dfa state) next-sym)]
     [else #f]))    
@@ -212,16 +240,56 @@
 ;==== Creation
 ;==============================================================================================
 
-(define start-rule (rule 'S (list 'PUBLIC 'CLASS 'ID 'LBRACE 'RBRACE)))
-(define terminals (list 'PUBLIC 'CLASS 'ID 'LBRACE 'RBRACE))
-(define non-terminals (list 'S))
-(define rules 
-  (list 
-   start-rule))
+;(define start-rule (rule 'S (list 'JCLASS)))
+;(define terminals (map first token-exps))
+;(define non-terminals (list 'S 'JCLASS 'MODIFIER 'DECL))
+;(define rules 
+;   (list start-rule
+;    (rule 'JCLASS (list 'public 'MODIFIER 'class 'id 'ocurl 'DECLS 'ccurl))
+;    (rule 'MODIFIER (list 'final))
+;    (rule 'MODIFIER (list 'static))
+;    (rule 'MODIFIER empty)
+;    (rule 'DECLS (list 'DECLS 'DECL))
+;    (rule 'DECLS (list 'declaration))
+;    (rule 'DECLS (list 'epsilon))
+;    (rule 'DECLARATION (list 'function))
+;    (rule 'DECLARATION (list 'variable))
+;    (rule 'function (list 'scope 'modifier 'type 'ID 'LPAREN 'args 'RPAREN 'LBRACE 'RBRACE))
+;    (rule 'scope (list 'PUBLIC))
+;    (rule 'scope (list 'PROTECTED))
+;    (rule 'type (list 'BOOLEAN))
+;    (rule 'type (list 'INT))
+;    (rule 'type (list 'CHAR))
+;    (rule 'type (list 'BYTE))
+;    (rule 'type (list 'SHORT))
+;    (rule 'args (list 'arg_list))
+;    (rule 'args (list 'epsilon))
+;    (rule 'arg_list (list 'arg_list 'COMMA 'arg))
+;    (rule 'arg_list (list 'arg))
+;    (rule 'arg (list 'type 'ID))
+;    (rule 'variable (list 'scope 'modifier 'type 'ID 'assign 'SEMI_COLON))
+;    (rule 'assign (list 'ASSIGN 'assignment))
+;    (rule 'assign (list 'epsilon ))
+;    (rule 'assignment (list 'ID))
+;    (rule 'assignment (list 'NUM))))
 
-(define lr-dfa (nfa->dfa (lr-nfa (lritem 0 start-rule) (list 'EOF) terminals non-terminals rules)))
+(define start-rule (rule 'S (list 'A)))
+(define terminals (list 'a 'b))
+(define non-terminals (list 'S 'A 'B))
+(define rules 
+   (list start-rule
+   (rule 'A (list 'A 'a))
+   (rule 'A (list 'a))))
+
+(define nfa (lr-nfa start-rule terminals non-terminals rules))
+
+(printf "~n====== LR NFA ======~n")
+(print-machine nfa)
+
+(define lr-dfa (nfa->dfa nfa))
 
 (define lr-dfa-start-state (machine-start lr-dfa))
+
 (printf "~n====== LR DFA ======~n")
 (print-machine lr-dfa)
 
