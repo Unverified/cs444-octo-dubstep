@@ -10,11 +10,18 @@
 (provide copy-machine)
 (provide nfa->dfa)
 
-(provide m-only-epsilon)
 (provide m-add-new-start)
 (provide m-add-epsilon-transitions)
+
 (provide print-machine)
 (provide opt)
+(provide process-char)
+(provide is-state-accepting)
+(provide machine-start)
+(provide get-m-md-As)
+(provide machine-md)
+(provide m-only-epsilon-md)
+
 
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
@@ -47,8 +54,13 @@
 (define [get-m-alphabet m]
   (rest (remove-duplicates (cons epsilon (map transition-char (machine-transitions m))))))
 
-(define [get-s-alphabet m . s]
-  (rest (remove-duplicates (cons epsilon (map transition-char (filter (lambda (x) (member (transition-from x) s)) (machine-transitions m)))))))
+(define [get-m-md-As m state]
+  (append-map (lambda (x) (if (equal? state (first x)) (first (rest x)) empty)) (machine-md m)))
+
+;(: is-state-accepting : machine Symbol -> Boolean)
+;checks if state is an accepting state in machine m
+(define [is-state-accepting m state]
+  (member state (machine-accepting m)))
 
 ;==============================================================================================
 ;==== Machine Processing
@@ -83,7 +95,8 @@
   (machine (cons new-start (machine-states m)) 
            new-start 
            (machine-accepting m) 
-           (cons (transition new-start sym (machine-start m)) (machine-transitions m))))
+           (cons (transition new-start sym (machine-start m)) (machine-transitions m))
+           (machine-md m)))
 
 ;(: m-add-epsilon-transitions : machine machine -> machine)
 ;creates a new machine with epsilon transtion from the start state of m1 to the start state m2
@@ -91,7 +104,8 @@
   (machine (append (machine-states m1) (machine-states m2))
            (machine-start m1)
            (append (machine-accepting m1) (machine-accepting m2))
-           (cons (transition (machine-start m1) epsilon (machine-start m2)) (append (machine-transitions m1) (machine-transitions m2)))))
+           (cons (transition (machine-start m1) epsilon (machine-start m2)) (append (machine-transitions m1) (machine-transitions m2)))
+           (append (machine-md m1) (machine-md m2))))
 
 ;(: m-add-epsilon-transitions : machine (Listof machine) -> machine)
 ;creates a new machine with epsilon transtions from the start state of m to the start states ms
@@ -185,7 +199,7 @@
           [(contains-state-set? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
           [else (let* ([new-trans (new-dfa-trans m (set->list (first dfa-states)))]
                        [next-states (filter-not (curry contains-state-set? m-out) (map transition-to new-trans))]
-                       [nfa-md (get-md m (set->list (first dfa-states)))]
+                       [nfa-md (get-md-list m (set->list (first dfa-states)))]
                        [newdfa-md (cond [(empty? nfa-md) empty]
                                         [else (list (list (first dfa-states) nfa-md))])])
                   (compose-dfa (append (rest dfa-states) next-states) 
@@ -202,7 +216,7 @@
 
 ;(: get-md-list : machine (Listof Symbol) -> (Listof A) )
 (define (get-md-list m states)
-  (map second (filter list? ((curry get-md m) states))))
+  (map second (filter list? (map (curry get-md m) states))))
 
 ;(: get-md : machine Symbol -> A)
 (define (get-md m s)
@@ -247,6 +261,11 @@
 (define [m-only-epsilon]
   (define start (gensym))
   (machine (list start) start (list start) empty empty)) 
+
+;(: m-only-epsilon : void -> machine)
+(define [m-only-epsilon-md md-A]
+  (define start (gensym))
+  (machine (list start) start (list start) empty (list (list start md-A)))) 
 
 ;(: m-single-char : Char -> machine)
 ;creates a machine that recognises a single character
