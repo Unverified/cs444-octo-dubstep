@@ -1,9 +1,9 @@
 #lang racket
 
 (require "machine.rkt")
-
-
+(require "expand-parenthesis.rkt")
 (define empty-string #\~)
+(define lookup-string #\#)
 ;;(struct : empty-regex ())
 (struct empty-regex ())
 
@@ -28,15 +28,7 @@
     [else (error "Not a regular expression")]))
 
 
-;;expand-parenthesis : (Listof Char) (Listof Char) Number -> (Listof (Listof Char))
 
-(define [expand-parenthesis L acc N]
-  (cond 
-    [(= N 0) (cons (foldl cons empty (rest acc)) (cons L empty))]
-    [(empty? L) (error "Unbalanced Parentheses!")]
-    [(char=? (first L) #\() (expand-parenthesis (rest L) (cons (first L) acc) (+ N 1))]
-    [(char=? (first L) #\)) (expand-parenthesis (rest L) (cons (first L) acc) (- N 1))]
-    [else (expand-parenthesis (rest L) (cons (first L) acc) N)]))
 
 ;;(: list->regex : (Listof Char) (union concatenation Char k-star alternation) -> (union concatenation Char k-star alternation))
 (define (list->regex lst R)
@@ -60,6 +52,7 @@
       (list->regex (rest lst) (empty-regex)))]
      
     [(char=? (first lst) empty-string) (list->regex (rest lst) (concatenation R (empty-regex)))]
+    
      
     [else (list->regex (rest lst) (concatenation R (first lst)))]))
 
