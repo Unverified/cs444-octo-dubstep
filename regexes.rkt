@@ -2,6 +2,8 @@
 
 (require "machine.rkt")
 
+
+(define empty-string #\~)
 ;;(struct : empty-regex ())
 (struct empty-regex ())
 
@@ -52,11 +54,12 @@
     [(char=? (first lst) #\|) 
      ((lambda (S)
        (cond
-         [(empty-regex? S) (cons R empty)]
+         ;[(empty-regex? S) (cons R empty)]
          [(alternation? S) (alternation (cons R (alternation-options S)))]
          [else (alternation (cons R (cons S empty)))])) 
       (list->regex (rest lst) (empty-regex)))]
      
+    [(char=? (first lst) empty-string) (list->regex (rest lst) (concatenation R (empty-regex)))]
      
     [else (list->regex (rest lst) (concatenation R (first lst)))]))
 
@@ -73,6 +76,8 @@
 (print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)") (empty-regex))))))
 (print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)*") (empty-regex))))))
 
-(print-machine (string->machine "(1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*).((0|1|2|3|4|5|6|7|8|9)*)"))
+(print-machine (string->machine "((0|1|2|3|4|5|6|7|8|9)*).((0|1|2|3|4|5|6|7|8|9)*)(((E|e)(+|-|~)(0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*))|~)(f|F|d|D|~)"))
 
 (print-machine (string->machine "/\\*(a*)\\*/"))
+(print-machine (string->machine "a|~"))
+(print-machine	(string->machine "((0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*).((0|1|2|3|4|5|6|7|8|9)*)(((E|e)(+|-|~)(0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*))|~)(F|f|D|d|~))|((0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*)(e|E)(+|-|~)(0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*)(F|f|d|D|~))|(.(0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*)(((E|e)(+|-|~)(0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*))|~)(F|f|D|d|~))|((0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*)(((E|e)(+|-|~)(0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*))|~)(F|f|D|d))"))
