@@ -16,16 +16,16 @@
 
 (define keywords (apply gen-keyword keyword-list))
 (define operators '((eq "=") (gt ">") (lt "<") (bang "!") (tilde "~") (question "?") (colon ":") (eqeq "==")
-                             (lteq "<=") (gteq ">=") (neq "!=") (and "&&") (or "||") (plusplus "++") (minusminus "--")
-                             (plus "+") (minus "-") (star "*") (slash "/") (amp "&") (bor "|") (carot "^") (mod "%")
-                             (ltlt "<<") (gtgt ">>") (gtgtgt ">>>") (peq "+=") (minuseq "-=") (stareq "*=") (slasheq "/=")
-                             (ampeq "&=") (oreq  "|=") (caroteq "^=") (modeq "%=") (ltlteq "<<=") (gtgteq ">>=") (gtgtgteq ">>>=")))
-(define separators '((oparen "(") (cparen ")") (ocurl "{") (ccurl "}") (osquare "[") (csquare "]") (semi ";") (comma ",") (dot ".")))
+                             (lteq "<=") (gteq ">=") (neq "!=") (land "&&") (lor "\\|\\|") (plusplus "++") (minusminus "--")
+                             (plus "+") (minus "-") (star "\\*") (slash "/") (amp "&") (bor "\\|") (carot "^") (mod "%")
+                             (ltlt "<<") (gtgt ">>") (gtgtgt ">>>") (peq "+=") (minuseq "-=") (stareq "\\*=") (slasheq "/=")
+                             (ampeq "&=") (oreq  "\\|=") (caroteq "^=") (modeq "%=") (ltlteq "<<=") (gtgteq ">>=") (gtgtgteq ">>>=")))
+(define separators '((oparen "\\(") (cparen "\\)") (ocurl "{") (ccurl "}") (osquare "[") (csquare "]") (semi ";") (comma ",") (dot ".")))
 (define literals '((null-lit "null") 
                    (bool-lit "true|false")
-                   (decimal-lit "")
-                   (octal-lit "")
-                   (hex-lit "")))
+                   (decimal-lit "0|(1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*)")
+                   (octal-lit "0((0|1|2|3|4|5|6|7)*)")
+                   (hex-lit "0(x|X)((0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)*)")))
 
 (define token-exps (append keywords
                            operators
