@@ -15,8 +15,8 @@
   (map keyword-1 kw))
 
 (define keywords (apply gen-keyword keyword-list))
-(define operators '((eq "=") (gt ">") (lt "<") (bang "!") (tilde "~") (question "?") (colon ":") (eqeq "==")
-                             (lteq "<=") (gteq ">=") (neq "!=") (ampamp "&&") (barbar "\\|\\|") (plusplus "++") (minusminus "--")
+(define operators '((eq "=") (gt ">") (lt "<") (not "!") (tilde "\\~") (question "?") (colon ":") (eqeq "==")
+                             (lteq "<=") (gteq ">=") (noteq "!=") (ampamp "&&") (barbar "\\|\\|") (plusplus "++") (minusminus "--")
                              (plus "+") (minus "-") (star "\\*") (slash "/") (amp "&") (bar "\\|") (carot "^") (pct "%")
                              (ltlt "<<") (gtgt ">>") (gtgtgt ">>>") (pluseq "+=") (minuseq "-=") (stareq "\\*=") (slasheq "/=")
                              (ampeq "&=") (bareq  "\\|=") (caroteq "^=") (pcteq "%=") (ltlteq "<<=") (gtgteq ">>=") (gtgtgteq ">>>=")))
