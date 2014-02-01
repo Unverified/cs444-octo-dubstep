@@ -4,20 +4,23 @@
 (require "scanner.rkt")
 
 (provide parser)
-(provide parser-stack)
-(provide parser-stack-state)
-(provide parser-stack-node)
 (provide parser-set-debug-mode)
+(provide (struct-out parser-stack))
+(provide (struct-out tree))
+(provide (struct-out node))
+(provide (struct-out leafnode))
 
 (struct parser-stack (state node))
 
-;(struct tree ([sym : Symbol] [child-nodes : (Listof tree)]))
-(struct tree (sym child-nodes))
+;(struct tree ([sym : Symbol] [child-trees : (Listof tree)]))
+(struct tree (node child-trees))
+(struct node (sym))
+(struct leafnode (token))
 
 ;==============================================================================================
 ;==== Debug
 ;==============================================================================================
-(define debug-mode #t)
+(define debug-mode #f)
 
 (define (parser-set-debug-mode mode)
   (set! debug-mode mode))
@@ -30,8 +33,11 @@
   (cond
     [debug-mode
       (define (print-tree tree indentation)
-        (printf "~anode: ~a~n" indentation (tree-sym tree))
-        (for-each (lambda (child-node) (print-tree child-node (string-append "  " indentation))) (tree-child-nodes tree)))
+        (define treenode (tree-node tree))
+        (cond
+          [(leafnode? treenode) (printf "~aleafnode | " indentation) (print-token (leafnode-token treenode))]
+          [else (printf "~anode | ~a~n" indentation (node-sym treenode))])        
+        (for-each (lambda (child-node) (print-tree child-node (string-append "  " indentation))) (tree-child-trees tree)))
       (print-tree tree "")]
     [else (printf "")]))
 
@@ -92,7 +98,7 @@
     [else
      (define rhs-len (length (rule-rhs rule)))
      (define lhs (rule-lhs rule))
-     (define new-tree (tree lhs (get-n-nodes rhs-len (parser-stack-node stack))))
+     (define new-tree (tree (node lhs) (reverse (get-n-nodes rhs-len (parser-stack-node stack)))))
      (define new-stack (push-node new-tree (pop-n rhs-len stack)))
      (define new-state (lr-dfa-shift (first (parser-stack-state new-stack)) lhs))
      (reduce (push-state new-state new-stack) next-token)]))
@@ -109,18 +115,15 @@
     (cond
       [(empty? tokens) stack]
       [else
-       (define next-token (first tokens))
-       (define new-stack (push-node (tree next-token empty) (reduce stack next-token)))
+       (define next-token (token-type (first tokens)))
+       (define new-stack (push-node (tree (leafnode (first tokens)) empty) (reduce stack next-token)))
        (define next-state (lr-dfa-shift (first (parser-stack-state new-stack)) next-token))
        (if (not (set? next-state)) new-stack (parse (push-state next-state new-stack) (rest tokens)))]))
   
-    (define result-stack (parse (parser-stack (list lr-dfa-start-state) empty) tokens)) ;start the recursive parser function and get a stack back
+    (define result-stack (parse (parser-stack (list lr-dfa-start-state) (list (tree (leafnode (token 'BOF "BOF")) empty))) (append tokens (list (token 'EOF "EOF"))))) ;start the recursive parser function and get a stack back
     (print-parser-result result-stack)
-    result-stack) ;return the result-stack
+    (reverse (parser-stack-node result-stack))) ;return the node-stack
 
-;==============================================================================================
-;==== Testing
-;==============================================================================================
 
-(parser (list 'a '= 'a 'EOF))
-  
+
+

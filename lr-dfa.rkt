@@ -2,6 +2,7 @@
 
 (require "machine.rkt")
 
+(provide start-rule)
 (provide lr-dfa-start-state)
 (provide lr-dfa-reduce)
 (provide lr-dfa-shift)
@@ -211,15 +212,12 @@
 ;==== Creation
 ;==============================================================================================
 
-(define start-rule (rule 'Sp (list 'S)))
-(define terminals (list 'a '=))
-(define non-terminals (list 'Sp 'S 'E))
+(define start-rule (rule 'S (list 'PUBLIC 'CLASS 'ID 'LBRACE 'RBRACE)))
+(define terminals (list 'PUBLIC 'CLASS 'ID 'LBRACE 'RBRACE))
+(define non-terminals (list 'S))
 (define rules 
   (list 
-   start-rule
-   (rule 'S (list 'a))
-   (rule 'S (list 'E '= 'E))
-   (rule 'E (list 'a))))
+   start-rule))
 
 (define lr-dfa (nfa->dfa (lr-nfa (lritem 0 start-rule) (list 'EOF) terminals non-terminals rules)))
 
