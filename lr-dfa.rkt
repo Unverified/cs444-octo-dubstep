@@ -162,30 +162,36 @@
 ;==== Follow
 ;==============================================================================================
 
-(define (follow item follow-local terminals non-terminals rules)
-  (define follow-sym (get-dot-sym (inc-dot item)))
+(define (loop-follow-helper sym rhs terminals non-terminals rules)
   (cond
-    [(equal? follow-sym 'epsilon) follow-local]
-    [else (lr-first follow-sym terminals non-terminals rules)])) 
+    [(<= (length rhs) 1) empty]
+    [(equal? sym (first rhs)) (append (lr-first (first (rest rhs)) terminals non-terminals rules) (loop-follow-helper sym (rest rhs) terminals non-terminals rules))]
+    [else (loop-follow-helper sym (rest rhs) terminals non-terminals rules)]))
+
+(define (loop-follow sym sym-rules terminals non-terminals rules)
+  (append-map (lambda (rule) (loop-follow-helper sym (rule-rhs rule) terminals non-terminals rules)) sym-rules))
+
+(define (follow item follow-local terminals non-terminals rules)
+  (define sym (get-dot-sym item))
+  (define follow-sym (get-dot-sym (inc-dot item)))
+  (define loops-follow (loop-follow sym (get-rules sym rules) terminals non-terminals rules))
+  (cond
+    [(equal? follow-sym 'epsilon) (append loops-follow follow-local)]
+    [else (append loops-follow (lr-first follow-sym terminals non-terminals rules))])) 
 
 ;==============================================================================================
 ;==== NFA
 ;==============================================================================================
     
 (define (m-complete-loops m)
-  (printf "=== Completing loops ===~n")
   (define (get-new-epsilon-trans m start state)
-    (printf "=== Getting new trans for ~a ===~n" state)
-    (define state-rules (get-m-md-As m state))
+    (define state-rules (get-m-md-As m state rule?))
     (define state-trans (get-m-state-trans m state))
     (define e-trans (get-trans-char state-trans epsilon))
     (define non-e-trans (filter (lambda (t) (not (equal? epsilon (transition-char t)))) state-trans))
-    (printf "e-trans: ~a~n" e-trans) 
-    (printf "non-e-trans: ~a~n" non-e-trans) 
     (define new-trans (append (append-map (lambda (t) (get-new-epsilon-trans m (transition-to t) (transition-to t))) e-trans)
                               (append-map (lambda (t) (get-new-epsilon-trans m start (transition-to t))) non-e-trans)))
-    (define loop (memf (lambda (t) (list? (memf (lambda (r) (printf "eqaul? ~a ~a~n" (transition-char t) (rule-lhs r)) (equal? (transition-char t) (rule-lhs r))) state-rules))) non-e-trans))	;if this is true we have a loop
-    (printf "loop: ~a~n" loop)
+    (define loop (memf (lambda (t) (list? (memf (lambda (r) (equal? (transition-char t) (rule-lhs r))) state-rules))) non-e-trans))
     (cond
       [(and (list? loop) (not (equal? start (transition-from (first loop))))) (cons (transition (transition-from (first loop)) epsilon start) new-trans)]
       [else new-trans]))
@@ -223,17 +229,14 @@
     [else (first new-state)]))
 
 (define (lr-dfa-reduce-helper reduces next-sym)
- ; (printf "reduces: ~a~n" reduces)
-;  (print-reduces reduces)
-  (define rule-to-reduce (memf (lambda (reduce) (and (reduce? (first reduce)) (list? (member next-sym (reduce-follow-set (first reduce)))))) reduces))
+  (define rule-to-reduce (memf (lambda (reduce) (list? (member next-sym (reduce-follow-set reduce)))) reduces))
   (cond
-    [(list? rule-to-reduce) (reduce-rule (first (first rule-to-reduce)))]
+    [(list? rule-to-reduce) (reduce-rule (first rule-to-reduce))]
     [else #f]))
 
 (define (lr-dfa-reduce state next-sym)
-  (printf "lr-dfa-reduce ~a ~a~n" state next-sym)
   (cond
-    [(is-state-accepting lr-dfa state) (lr-dfa-reduce-helper (get-m-md-As lr-dfa state) next-sym)]
+    [(is-state-accepting lr-dfa state) (lr-dfa-reduce-helper (get-m-md-As lr-dfa state reduce?) next-sym)]
     [else #f]))    
 
 ;==============================================================================================
@@ -278,15 +281,10 @@
 (define non-terminals (list 'S 'A 'B))
 (define rules 
    (list start-rule
-   (rule 'A (list 'A 'a))
+   (rule 'A (list 'A 'a 'A 'b))
    (rule 'A (list 'a))))
 
-(define nfa (lr-nfa start-rule terminals non-terminals rules))
-
-(printf "~n====== LR NFA ======~n")
-(print-machine nfa)
-
-(define lr-dfa (nfa->dfa nfa))
+(define lr-dfa (nfa->dfa (lr-nfa start-rule terminals non-terminals rules)))
 
 (define lr-dfa-start-state (machine-start lr-dfa))
 

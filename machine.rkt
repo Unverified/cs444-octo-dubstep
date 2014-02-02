@@ -59,8 +59,14 @@
 (define [get-m-alphabet m]
   (rest (remove-duplicates (cons epsilon (map transition-char (machine-transitions m))))))
 
-(define [get-m-md-As m state]
-  (append-map (lambda (x) (if (equal? state (first x)) (first (rest x)) empty)) (machine-md m)))
+;[md : (Listof (Pair Symbol A)]
+;This functions is complicated because md could have different levels of lists based on if the machine is
+;an nfa or dfa. Don't mess with this function unless you know exactly what your doing
+(define [get-m-md-As m state func]
+  (define pairs (filter (lambda (pair) (equal? state (first pair))) (machine-md m)))		;gets all (Pair Symbol A) where Symbol == state
+  (define all-md-As (append-map (lambda (pair) (first (rest pair))) pairs))			;strips out the A from all the (Pair Symbol A) in pairs
+  (define func-filter (filter (lambda (A) (if (list? A) (func (first A)) (func A))) all-md-As))	;filters all As by the passed in function
+  (map (lambda (A) (if (list? A) (first A) A)) func-filter))					;Checks if the As are packaged in a list and strips them out
 
 ;(: is-state-accepting : machine Symbol -> Boolean)
 ;checks if state is an accepting state in machine m

@@ -124,7 +124,7 @@
     (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
 
-(parser (list (token 'a "a") (token 'a "a") (token 'a "a") (token 'a "a")))
+(parser (list (token 'a "a") (token 'a "a") (token 'a "a") (token 'b "b")))
 
 
 
