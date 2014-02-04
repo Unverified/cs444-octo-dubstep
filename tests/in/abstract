@@ -1,1 +1,1 @@
-public abstract class A { public <font color=blue>abstract</font> int m(); }
+public abstract class A { public abstract int m(); }

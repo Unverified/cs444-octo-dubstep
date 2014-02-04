@@ -211,11 +211,12 @@
     (define dot-sym (get-dot-sym item))
     (define new-rules (if (is-non-terminal dot-sym non-terminals) (get-rules-omit dot-sym rules (lritem-rule item)) empty))
     (define new-follow (follow item follow-local terminals non-terminals rules))
-    (define new-machines (map (lambda (new-rule) (gen-machine (lritem 0 new-rule) new-follow terminals non-terminals rules)) new-rules))
+    (define new-nfas (map (lambda (new-rule) (gen-machine (lritem 0 new-rule) new-follow terminals non-terminals rules)) new-rules))
+  ;  (define new-dfas (map (lambda (nfa) (opt (m-complete-loops nfa))) new-nfas))
     (cond
       [(equal? dot-sym 'epsilon) (m-only-epsilon-md (reduce (lritem-rule item) follow-local))]
-      [else (m-add-epsilon-transitions (m-add-new-start (gen-machine (inc-dot item) follow-local terminals non-terminals rules) dot-sym (lritem-rule item)) new-machines)]))
-  (m-complete-loops (gen-machine (lritem 0 start) (list 'EOF) terminals non-terminals rules)))
+      [else  (m-add-epsilon-transitions (m-add-new-start (gen-machine (inc-dot item) follow-local terminals non-terminals rules) dot-sym (lritem-rule item)) new-nfas)]))
+  (gen-machine (lritem 0 start) (list 'EOF) terminals non-terminals rules))
 
 
 ;==============================================================================================
@@ -240,51 +241,115 @@
     [else #f]))    
 
 ;==============================================================================================
+;==== Sanity Check 
+;==============================================================================================
+
+(define (check-rhs-rule rhs terminals non-terminals)
+  (cond
+    [(empty? rhs) empty]
+    [(and (boolean? (member (first rhs) terminals)) 
+          (boolean? (member (first rhs) non-terminals))) 
+     (cons (first rhs) (check-rhs-rule (rest rhs) terminals non-terminals))]
+    [else (check-rhs-rule (rest rhs) terminals non-terminals)]))
+ 
+(define (check-rules rules terminals non-terminals)
+  (cond
+    [(empty? rules) empty]
+    [else (append (check-rhs-rule (rule-rhs (first rules)) terminals non-terminals)
+          (check-rules (rest rules) terminals non-terminals))]))
+
+(define (get-lr-nfa start-rule terminals non-terminals rules)
+  (define check (check-rules rules terminals non-terminals))
+  (cond
+    [(not (empty? check))
+     (printf "LR-DFA CREATION ERROR!!~nThe follwing symbols where found in rules but where not present in terminals or non-terminals:~n~a~n" check)
+     (exit)]
+    [else (lr-nfa start-rule terminals non-terminals rules)]))
+
+;==============================================================================================
 ;==== Creation
 ;==============================================================================================
 
-;(define start-rule (rule 'S (list 'JCLASS)))
-;(define terminals (map first token-exps))
-;(define non-terminals (list 'S 'JCLASS 'MODIFIER 'DECL))
-;(define rules 
-;   (list start-rule
-;    (rule 'JCLASS (list 'public 'MODIFIER 'class 'id 'ocurl 'DECLS 'ccurl))
-;    (rule 'MODIFIER (list 'final))
-;    (rule 'MODIFIER (list 'static))
-;    (rule 'MODIFIER empty)
-;    (rule 'DECLS (list 'DECLS 'DECL))
-;    (rule 'DECLS (list 'declaration))
-;    (rule 'DECLS (list 'epsilon))
-;    (rule 'DECLARATION (list 'function))
-;    (rule 'DECLARATION (list 'variable))
-;    (rule 'function (list 'scope 'modifier 'type 'ID 'LPAREN 'args 'RPAREN 'LBRACE 'RBRACE))
-;    (rule 'scope (list 'PUBLIC))
-;    (rule 'scope (list 'PROTECTED))
-;    (rule 'type (list 'BOOLEAN))
-;    (rule 'type (list 'INT))
-;    (rule 'type (list 'CHAR))
-;    (rule 'type (list 'BYTE))
-;    (rule 'type (list 'SHORT))
-;    (rule 'args (list 'arg_list))
-;    (rule 'args (list 'epsilon))
-;    (rule 'arg_list (list 'arg_list 'COMMA 'arg))
-;    (rule 'arg_list (list 'arg))
-;    (rule 'arg (list 'type 'ID))
-;    (rule 'variable (list 'scope 'modifier 'type 'ID 'assign 'SEMI_COLON))
-;    (rule 'assign (list 'ASSIGN 'assignment))
-;    (rule 'assign (list 'epsilon ))
-;    (rule 'assignment (list 'ID))
-;    (rule 'assignment (list 'NUM))))
+(define start-rule (rule 'S (list 'JCLASS)))
+(define terminals (cons 'id (map first token-exps)))
+(define non-terminals (list 'S 'JCLASS 'MOD 'DECLS 'DECL 'FUNC 'VAR 'TYPE 'SCOPE 'ARGS 'ARG_LIST 'ARG 'ASSIGN 'LITERAL 'OBJECT 'CMOD 'VMOD 'FMOD 'CONSTRUCTOR))
 
-(define start-rule (rule 'S (list 'A)))
-(define terminals (list 'a 'b))
-(define non-terminals (list 'S 'A 'B))
-(define rules 
-   (list start-rule
-   (rule 'A (list 'A 'a 'A 'b))
-   (rule 'A (list 'a))))
+(define literal-rules
+  (list 
+    (rule 'LITERAL (list 'id))
+    (rule 'LITERAL (list 'null-lit))
+    (rule 'LITERAL (list 'bool-lit))
+    (rule 'LITERAL (list 'decimal-lit))
+    (rule 'LITERAL (list 'octal-lit))
+    (rule 'LITERAL (list 'floating-point-lit))
+    (rule 'LITERAL (list 'hex-lit))))
 
-(define lr-dfa (nfa->dfa (lr-nfa start-rule terminals non-terminals rules)))
+(define type-rules
+  (list
+    (rule 'TYPE (list 'boolean))
+    (rule 'TYPE (list 'int))
+    (rule 'TYPE (list 'char))
+    (rule 'TYPE (list 'byte))
+    (rule 'TYPE (list 'short))
+    (rule 'TYPE (list 'OBJECT))
+    (rule 'OBJECT (list 'id 'dot 'OBJECT))
+    (rule 'OBJECT (list 'id))))
+
+(define class-mod-rules
+  (list
+    (rule 'CMOD (list 'final))
+    (rule 'CMOD (list 'static))
+    (rule 'CMOD (list 'abstract))
+    (rule 'CMOD empty)))
+
+(define func-mod-rules
+  (list
+    (rule 'FMOD (list 'final))
+    (rule 'FMOD (list 'static))
+    (rule 'FMOD empty)))
+
+(define var-mod-rules
+  (list
+    (rule 'VMOD (list 'static))
+    (rule 'VMOD empty)))
+
+(define mod-rules (append class-mod-rules func-mod-rules var-mod-rules))
+
+(define scope-rules
+  (list
+    (rule 'SCOPE (list 'public))
+    (rule 'SCOPE (list 'protected))))
+
+(define other-rules 
+   (list 
+    start-rule
+    (rule 'JCLASS (list 'public 'CMOD 'class 'id 'ocurl 'DECLS 'ccurl))
+    (rule 'DECLS (list 'DECLS 'DECL))
+    (rule 'DECLS (list 'DECL))
+    (rule 'DECLS empty)
+ ;   (rule 'DECL (list 'CONSTRUCTOR))
+    (rule 'DECL (list 'FUNC))
+    (rule 'DECL (list 'VAR))
+  ;  (rule 'CONSTRUCTOR (list 'SCOPE 'id 'oparen 'ARGS 'cparen 'ocurl 'ccurl))
+    (rule 'FUNC (list 'SCOPE 'abstract 'TYPE 'id 'oparen 'ARGS 'cparen 'semi))
+    (rule 'FUNC (list 'SCOPE 'FMOD 'TYPE 'id 'oparen 'ARGS 'cparen 'ocurl 'ccurl))
+  ;  (rule 'ARGS (list 'ARG_LIST))
+    (rule 'ARGS empty)
+ ;   (rule 'ARG_LIST (list 'ARG 'comma 'ARG_LIST))
+;    (rule 'ARG_LIST (list 'ARG))
+;    (rule 'ARG (list 'TYPE 'id))
+    (rule 'VAR (list 'SCOPE 'VMOD 'TYPE 'ASSIGN 'semi))
+    (rule 'ASSIGN (list 'id 'eq 'LITERAL)) 
+    (rule 'ASSIGN (list 'id ))))
+
+(define rules (append other-rules literal-rules type-rules mod-rules scope-rules))
+
+(printf "getting nfa~n")
+(define nfa (get-lr-nfa start-rule terminals non-terminals rules))
+
+(printf "Got nfa~n")
+(define lr-dfa (nfa->dfa nfa))
+
 
 (define lr-dfa-start-state (machine-start lr-dfa))
 

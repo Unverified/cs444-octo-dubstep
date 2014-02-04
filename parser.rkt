@@ -124,7 +124,11 @@
     (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
 
-(parser (list (token 'a "a") (token 'a "a") (token 'a "a") (token 'b "b")))
+(define tokens (list 'public 'class 'id 'ocurl 
+			'public 'int 'id 'oparen 'cparen 'ocurl 'ccurl 
+		     'ccurl))
+
+(parser (map (lambda (t) (token t "")) tokens))
 
 
 
