@@ -34,32 +34,30 @@
                    (signed-integer "(+|-|~)#(digits)")
                    (float-type-suffix "f|F|d|D")
                    (floating-point-lit "#(digits).(#(digits)|~)(#(exponent-part)|~)(#(float-type-suffix)|~)|(.#(digits)(#(exponent-part)|~)(#(float-type-suffix)|~))|(#(digits)#(exponent-part)(#(float-type-suffix)|~))|(#(digits)(#(exponent-part)|~)#(float-type-suffix))")
-               
                    (java-letter "$|_|Q|E|R|T|Y|U|I|O|P|A|S|D|F|G|H|J|K|L||Z|X|C|V|B|N|M|q|w|e|r|t|y|u|i|o|p|a|s|d|f|g|h|j|k|l|z|x|c|v|b|n|m")
                    (java-digit "0|1|2|3|4|5|6|7|8|9")
                    (digits "#(java-digit)(#(java-digit)*)")
-		
                    (hex-lit "0(x|X)((0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)*)")))
 
-;(define (char-range f l)
-;  (map integer->char (range (char->integer f) (add1 (char->integer l)))))
-;
-;(define (make-union-regex cl)
-;  (define (make-escaped-string c)
-;    (cond
-;      [(not (char? c)) (error "what are you doing, ya dingus?")]
-;      [(ormap (curry char=? c) (string->list "()\\|~#")) (string #\\ c)]
-;      [else (string c)]))
-;  (string-join (map make-escaped-string cl) "|" #:before-first "(" #:after-last ")"))
-;
+(define (char-range f l)
+  (map integer->char (range (char->integer f) (add1 (char->integer l)))))
+
+(define (make-union-regex cl)
+  (define (make-escaped-string c)
+    (cond
+      [(not (char? c)) (error "what are you doing, ya dingus?")]
+      [(ormap (curry char=? c) (string->list "()\\|~#")) (string #\\ c)]
+      [else (string c)]))
+  (string-join (map make-escaped-string cl) "|" #:before-first "(" #:after-last ")"))
+
 ;(define all-ascii (map integer->char (range 0 128)))
 ;(define java-char (append (string->list "_$") (char-range #\a #\z) (char-range #\A #\Z)))
 ;(define digits (char-range #\0 #\9))
 
 (define token-exps-1 (append keywords
-                           operators
-                           separators
-                           literals))
+                             operators
+                             separators
+                             literals))
 
 ;;lookup-regex : symbol->string
 (define [lookup-regex s]
@@ -86,8 +84,14 @@
   
 (expand-regex "#(decimal-lit)|x")
 (expand-regex "#(bool-lit)|#(decimal-lit)")
-  
-
 
 (define token-exps 
   (map (lambda (x) (cons (first x) (cons (expand-regex (second x)) empty))) token-exps-1))
+
+(define all-ascii (map integer->char (range 0 128)))
+(define input-char (filter-not (lambda (x) (member x (string->list "'\\"))) all-ascii))
+
+(define java-char (make-union-regex (append (string->list "_$") (char-range #\a #\z) (char-range #\A #\Z))))
+
+;(define o-digits (char-range #\0 #\7))
+;(define digits (char-range #\0 #\9))
