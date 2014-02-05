@@ -46,6 +46,7 @@
 		   (octal-digit "0|1|2|3|4|5|6|7")
 		   (zero-to-three "0|1|2|3")
 		   (escape-sequence "\\(b|t|n|f|r|\'|\"|\\|#(octal-digit)|(#(octal-digit)#(octal-digit))|(#(zero-to-three)#(octal-digit)#(octal-digit)))")))
+
 (define (char-range f l)
   (map integer->char (range (char->integer f) (add1 (char->integer l)))))
 
@@ -66,6 +67,7 @@
                            separators
                            literals
 			   others))
+
 
 ;;lookup-regex : symbol->string
 (define [lookup-regex s]
@@ -92,8 +94,12 @@
   
 (expand-regex "#(decimal-lit)|x")
 (expand-regex "#(bool-lit)|#(decimal-lit)")
-  
-
 
 (define token-exps 
   (map (lambda (x) (cons (first x) (cons (expand-regex (second x)) empty))) token-exps-1))
+
+(define input-char (filter-not (lambda (x) (member x (string->list "'\\"))) all-ascii))
+
+
+;(define o-digits (char-range #\0 #\7))
+;(define digits (char-range #\0 #\9))

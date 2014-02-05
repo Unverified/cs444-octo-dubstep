@@ -16,16 +16,16 @@
 (provide print-machine)
 (provide opt)
 (provide process-char)
+(provide dfa-process-sym)
 (provide is-state-accepting)
-(provide machine-start)
 (provide get-m-md-As)
-(provide machine-md)
 (provide m-only-epsilon-md)
 (provide get-m-state-trans)
 (provide get-trans-char)
 (provide epsilon)
 (provide m-add-transitons)
 (provide (struct-out transition))
+(provide (struct-out machine))
 
 
 (define epsilon #\ε)
@@ -76,6 +76,15 @@
 ;==============================================================================================
 ;==== Machine Processing
 ;==============================================================================================
+
+;(: dfa-process-sym : machine Symbol Symbol -> Symbol)
+;Only used by the parser, dont need to use th process-char since m is a dfa, there can only be 
+;one state to go to. Also the lr-dfa uses sybmols for transitions  
+(define (dfa-process-sym m state sym)
+  (define tran (findf (lambda(t) (and (equal? state (transition-from t)) (equal? sym (transition-char t)))) (machine-transitions m)))
+  (cond
+    [(transition? tran) (transition-to tran)]
+    [else #f]))
 
 ;(: process-char : machine Symbol Char -> (Listof Symbol))
 (define [process-char m state char]

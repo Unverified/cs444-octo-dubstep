@@ -1,0 +1,9 @@
+- Make modiciations to the file "grammar.rkt"
+
+- Run: bash gen_grammar.sh
+
+   OR
+
+- remove old "grammar" file
+- Run: racket grammar.rkt
+- Run: ./lalr1 grammar > table
