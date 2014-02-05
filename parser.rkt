@@ -96,6 +96,7 @@
   (cond
     [(not (rule? rule)) stack]
     [else
+     (printf "reduce by rule: ") (print-rule rule) (printf "~n")
      (define rhs-len (length (rule-rhs rule)))
      (define lhs (rule-lhs rule))
      (define new-tree (tree (node lhs) (reverse (get-n-nodes rhs-len (parser-stack-node stack)))))
@@ -129,6 +130,56 @@
     (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
 
+;public abstract class A { public abstract int m(); }
+(parser (list (token 'public "public")
+              (token 'abstract "abstract")
+              (token 'class "class")
+              (token 'id "A")
+              (token 'ocurl "{")
 
-(parser (list (token 'a "a")))
+              (token 'public "public")
+              (token 'int "int")
+              (token 'id "m1")
+              (token 'oparen "(")
+              (token 'cparen ")")
+              (token 'ocurl "{")
+
+              (token 'if "if")
+              (token 'oparen "(")
+              (token 'ocurl "0")
+              (token 'ocurl "{")
+              (token 'ocurl "{")
+              (token 'ocurl "{")
+              (token 'ocurl "{")
+
+              (token 'ccurl "}")
+
+
+;              (token 'public "public")
+ ;             (token 'int "int")
+  ;            (token 'id "m2")
+   ;           (token 'oparen "(")
+    ;          (token 'cparen ")")
+     ;         (token 'ocurl "{")
+      ;        (token 'ccurl "}")
+
+   ;           (token 'public "public")
+  ;            (token 'int "int")
+    ;          (token 'id "a")
+ ;             (token 'semi ";")
+
+            ;  (token 'public "public")
+           ;   (token 'int "int")
+          ;    (token 'id "a")
+         ;     (token 'eq "=")
+        ;      (token 'decimal_lit "31")
+       ;       (token 'semi ";")
+
+              (token 'ccurl "}")))
+
+
+
+
+
+
 

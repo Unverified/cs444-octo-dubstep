@@ -9,3 +9,5 @@ lalr:
 	javac -d $(CLASS_PATH) -cp $(CLASS_PATH) Jlalr1.java
 	jar cvfm lalr1 lalr_manifest.txt $(CLASS_PATH)
 	chmod 755 lalr1
+clean:
+	rm -rf bin/* lalr1 lr1

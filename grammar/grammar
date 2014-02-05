@@ -1,0 +1,270 @@
+110
+BOF
+EOF
+id
+abstract
+boolean
+break
+byte
+case
+catch
+char
+class
+const
+continue
+default
+do
+double
+else
+extends
+final
+finally
+float
+for
+goto
+if
+implements
+import
+instanceof
+int
+interface
+long
+native
+new
+package
+private
+protected
+public
+return
+short
+static
+strictfp
+super
+switch
+synchronized
+this
+throw
+throws
+transient
+try
+void
+volatile
+while
+eq
+gt
+lt
+not
+tilde
+question
+colon
+eqeq
+lteq
+gteq
+noteq
+ampamp
+barbar
+plusplus
+minusminus
+plus
+minus
+star
+slash
+amp
+bar
+carot
+pct
+ltlt
+gtgt
+gtgtgt
+pluseq
+minuseq
+stareq
+slasheq
+ampeq
+bareq
+caroteq
+pcteq
+ltlteq
+gtgteq
+gtgtgteq
+oparen
+cparen
+ocurl
+ccurl
+osquare
+csquare
+semi
+comma
+dot
+null-lit
+bool-lit
+decimal-lit
+octal-lit
+exponent-part
+exponent-indicator
+signed-integer
+float-type-suffix
+floating-point-lit
+java-letter
+java-digit
+digits
+hex-lit
+50
+Sp
+S
+JCLASS
+MOD
+DECLS
+DECL
+VAR
+TYPE
+ARRAY_TYPE
+OBJECT
+SCOPE
+ARGS
+ARG_LIST
+ARG
+ASSIGN
+LITERAL
+CMOD
+CONSTRUCTOR
+NORMAL_FUNC
+FINAL_FUNC
+STATIC_FUNC
+ABS_FUNC
+FUNC_BODY
+ABS_BODY
+NORMAL_VAR
+STATIC_VAR
+ASSIGN_OP
+NATIVE_FUNC
+NATIVE_BODY
+STATIC_NATIVE
+STATEMENTS
+STATEMENT
+BLOCK
+BLOCK_BODY
+IF
+FOR
+WHILE
+IF_BODY
+CONDITION
+EXPRESSION
+ELSE_CLAUSES
+ELSE_IF
+ELSE
+BOOLEAN
+COND_EXP
+COMP_OP
+BOOL_OP
+ARITH_EXP
+2-ARITH_OP
+1-ARITH_OP
+Sp
+106
+Sp BOF S EOF
+S JCLASS
+JCLASS public CMOD class id ocurl DECLS ccurl
+DECLS DECLS DECL
+DECLS DECL
+DECL CONSTRUCTOR
+DECL NORMAL_FUNC
+DECL FINAL_FUNC
+DECL STATIC_FUNC
+DECL NATIVE_FUNC
+DECL ABS_FUNC
+DECL NORMAL_VAR
+DECL STATIC_VAR
+CONSTRUCTOR SCOPE FUNC_BODY
+NORMAL_FUNC SCOPE TYPE FUNC_BODY
+FINAL_FUNC SCOPE final TYPE FUNC_BODY
+STATIC_FUNC SCOPE static TYPE FUNC_BODY
+NATIVE_FUNC SCOPE STATIC_NATIVE int NATIVE_BODY
+STATIC_NATIVE static native
+ABS_FUNC SCOPE abstract TYPE ABS_BODY
+FUNC_BODY id oparen ARGS cparen BLOCK
+ABS_BODY id oparen ARGS cparen semi
+NATIVE_BODY id oparen int id cparen semi
+ARGS ARG_LIST
+ARGS
+ARG_LIST ARG comma ARG_LIST
+ARG_LIST ARG
+ARG TYPE id
+NORMAL_VAR SCOPE TYPE ASSIGN
+STATIC_VAR SCOPE static TYPE ASSIGN
+ASSIGN ASSIGN_OP
+ASSIGN id semi
+ASSIGN_OP id eq LITERAL semi
+BLOCK ocurl BLOCK_BODY ccurl
+BLOCK_BODY STATEMENTS
+BLOCK_BODY
+STATEMENTS STATEMENTS STATEMENT
+STATEMENTS STATEMENT
+STATEMENT NORMAL_VAR
+STATEMENT STATIC_VAR
+STATEMENT EXPRESSION
+STATEMENT IF
+STATEMENT FOR
+STATEMENT WHILE
+EXPRESSION ASSIGN_OP
+IF if oparen COND_EXP cparen IF_BODY ELSE_CLAUSES
+ELSE_IF else if oparen CONDITION cparen IF_BODY
+ELSE else IF_BODY
+IF_BODY EXPRESSION
+IF_BODY BLOCK
+IF_BODY semi
+ELSE_CLAUSES ELSE_IF ELSE_CLAUSES
+ELSE_CLAUSES ELSE
+ELSE_CLAUSES
+SCOPE public
+SCOPE protected
+MOD final
+MOD static
+MOD
+CMOD final
+CMOD static
+CMOD abstract
+CMOD
+TYPE boolean
+TYPE int
+TYPE char
+TYPE byte
+TYPE short
+TYPE OBJECT
+ARRAY_TYPE TYPE osquare csquare
+OBJECT id dot OBJECT
+OBJECT id
+LITERAL id
+LITERAL null-lit
+LITERAL bool-lit
+LITERAL decimal-lit
+LITERAL octal-lit
+LITERAL floating-point-lit
+LITERAL hex-lit
+COMP_OP gt
+COMP_OP lt
+COMP_OP gteq
+COMP_OP lteq
+COMP_OP eqeq
+COMP_OP noteq
+BOOL_OP amp
+BOOL_OP ampamp
+BOOL_OP bar
+BOOL_OP barbar
+2-ARITH_OP plus
+2-ARITH_OP minus
+2-ARITH_OP star
+2-ARITH_OP slash
+2-ARITH_OP carot
+2-ARITH_OP pct
+2-ARITH_OP amp
+2-ARITH_OP bar
+2-ARITH_OP ltlt
+2-ARITH_OP gtgt
+2-ARITH_OP gtgtgt
+1-ARITH_OP minus
+1-ARITH_OP tilde
+ARITH_EXP oparen ARITH_EXP cparen
+ARITH_EXP ARITH_EXP 2-ARITH_OP ARITH_EXP
+ARITH_EXP 1-ARITH_OP LITERAL
+ARITH_EXP LITERAL
