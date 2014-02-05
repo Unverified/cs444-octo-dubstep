@@ -1,0 +1,4 @@
+- Make modiciations to the file "grammar"
+- Run command: ./lalr1 grammar > table
+   or
+- Run command: ./lalr1 grammar > table

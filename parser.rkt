@@ -118,13 +118,18 @@
        (define next-token (token-type (first tokens)))
        (define new-stack (push-node (tree (leafnode (first tokens)) empty) (reduce stack next-token)))
        (define next-state (lr-dfa-shift (first (parser-stack-state new-stack)) next-token))
-       (if (not (set? next-state)) new-stack (parse (push-state next-state new-stack) (rest tokens)))]))
+       (printf "from: ~a, tok: ~a, to: ~a~n" (first (parser-stack-state new-stack)) next-token next-state)
+       (if (not (symbol? next-state)) new-stack (parse (push-state next-state new-stack) (rest tokens)))]))
   
-    (define result-stack (parse (parser-stack (list lr-dfa-start-state) (list (tree (leafnode (token 'BOF "BOF")) empty))) (append tokens (list (token 'EOF "EOF"))))) ;start the recursive parser function and get a stack back
+    (define BOF_TOK (token 'BOF "BOF"))
+    (define EOF_TOK (token 'EOF "EOF"))
+    (define result-stack (parse (parser-stack (list (lr-dfa-shift lr-dfa-start-state (token-type BOF_TOK))) 
+                                              (list (tree (leafnode BOF_TOK) empty))) 
+                                (append tokens (list EOF_TOK))))
     (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
 
-(parser (list (token 'a "a") (token 'a "a") (token 'a "a") (token 'b "b")))
+;(parser (list (token 'a "a") (token '= "=") (token 'a "a")))
 
 
 
