@@ -154,7 +154,6 @@
       [else (get-table-helper (add-to-m m (string->strings (first lines)) rules) (- n 1) (rest lines) rules)]))
   (define start-state (string->symbol (string-append "g" (first (string->strings (first lines))))))
   (get-table-helper (m-set-start start-state) n lines rules))
-  
 
 ;==============================================================================================
 ;==== Creation
