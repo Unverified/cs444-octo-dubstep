@@ -13,7 +13,6 @@
 (provide m-add-new-start)
 (provide m-add-epsilon-transitions)
 
-(provide print-machine)
 (provide opt)
 (provide process-char)
 (provide dfa-process-sym)
@@ -420,5 +419,6 @@
 
 (define ntest (union (list (m-single-char #\a) (m-single-char #\b))))
 (opt ntest)
+
 
 ;(machine-md (copy-machine (nfa->dfa classex-2)))
