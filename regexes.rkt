@@ -64,7 +64,7 @@
 (print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "a*") (empty-regex))))))
 
 (define (string->machine S)
-  (copy-machine (nfa->dfa (regex->machine (list->regex (string->list S) (empty-regex))))))
+  (copy-machine (opt (regex->machine (list->regex (string->list S) (empty-regex))))))
 
 (print-machine (copy-machine (nfa->dfa (regex->machine (concatenation #\g (concatenation #\r (concatenation (k-star (alternation '(#\a #\e))) #\y)))))))
 (print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)") (empty-regex))))))

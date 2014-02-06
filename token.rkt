@@ -10,16 +10,44 @@
   (map integer->char (range (char->integer f) (add1 (char->integer l)))))
 
 
+
 (define all-ascii (map integer->char (range 0 128)))
 (define java-char (append (string->list "_$") (char-range #\a #\z) (char-range #\A #\Z)))
 (define digits (char-range #\0 #\9))
 
+(define (all-ascii-remove-and-or-remaining remove-chars)
+  (let ([l (filter-not (lambda (x) (member x (string->list remove-chars))) all-ascii)])
+    (list->string  
+     
+      (append (if (member (first l) special-chars) 
 
-(define char-input-char (filter-not (lambda (x) (member x (string->list "'\\"))) all-ascii))
-(define char-input-char-string (list->string (cons (first char-input-char) (foldr (lambda (x y) (cons #\| (if (member x special-chars) (cons #\\ (cons x y)) (cons x y)))) empty (rest char-input-char)))))
+                  (list #\\ (first all-ascii))
+                  
+                  (list (first all-ascii)))
+                  
+              (foldr 
+              
+               (lambda (x y) (cons #\| (if (member x special-chars)
+               
+                                           (cons #\\ (cons x y))
+                                           
+                                           (cons x y))))
+                                     
+               empty
+               
+               (rest l))))))
 
-(define string-input-char (filter-not (lambda (x) (member x (string->list "\"\\"))) all-ascii))
-(define string-input-char-string (list->string (cons (first string-input-char) (foldr (lambda (x y) (cons #\| (if (member x special-chars) (cons #\\ (cons x y)) (cons x y)))) empty (rest string-input-char)))))
+;(define char-input-char (filter-not (lambda (x) (member x (string->list "\'\\"))) all-ascii))
+;(define char-input-char-string (list->string (append (if (member (first char-input-char) special-chars) (list #\\ (first char-input-char)) (list (first char-input-char))) (foldr (lambda (x y) (cons #\| (if (member x special-chars) (cons #\\ (cons x y)) (cons x y)))) empty (rest char-input-char)))))
+(define char-input-char-string (all-ascii-remove-and-or-remaining "\\\'"))
+;(define string-input-char (filter-not (lambda (x) (member x (string->list "\"\\"))) all-ascii))
+;(define string-input-char-string (list->string (append (if (member (first string-input-char) special-chars) (list #\\ (first string-input-char)) (list (first string-input-char))) (foldr (lambda (x y) (cons #\| (if (member x special-chars) (cons #\\ (cons x y)) (cons x y)))) empty (rest string-input-char)))))
+(define string-input-char-string (all-ascii-remove-and-or-remaining "\\\""))
+
+;(define all-ascii-chars (list->string (append (if (member (first all-ascii) special-chars) (list #\\ (first all-ascii)) (list (first all-ascii))) (foldr (lambda (x y) (cons #\| (if (member x special-chars) (cons #\\ (cons x  y)) (cons x y)))) empty (rest all-ascii)))))
+(define all-non-break-chars (all-ascii-remove-and-or-remaining "\n\r"))
+(define all-ascii-chars (all-ascii-remove-and-or-remaining ""))
+
 (define lookup-string #\#)
 (define keyword-list '(abstract boolean break byte case catch char class const continue default 
                             do double else extends final finally float for goto if implements import 
@@ -50,8 +78,10 @@
                
 		
                    (hex-lit "0(x|X)((0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)*)")
-                   (char-lit "'#(char-input-chars)|#(escape-sequence)'")
-                   (string-lit "\"(#(string-characters))\"")))
+                   (char-lit "'(#(char-input-chars)|#(escape-sequence))'")
+                   (string-lit "\"(#(string-characters))\"")
+		   (comment-lit-1 "//(#(all-non-break-chars)*)(\n|\r)")
+		   (comment-lit-2 "/\\*#(no-star)(((#(no-star)*)((\\*)*)#(no-star-no-slash))*)\\*/")))
 
 (define others '(
 
@@ -62,13 +92,20 @@
                    (signed-integer "(+|-|~)#(digits)")
 		   (octal-digit "0|1|2|3|4|5|6|7")
 		   (zero-to-three "0|1|2|3")
-		   (escape-sequence "\\(b|t|n|f|r|\'|\"|\\|#(octal-digit)|(#(octal-digit)#(octal-digit))|(#(zero-to-three)#(octal-digit)#(octal-digit)))")
+		   (escape-sequence "\\\\(b|t|n|f|r|'|\"|\\\\|#(octal-digit)|(#(octal-digit)#(octal-digit))|(#(zero-to-three)#(octal-digit)#(octal-digit)))")
                    (exponent-part "#(exponent-indicator)#(signed-integer)")
                    (exponent-indicator "e|E")
-                   (string-characters "((#(escape-sequence)|#(string-input-chars))*)")))
+                   (string-characters "((#(escape-sequence)|#(string-input-chars))*)")
+                   ))
 (define inputs (list
                    (list 'char-input-chars char-input-char-string)
-                   (list 'string-input-chars string-input-char-string)))
+                   (list 'string-input-chars string-input-char-string)
+		   (list 'all-ascii-chars all-ascii-chars)
+                   (list 'all-non-break-chars all-non-break-chars)
+                   (list 'no-star (all-ascii-remove-and-or-remaining "*"))
+                   (list 'no-slash (all-ascii-remove-and-or-remaining "/"))
+                   (list 'no-star-no-slash (all-ascii-remove-and-or-remaining "/*"))
+                   (list 'line-terminator "\n|\r")))
 
 
 
@@ -119,6 +156,8 @@
 (expand-regex "#(string-lit)")
 
 (expand-regex "#(char-lit)")
+(expand-regex "#(comment-lit-1)")
+(expand-regex "#(comment-lit-2)")
 
 (define token-exps 
   (map (lambda (x) (cons (first x) (cons (expand-regex (second x)) empty))) token-exps-1))

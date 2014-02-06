@@ -135,7 +135,7 @@
            (cons (list state (list (reduce rule input))) (machine-md m))))
 
 ;(: add-to-m : machine String (Listof rule) ->  machine
-;Parses the string line, which represents a shif/reduce rull in the lrtable. It then adds it to the machine
+;Parses the string line, which represents a shift/reduce rull in the lrtable. It then adds it to the machine
 (define (add-to-m m line rules)
   (define state (string->symbol (string-append "g" (list-ref line 0))))
   (define input (string->symbol (list-ref line 1)))
