@@ -1,4 +1,4 @@
-110
+118
 BOF
 EOF
 id
@@ -100,23 +100,29 @@ null-lit
 bool-lit
 decimal-lit
 octal-lit
-exponent-part
-exponent-indicator
-signed-integer
-float-type-suffix
 floating-point-lit
+hex-lit
+char-lit
+string-lit
 java-letter
 java-digit
 digits
-hex-lit
-50
+float-type-suffix
+signed-integer
+octal-digit
+zero-to-three
+escape-sequence
+exponent-part
+exponent-indicator
+string-characters
+char-input-chars
+string-input-chars
+80
 Sp
 S
 JCLASS
-MOD
 DECLS
 DECL
-VAR
 TYPE
 ARRAY_TYPE
 OBJECT
@@ -124,7 +130,6 @@ SCOPE
 ARGS
 ARG_LIST
 ARG
-ASSIGN
 LITERAL
 CMOD
 CONSTRUCTOR
@@ -134,9 +139,9 @@ STATIC_FUNC
 ABS_FUNC
 FUNC_BODY
 ABS_BODY
-NORMAL_VAR
-STATIC_VAR
-ASSIGN_OP
+MEMBER_VAR
+STATIC_MEMBER_VAR
+MEMBER_VAR_DEF
 NATIVE_FUNC
 NATIVE_BODY
 STATIC_NATIVE
@@ -146,25 +151,69 @@ BLOCK
 BLOCK_BODY
 IF
 FOR
+FOR_PARAMS
+FOR_ASSIGN
+FOR_CLAUSE
+FOR_ITER
 WHILE
-IF_BODY
-CONDITION
-EXPRESSION
+STATEMENT_BODY
 ELSE_CLAUSES
 ELSE_IF
 ELSE
-BOOLEAN
-COND_EXP
-COMP_OP
-BOOL_OP
+COND_ARITH_EXP
 ARITH_EXP
-2-ARITH_OP
-1-ARITH_OP
+ARITH_TERM
+ARITH_FACTOR
+ASSIGNMENT_OP
+LOGICAL_OR_OP
+LOGICAL_AND_OP
+BITWISE_OR_OP
+BITWISE_AND_OP
+EQUALITY_OP
+RELATIONAL_OP
+MULT_OP
+ADDITIVE_OP
+CP5
+CP4
+CP3
+CP2
+CP1
+CP0
+EXPRESSION
+VAR_DEFINITION
+VAR_ASSIGNMENT
+FUNC_CALL
+FUNC_ARGS
+FUNC_ARG_LIST
+RETURN
+CLASS_ADDITION
+PACKAGE
+PACKAGE_IMPORT
+IMPORTS
+IMPORT
+CALL_CHANG
+FUNC_CALLS
+FUNC_CALL_STATIC
+CLASS_IMPORT
+OBJECTS
+FIELD_ACCESS_EXP
+FIELD_ACCESS
 Sp
-106
+151
 Sp BOF S EOF
-S JCLASS
-JCLASS public CMOD class id ocurl DECLS ccurl
+S PACKAGE IMPORTS JCLASS
+PACKAGE package OBJECT semi
+PACKAGE
+IMPORTS IMPORTS IMPORT
+IMPORTS
+IMPORT import CLASS_IMPORT semi
+IMPORT import PACKAGE_IMPORT semi
+CLASS_IMPORT CLASS_IMPORT dot id
+PACKAGE_IMPORT CLASS_IMPORT dot star
+JCLASS public CMOD class id CLASS_ADDITION ocurl DECLS ccurl
+CLASS_ADDITION extends id
+CLASS_ADDITION implements id
+CLASS_ADDITION
 DECLS DECLS DECL
 DECLS DECL
 DECL CONSTRUCTOR
@@ -173,8 +222,8 @@ DECL FINAL_FUNC
 DECL STATIC_FUNC
 DECL NATIVE_FUNC
 DECL ABS_FUNC
-DECL NORMAL_VAR
-DECL STATIC_VAR
+DECL MEMBER_VAR
+DECL STATIC_MEMBER_VAR
 CONSTRUCTOR SCOPE FUNC_BODY
 NORMAL_FUNC SCOPE TYPE FUNC_BODY
 FINAL_FUNC SCOPE final TYPE FUNC_BODY
@@ -190,37 +239,62 @@ ARGS
 ARG_LIST ARG comma ARG_LIST
 ARG_LIST ARG
 ARG TYPE id
-NORMAL_VAR SCOPE TYPE ASSIGN
-STATIC_VAR SCOPE static TYPE ASSIGN
-ASSIGN ASSIGN_OP
-ASSIGN id semi
-ASSIGN_OP id eq LITERAL semi
+MEMBER_VAR SCOPE MEMBER_VAR_DEF semi
+STATIC_MEMBER_VAR SCOPE static MEMBER_VAR_DEF semi
+MEMBER_VAR_DEF TYPE id
+MEMBER_VAR_DEF VAR_DEFINITION
+VAR_DEFINITION TYPE VAR_ASSIGNMENT
+VAR_ASSIGNMENT id eq COND_ARITH_EXP
+FUNC_CALLS FUNC_CALLS dot FUNC_CALL
+FUNC_CALLS FUNC_CALLS dot id
+FUNC_CALLS FUNC_CALL
+FUNC_CALL id oparen FUNC_ARGS cparen
+FUNC_ARGS FUNC_ARG_LIST
+FUNC_ARGS
+FUNC_ARG_LIST LITERAL comma FUNC_ARG_LIST
+FUNC_ARG_LIST LITERAL
+FIELD_ACCESS_EXP FIELD_ACCESS FUNC_CALL
+FIELD_ACCESS_EXP FIELD_ACCESS id
+FIELD_ACCESS FIELD_ACCESS id dot
+FIELD_ACCESS id dot
+EXPRESSION VAR_DEFINITION semi
+EXPRESSION VAR_ASSIGNMENT semi
+EXPRESSION FUNC_CALLS semi
 BLOCK ocurl BLOCK_BODY ccurl
 BLOCK_BODY STATEMENTS
 BLOCK_BODY
 STATEMENTS STATEMENTS STATEMENT
 STATEMENTS STATEMENT
-STATEMENT NORMAL_VAR
-STATEMENT STATIC_VAR
-STATEMENT EXPRESSION
+STATEMENT VAR_DEFINITION semi
+STATEMENT VAR_ASSIGNMENT semi
+STATEMENT FUNC_CALLS semi
+STATEMENT BLOCK
 STATEMENT IF
 STATEMENT FOR
 STATEMENT WHILE
-EXPRESSION ASSIGN_OP
-IF if oparen COND_EXP cparen IF_BODY ELSE_CLAUSES
-ELSE_IF else if oparen CONDITION cparen IF_BODY
-ELSE else IF_BODY
-IF_BODY EXPRESSION
-IF_BODY BLOCK
-IF_BODY semi
+STATEMENT RETURN
+IF if oparen COND_ARITH_EXP cparen STATEMENT_BODY ELSE_CLAUSES
+ELSE_IF else if oparen COND_ARITH_EXP cparen STATEMENT_BODY
+ELSE else STATEMENT_BODY
 ELSE_CLAUSES ELSE_IF ELSE_CLAUSES
 ELSE_CLAUSES ELSE
 ELSE_CLAUSES
+FOR for oparen FOR_PARAMS cparen STATEMENT_BODY
+FOR_PARAMS FOR_ASSIGN semi FOR_CLAUSE semi FOR_ITER
+FOR_ASSIGN VAR_DEFINITION
+FOR_ASSIGN VAR_ASSIGNMENT
+FOR_ASSIGN
+FOR_CLAUSE COND_ARITH_EXP
+FOR_CLAUSE
+FOR_ITER VAR_ASSIGNMENT
+FOR_ITER
+STATEMENT_BODY BLOCK
+STATEMENT_BODY VAR_ASSIGNMENT semi
+STATEMENT_BODY FUNC_CALLS semi
+WHILE while oparen COND_ARITH_EXP cparen STATEMENT_BODY
+RETURN return COND_ARITH_EXP
 SCOPE public
 SCOPE protected
-MOD final
-MOD static
-MOD
 CMOD final
 CMOD static
 CMOD abstract
@@ -232,526 +306,2063 @@ TYPE byte
 TYPE short
 TYPE OBJECT
 ARRAY_TYPE TYPE osquare csquare
-OBJECT id dot OBJECT
+OBJECT OBJECT dot id
 OBJECT id
-LITERAL id
+MULT_OP star
+MULT_OP slash
+MULT_OP pct
+ADDITIVE_OP plus
+ADDITIVE_OP minus
+RELATIONAL_OP lt
+RELATIONAL_OP gt
+RELATIONAL_OP lteq
+RELATIONAL_OP gteq
+RELATIONAL_OP instanceof
+EQUALITY_OP eqeq
+EQUALITY_OP noteq
+BITWISE_AND_OP amp
+BITWISE_OR_OP bar
+LOGICAL_AND_OP ampamp
+LOGICAL_OR_OP barbar
+ASSIGNMENT_OP eq
+ARITH_EXP ARITH_EXP ADDITIVE_OP ARITH_TERM
+ARITH_EXP ARITH_TERM
+ARITH_TERM ARITH_TERM MULT_OP ARITH_FACTOR
+ARITH_TERM ARITH_FACTOR
+ARITH_FACTOR oparen COND_ARITH_EXP cparen
+ARITH_FACTOR LITERAL
+ARITH_FACTOR id
+ARITH_FACTOR FIELD_ACCESS_EXP
+ARITH_FACTOR FUNC_CALLS
+COND_ARITH_EXP COND_ARITH_EXP LOGICAL_OR_OP CP5
+COND_ARITH_EXP CP5
+CP5 CP5 LOGICAL_AND_OP CP4
+CP5 CP4
+CP4 CP4 BITWISE_OR_OP CP3
+CP4 CP3
+CP3 CP3 BITWISE_AND_OP CP2
+CP3 CP2
+CP2 CP2 EQUALITY_OP CP1
+CP2 CP1
+CP1 CP1 not CP0
+CP1 CP0
+CP0 CP0 RELATIONAL_OP ARITH_EXP
+CP0 ARITH_EXP
+LITERAL decimal-lit
 LITERAL null-lit
 LITERAL bool-lit
-LITERAL decimal-lit
-LITERAL octal-lit
-LITERAL floating-point-lit
-LITERAL hex-lit
-COMP_OP gt
-COMP_OP lt
-COMP_OP gteq
-COMP_OP lteq
-COMP_OP eqeq
-COMP_OP noteq
-BOOL_OP amp
-BOOL_OP ampamp
-BOOL_OP bar
-BOOL_OP barbar
-2-ARITH_OP plus
-2-ARITH_OP minus
-2-ARITH_OP star
-2-ARITH_OP slash
-2-ARITH_OP carot
-2-ARITH_OP pct
-2-ARITH_OP amp
-2-ARITH_OP bar
-2-ARITH_OP ltlt
-2-ARITH_OP gtgt
-2-ARITH_OP gtgtgt
-1-ARITH_OP minus
-1-ARITH_OP tilde
-ARITH_EXP oparen ARITH_EXP cparen
-ARITH_EXP ARITH_EXP 2-ARITH_OP ARITH_EXP
-ARITH_EXP 1-ARITH_OP LITERAL
-ARITH_EXP LITERAL
-129
-485
-22 ARG_LIST shift 1
-43 public reduce 22
-62 id reduce 43
-105 FUNC_BODY shift 2
-111 cparen shift 3
-6 public reduce 17
-66 static shift 4
-107 protected reduce 4
-116 EXPRESSION shift 5
-62 if reduce 43
-128 ccurl reduce 19
-19 NATIVE_BODY shift 6
-34 protected reduce 53
-43 ccurl reduce 22
-39 protected reduce 33
-78 char shift 7
-117 final shift 8
-39 public reduce 33
-68 NATIVE_FUNC shift 9
-69 CONSTRUCTOR shift 10
-6 ccurl reduce 17
-98 protected reduce 40
-57 protected reduce 39
-87 if reduce 30
-23 public reduce 6
-87 id reduce 30
-29 id shift 11
-45 boolean reduce 54
-48 short reduce 55
-24 eq shift 12
-56 id shift 13
-57 ccurl reduce 39
-36 public reduce 49
-119 ccurl reduce 34
-12 octal-lit shift 14
-95 char shift 7
-43 protected reduce 22
-47 class shift 15
-68 STATIC_FUNC shift 16
-4 int shift 17
-48 boolean reduce 55
-95 boolean shift 18
-106 public reduce 37
-29 boolean shift 18
-67 int shift 19
-68 ABS_FUNC shift 20
-48 id reduce 55
-127 ccurl reduce 32
-124 byte shift 21
-113 if reduce 28
-51 class reduce 60
-98 public reduce 40
-113 id reduce 28
-29 ARG_LIST shift 1
-22 int shift 17
-112 oparen shift 22
-29 int shift 17
-128 public reduce 19
-61 comma reduce 27
-66 byte shift 21
-54 public reduce 51
-69 NORMAL_FUNC shift 23
-119 id shift 24
-62 public reduce 43
-119 if shift 25
-85 BLOCK shift 26
-119 IF shift 27
-33 ASSIGN_OP shift 28
-36 protected reduce 49
-3 id shift 24
-126 oparen shift 29
-5 ccurl reduce 48
-3 semi shift 30
-18 id reduce 63
-66 abstract shift 31
-31 id shift 11
-77 id reduce 29
-34 if reduce 53
-100 semi reduce 75
-77 if reduce 29
-34 id reduce 53
-29 short shift 32
-76 ocurl shift 33
-48 final reduce 55
-5 else reduce 48
-83 public reduce 31
-34 public reduce 53
-97 ELSE_IF shift 34
-10 ccurl reduce 5
-78 TYPE shift 35
-4 short shift 32
-76 BLOCK shift 36
-82 ccurl reduce 42
-55 protected reduce 11
-80 protected reduce 36
-54 ccurl reduce 51
-5 id reduce 48
-5 if reduce 48
-118 S shift 37
-50 protected reduce 7
-33 NORMAL_VAR shift 38
-58 ccurl shift 39
-12 floating-point-lit shift 40
-115 CONDITION shift 41
-31 int shift 17
-31 char shift 7
-88 OBJECT shift 42
-16 protected reduce 8
-28 protected reduce 44
-45 id reduce 54
-113 protected reduce 28
-120 semi shift 43
-90 id shift 44
-9 ccurl reduce 9
-124 short shift 32
-69 STATIC_FUNC shift 16
-20 protected reduce 10
-68 public shift 45
-95 int shift 17
-127 if reduce 32
-127 id reduce 32
-78 ARG_LIST shift 46
-22 short shift 32
-31 OBJECT shift 42
-117 CMOD shift 47
-88 char shift 7
-106 if reduce 37
-34 ELSE_IF shift 34
-106 id reduce 37
-114 public reduce 13
-119 protected shift 48
-64 semi reduce 74
-95 byte shift 21
-104 oparen shift 49
-66 OBJECT shift 42
-2 public reduce 15
-68 FINAL_FUNC shift 50
-28 ccurl reduce 44
-117 static shift 51
-95 OBJECT shift 42
-79 eq shift 12
-96 ccurl reduce 45
-28 id reduce 44
-98 ccurl reduce 40
-28 if reduce 44
-109 id reduce 71
-4 native shift 52
-38 protected reduce 38
-94 public reduce 21
-107 ccurl reduce 4
-2 ccurl reduce 15
-84 semi reduce 73
-34 ELSE shift 53
-70 ccurl reduce 16
-92 ccurl reduce 12
-29 cparen reduce 24
-82 id reduce 42
-99 protected reduce 3
-45 final reduce 54
-82 if reduce 42
-34 ELSE_CLAUSES shift 54
-30 public reduce 50
-53 ccurl reduce 52
-3 ASSIGN_OP shift 28
-124 boolean shift 18
-114 ccurl reduce 13
-32 id reduce 67
-22 byte shift 21
-68 NORMAL_VAR shift 55
-96 protected reduce 45
-66 char shift 7
-78 OBJECT shift 42
-127 else reduce 32
-49 int shift 56
-45 int reduce 54
-103 protected reduce 46
-116 semi shift 30
-113 public reduce 28
-106 protected reduce 37
-124 OBJECT shift 42
-21 id reduce 66
-33 STATIC_VAR shift 57
-33 BLOCK_BODY shift 58
-76 IF_BODY shift 59
-20 public reduce 10
-88 TYPE shift 60
-5 protected reduce 48
-35 id shift 61
-80 public reduce 36
-2 protected reduce 15
-119 WHILE shift 62
-69 public shift 45
-88 byte shift 21
-36 ccurl reduce 49
-12 LITERAL shift 63
-73 class reduce 61
-48 static reduce 55
-55 public reduce 11
-65 id reduce 70
-94 protected reduce 21
-77 ccurl reduce 29
-48 byte reduce 55
-12 bool-lit shift 64
-52 int reduce 18
-128 protected reduce 19
-124 char shift 7
-103 else reduce 46
-94 ccurl reduce 21
-76 ASSIGN_OP shift 28
-55 ccurl reduce 11
-93 OBJECT shift 65
-3 EXPRESSION shift 5
-69 ABS_FUNC shift 20
-57 public reduce 39
-8 class reduce 59
-45 char reduce 54
-22 char shift 7
-114 protected reduce 13
-68 CONSTRUCTOR shift 10
-26 public reduce 20
-69 SCOPE shift 66
-54 if reduce 51
-54 id reduce 51
-66 STATIC_NATIVE shift 67
-122 ocurl shift 68
-14 semi reduce 76
-68 DECLS shift 69
-83 protected reduce 31
-72 FUNC_BODY shift 70
-17 id reduce 64
-78 ARG shift 71
-27 public reduce 41
-119 NORMAL_VAR shift 38
-1 cparen reduce 23
-4 TYPE shift 72
-117 abstract shift 73
-27 protected reduce 41
-50 ccurl reduce 7
-30 ccurl reduce 50
-39 if reduce 33
-6 protected reduce 17
-39 id reduce 33
-16 public reduce 8
-12 id shift 74
-9 protected reduce 9
-88 boolean shift 18
-30 else reduce 50
-31 byte shift 21
-77 public reduce 29
-102 cparen shift 75
-31 short shift 32
-34 else shift 76
-127 protected reduce 32
-90 ASSIGN shift 77
-71 comma shift 78
-45 short reduce 54
-81 id shift 79
-59 if reduce 47
-92 protected reduce 12
-59 id reduce 47
-78 byte shift 21
-119 STATEMENT shift 80
-66 TYPE shift 81
-33 FOR shift 82
-33 ccurl reduce 35
-101 protected reduce 14
-23 ccurl reduce 6
-79 semi shift 83
-31 boolean shift 18
-48 int reduce 55
-53 protected reduce 52
-68 NORMAL_FUNC shift 23
-22 ARG shift 71
-12 null-lit shift 84
-97 protected reduce 53
-39 else reduce 33
-123 cparen shift 85
-87 public reduce 30
-39 ccurl reduce 33
-76 EXPRESSION shift 5
-83 ccurl reduce 31
-69 ccurl shift 86
-90 ASSIGN_OP shift 87
-5 public reduce 48
-69 NORMAL_VAR shift 55
-4 byte shift 21
-53 public reduce 52
-119 SCOPE shift 88
-124 int shift 17
-76 id shift 24
-107 public reduce 4
-76 if shift 89
-76 semi shift 30
-116 ASSIGN_OP shift 28
-29 ARG shift 71
-69 FINAL_FUNC shift 50
-124 TYPE shift 90
-10 public reduce 5
-10 protected reduce 5
-37 EOF shift 91
-68 STATIC_VAR shift 92
-109 dot shift 93
-75 semi shift 94
-96 id reduce 45
-36 id reduce 49
-29 TYPE shift 35
-96 if reduce 45
-66 final shift 95
-97 ELSE_CLAUSES shift 96
-119 public shift 45
-30 protected reduce 50
-72 ASSIGN_OP shift 87
-3 IF_BODY shift 97
-119 EXPRESSION shift 98
-16 ccurl reduce 8
-66 int shift 17
-87 protected reduce 30
-70 protected reduce 16
-36 if reduce 49
-69 DECL shift 99
-97 public reduce 53
-77 protected reduce 29
-30 if reduce 50
-30 id reduce 50
-59 public reduce 47
-33 WHILE shift 62
-82 protected reduce 42
-12 decimal-lit shift 100
-38 ccurl reduce 38
-81 ASSIGN_OP shift 87
-74 semi reduce 72
-81 FUNC_BODY shift 101
-34 ccurl reduce 53
-62 ccurl reduce 43
-113 ccurl reduce 28
-29 ARGS shift 102
-28 public reduce 44
-91 BOF reduce 0
-48 char reduce 55
-78 boolean shift 18
-68 SCOPE shift 66
-22 OBJECT shift 42
-68 protected shift 48
-116 IF_BODY shift 103
-19 id shift 104
-44 eq shift 12
-106 ccurl reduce 37
-3 ocurl shift 33
-45 abstract reduce 54
-69 STATIC_VAR shift 92
-96 public reduce 45
-95 TYPE shift 105
-117 class reduce 62
-116 BLOCK shift 36
-88 id shift 11
-33 STATEMENT shift 106
-33 if shift 25
-36 else reduce 49
-66 short shift 32
-38 id reduce 38
-119 ASSIGN_OP shift 28
-33 id shift 24
-127 public reduce 32
-69 NATIVE_FUNC shift 9
-78 id shift 11
-38 if reduce 38
-33 public shift 45
-68 DECL shift 107
-60 id shift 44
-59 protected reduce 47
-33 SCOPE shift 88
-118 JCLASS shift 108
-103 ccurl reduce 46
-108 EOF reduce 1
-7 id reduce 65
-97 id reduce 53
-97 if reduce 53
-66 id shift 109
-110 semi reduce 78
-4 id shift 11
-12 hex-lit shift 110
-85 ocurl shift 33
-125 COND_EXP shift 111
-29 byte shift 21
-95 short shift 32
-33 IF shift 27
-105 id shift 112
-93 id shift 11
-66 boolean shift 18
-4 OBJECT shift 42
-9 public reduce 9
-88 int shift 17
-101 ccurl reduce 14
-60 ASSIGN shift 113
-70 public reduce 16
-97 else shift 76
-59 ccurl reduce 47
-66 FUNC_BODY shift 114
-42 id reduce 68
-89 oparen shift 115
-29 OBJECT shift 42
-45 static reduce 54
-22 cparen reduce 24
-69 protected shift 48
-78 int shift 17
-45 byte reduce 54
-41 cparen shift 116
-118 public shift 117
-0 BOF shift 118
-22 boolean shift 18
-53 id reduce 52
-71 cparen reduce 26
-53 if reduce 52
-28 else reduce 44
-11 dot shift 93
-26 ccurl reduce 20
-44 semi shift 83
-27 id reduce 41
-72 id shift 79
-80 ccurl reduce 36
-27 if reduce 41
-33 STATEMENTS shift 119
-97 ccurl reduce 53
-81 ASSIGN shift 113
-22 TYPE shift 35
-38 public reduce 38
-101 public reduce 14
-27 ccurl reduce 41
-57 id reduce 39
-26 protected reduce 20
-57 if reduce 39
-54 protected reduce 51
-4 boolean shift 18
-97 ELSE shift 53
-103 id reduce 46
-4 char shift 7
-103 if reduce 46
-29 char shift 7
-83 id reduce 31
-48 abstract reduce 55
-83 if reduce 31
-13 cparen shift 120
-86 EOF reduce 2
-62 protected reduce 43
-46 cparen reduce 25
-82 public reduce 42
-60 ASSIGN_OP shift 87
-31 TYPE shift 121
-92 public reduce 12
-33 EXPRESSION shift 98
-119 FOR shift 82
-116 ocurl shift 33
-33 protected shift 48
-22 id shift 11
-79 oparen shift 22
-72 ASSIGN shift 77
-15 id shift 122
-22 ARGS shift 123
-20 ccurl reduce 10
-88 static shift 124
-25 oparen shift 125
-23 protected reduce 6
-50 public reduce 7
-61 cparen reduce 27
-99 public reduce 3
-78 short shift 32
-121 id shift 126
-11 id reduce 71
-103 public reduce 46
-63 semi shift 127
-116 id shift 24
-109 oparen shift 22
-88 short shift 32
-124 id shift 11
-99 ccurl reduce 3
-98 id reduce 40
-98 if reduce 40
-119 STATIC_VAR shift 57
-95 id shift 11
-80 id reduce 36
-3 BLOCK shift 36
-80 if reduce 36
-87 ccurl reduce 30
-121 ABS_BODY shift 128
-40 semi reduce 77
+237
+2013
+89 byte reduce 73
+35 noteq reduce 131
+197 class reduce 96
+1 ocurl shift 1
+227 LITERAL shift 2
+106 FUNC_CALLS shift 3
+14 while reduce 72
+110 id reduce 67
+162 null-lit reduce 110
+110 if reduce 67
+112 public reduce 21
+83 CP2 shift 4
+83 CP1 shift 5
+25 byte reduce 132
+100 char shift 6
+83 CP0 shift 7
+50 null-lit reduce 123
+234 amp shift 8
+31 oparen reduce 116
+82 if reduce 69
+101 oparen shift 9
+82 id reduce 69
+143 FUNC_CALL shift 10
+223 gt reduce 125
+185 null-lit shift 11
+222 EOF reduce 1
+173 LOGICAL_OR_OP shift 12
+224 ccurl reduce 129
+11 pct reduce 149
+28 boolean reduce 126
+207 char reduce 93
+226 import shift 13
+177 RETURN shift 14
+131 char reduce 91
+36 bar reduce 128
+56 CP5 shift 15
+40 RELATIONAL_OP shift 16
+73 id shift 17
+114 OBJECT shift 18
+28 gteq reduce 126
+23 if reduce 141
+23 id reduce 141
+216 for reduce 92
+152 else reduce 89
+56 CP0 shift 7
+28 int reduce 126
+187 else reduce 74
+56 CP3 shift 19
+181 gteq reduce 54
+56 CP4 shift 20
+227 FIELD_ACCESS shift 21
+26 byte shift 22
+56 CP1 shift 5
+56 CP2 shift 23
+10 ocurl reduce 47
+94 instanceof reduce 146
+199 cparen shift 24
+52 FIELD_ACCESS_EXP shift 25
+216 ccurl reduce 92
+184 boolean reduce 68
+132 cparen reduce 87
+95 protected reduce 23
+69 protected reduce 22
+1 ccurl reduce 62
+213 for reduce 134
+2 instanceof reduce 130
+36 byte reduce 128
+203 ccurl reduce 79
+74 null-lit reduce 119
+161 for reduce 48
+115 oparen shift 26
+101 while reduce 46
+224 minus reduce 129
+121 minus reduce 127
+16 FUNC_CALLS shift 27
+67 slash reduce 148
+219 short reduce 66
+202 for reduce 45
+223 minus reduce 125
+83 ARITH_TERM shift 28
+1 STATEMENT shift 29
+25 char reduce 132
+202 pct reduce 45
+67 ocurl reduce 148
+123 id reduce 112
+101 int reduce 46
+55 while reduce 150
+35 char reduce 131
+110 ocurl reduce 67
+43 semi reduce 147
+234 barbar reduce 138
+10 semi reduce 47
+217 char reduce 75
+43 ccurl reduce 147
+42 OBJECT shift 30
+19 while reduce 139
+25 ampamp reduce 132
+7 gteq shift 31
+75 protected reduce 40
+28 byte reduce 126
+220 public reduce 27
+31 decimal-lit reduce 116
+106 VAR_ASSIGNMENT shift 32
+76 boolean reduce 88
+223 id reduce 125
+220 ccurl reduce 27
+223 if reduce 125
+161 not reduce 48
+137 comma shift 33
+4 ocurl reduce 140
+186 FUNC_CALL shift 10
+7 noteq reduce 145
+23 int reduce 141
+65 id reduce 103
+106 ocurl shift 1
+40 lteq shift 34
+70 id shift 35
+27 gteq reduce 133
+43 lteq reduce 147
+120 id reduce 122
+24 VAR_ASSIGNMENT shift 32
+185 ARITH_FACTOR shift 36
+19 ampamp reduce 139
+227 FIELD_ACCESS_EXP shift 25
+58 ARITH_FACTOR shift 36
+70 ARITH_TERM shift 28
+74 bool-lit reduce 119
+42 int shift 37
+214 dot shift 38
+7 instanceof shift 39
+223 gteq reduce 125
+82 short reduce 69
+185 FUNC_CALL shift 10
+52 CP0 shift 40
+128 eq shift 41
+217 byte reduce 75
+177 ocurl shift 1
+89 return reduce 73
+23 ocurl reduce 141
+200 return reduce 76
+176 oparen shift 9
+15 int reduce 135
+98 int reduce 29
+100 abstract shift 42
+16 LITERAL shift 2
+94 ampamp reduce 146
+40 ccurl reduce 144
+35 barbar reduce 131
+7 int reduce 145
+153 boolean reduce 63
+41 FIELD_ACCESS_EXP shift 25
+2 byte reduce 130
+75 public reduce 40
+56 ARITH_TERM shift 28
+186 ARITH_TERM shift 28
+225 ARITH_TERM shift 28
+43 cparen reduce 147
+11 ocurl reduce 149
+83 ARITH_EXP shift 43
+4 for reduce 140
+171 VAR_ASSIGNMENT shift 44
+217 int reduce 75
+48 import reduce 3
+131 return reduce 91
+13 PACKAGE_IMPORT shift 45
+114 id shift 46
+28 star shift 47
+15 semi reduce 135
+5 ampamp reduce 143
+176 id reduce 107
+0 BOF shift 48
+101 eqeq reduce 46
+85 STATIC_FUNC shift 49
+83 null-lit shift 11
+86 public reduce 39
+2 barbar reduce 130
+26 char shift 6
+23 amp reduce 141
+110 while reduce 67
+83 id shift 35
+202 gteq reduce 45
+25 while reduce 132
+67 short reduce 148
+19 short reduce 139
+121 star reduce 127
+10 char reduce 47
+184 ccurl reduce 68
+165 while reduce 70
+213 ocurl reduce 134
+54 barbar shift 50
+55 eqeq reduce 150
+8 decimal-lit reduce 120
+9 null-lit shift 11
+58 null-lit shift 11
+174 MEMBER_VAR_DEF shift 51
+88 not shift 52
+92 ccurl reduce 18
+28 return reduce 126
+174 byte shift 22
+1 FUNC_CALL shift 10
+28 ocurl reduce 126
+77 null-lit shift 11
+91 ARITH_FACTOR shift 36
+46 semi reduce 107
+53 ELSE_IF shift 53
+19 bar reduce 139
+180 COND_ARITH_EXP shift 54
+176 eq shift 41
+36 ccurl reduce 128
+15 ocurl reduce 135
+11 barbar reduce 149
+83 bool-lit shift 55
+224 int reduce 129
+168 ocurl reduce 53
+161 noteq reduce 48
+23 ccurl reduce 141
+40 eqeq reduce 144
+58 oparen shift 56
+43 gteq reduce 147
+40 return reduce 144
+168 gteq reduce 53
+25 not reduce 132
+15 return reduce 135
+38 star shift 57
+83 FUNC_CALLS shift 27
+7 ocurl reduce 145
+175 oparen shift 58
+48 public reduce 3
+20 short reduce 137
+2 minus reduce 130
+79 short reduce 77
+27 noteq reduce 133
+217 if reduce 75
+157 ocurl reduce 60
+4 while reduce 140
+217 id reduce 75
+180 bool-lit shift 55
+27 dot shift 59
+223 ocurl reduce 125
+89 char reduce 73
+45 semi shift 60
+227 ARITH_FACTOR shift 36
+183 boolean reduce 90
+188 protected reduce 20
+94 plus shift 61
+203 char reduce 79
+224 char reduce 129
+58 ARITH_EXP shift 43
+121 int reduce 127
+17 ocurl reduce 13
+88 for reduce 142
+224 eqeq reduce 129
+234 ccurl reduce 138
+26 ARG_LIST shift 62
+36 slash reduce 128
+91 null-lit shift 11
+27 gt reduce 133
+89 ccurl reduce 73
+207 int reduce 93
+174 TYPE shift 63
+4 byte reduce 140
+159 int shift 64
+230 while reduce 136
+173 barbar shift 50
+195 semi reduce 83
+42 short shift 65
+53 int reduce 78
+181 semi reduce 54
+208 ocurl reduce 65
+120 null-lit reduce 122
+35 boolean reduce 131
+83 LITERAL shift 2
+40 for reduce 144
+11 while reduce 149
+27 if reduce 133
+27 id reduce 133
+177 byte shift 22
+4 return reduce 140
+20 int reduce 137
+29 int reduce 64
+5 byte reduce 143
+196 EOF shift 66
+213 cparen reduce 134
+153 int reduce 63
+35 not reduce 131
+36 amp reduce 128
+230 int reduce 136
+225 FUNC_CALLS shift 27
+181 instanceof reduce 54
+58 bool-lit shift 55
+180 FUNC_CALL shift 10
+101 bar reduce 46
+224 id reduce 129
+224 if reduce 129
+67 pct reduce 148
+27 ocurl reduce 133
+2 plus reduce 130
+111 barbar shift 50
+74 oparen reduce 119
+43 noteq reduce 147
+135 id reduce 56
+91 decimal-lit shift 67
+52 bool-lit shift 55
+202 ampamp reduce 45
+10 gteq reduce 47
+108 oparen shift 26
+10 minus reduce 47
+97 bool-lit reduce 113
+17 extends shift 68
+80 ccurl reduce 78
+161 cparen reduce 48
+203 return reduce 79
+216 short reduce 92
+43 ocurl reduce 147
+224 semi reduce 129
+223 boolean reduce 125
+187 if reduce 74
+79 id reduce 77
+187 id reduce 74
+75 ccurl reduce 40
+79 if reduce 77
+174 short shift 65
+181 pct reduce 54
+63 VAR_ASSIGNMENT shift 44
+27 cparen reduce 133
+7 RELATIONAL_OP shift 16
+94 boolean reduce 146
+224 return reduce 129
+224 gt reduce 129
+223 ampamp reduce 125
+200 ccurl reduce 76
+201 int shift 37
+221 MEMBER_VAR shift 69
+27 lt reduce 133
+40 amp reduce 144
+161 byte reduce 48
+129 abstract reduce 94
+180 ARITH_FACTOR shift 36
+28 noteq reduce 126
+40 gteq shift 31
+183 int reduce 90
+93 decimal-lit reduce 109
+70 oparen shift 56
+101 instanceof reduce 46
+181 int reduce 54
+88 char reduce 142
+14 ccurl reduce 72
+121 barbar reduce 127
+143 decimal-lit shift 67
+186 id shift 35
+224 lteq reduce 129
+181 ccurl reduce 54
+186 decimal-lit shift 67
+91 LITERAL shift 2
+168 slash reduce 53
+10 cparen reduce 47
+177 return shift 70
+187 while reduce 74
+234 byte reduce 138
+219 boolean reduce 66
+94 semi reduce 146
+89 boolean reduce 73
+56 oparen shift 56
+43 char reduce 147
+131 for reduce 91
+100 final shift 71
+195 id shift 72
+131 ocurl reduce 91
+110 ccurl reduce 67
+151 class shift 73
+11 minus reduce 149
+113 for reduce 71
+4 noteq shift 74
+19 int reduce 139
+7 boolean reduce 145
+129 boolean reduce 94
+7 return reduce 145
+181 noteq reduce 54
+51 semi shift 75
+4 boolean reduce 140
+25 minus reduce 132
+84 id reduce 118
+161 ocurl reduce 48
+230 id reduce 136
+191 BLOCK shift 76
+141 byte shift 22
+181 eqeq reduce 54
+230 if reduce 136
+168 int reduce 53
+47 id reduce 108
+49 protected reduce 19
+23 EQUALITY_OP shift 77
+181 dot shift 78
+12 FUNC_CALLS shift 27
+27 lteq reduce 133
+5 amp reduce 143
+78 id reduce 55
+94 cparen reduce 146
+131 ccurl reduce 91
+202 return reduce 45
+53 ELSE shift 79
+88 cparen reduce 142
+106 STATEMENT_BODY shift 80
+165 ccurl reduce 70
+186 bool-lit shift 55
+29 ccurl reduce 64
+186 null-lit shift 11
+161 char reduce 48
+181 byte reduce 54
+4 cparen reduce 140
+99 protected reduce 31
+168 plus reduce 53
+173 cparen reduce 44
+101 semi reduce 46
+206 LOGICAL_OR_OP shift 12
+54 LOGICAL_OR_OP shift 12
+71 TYPE shift 81
+67 eqeq reduce 148
+177 IF shift 82
+207 static reduce 93
+157 ccurl reduce 60
+202 lteq reduce 45
+192 ocurl shift 1
+234 BITWISE_AND_OP shift 83
+168 amp reduce 53
+131 boolean reduce 91
+53 ocurl reduce 78
+55 ampamp reduce 150
+205 public reduce 15
+26 int shift 37
+27 amp reduce 133
+161 instanceof reduce 48
+5 ccurl reduce 143
+127 protected reduce 25
+79 boolean reduce 77
+223 lt reduce 125
+97 oparen reduce 113
+41 null-lit shift 11
+25 barbar reduce 132
+14 if reduce 72
+14 id reduce 72
+25 gteq reduce 132
+233 class reduce 95
+4 eqeq shift 84
+7 bar reduce 145
+100 short shift 65
+25 ocurl reduce 132
+221 DECLS shift 85
+223 barbar reduce 125
+107 semi shift 86
+143 FUNC_CALLS shift 27
+50 id reduce 123
+52 decimal-lit shift 67
+48 PACKAGE shift 87
+7 eqeq reduce 145
+223 not reduce 125
+168 barbar reduce 53
+52 ARITH_FACTOR shift 36
+71 OBJECT shift 30
+34 decimal-lit reduce 115
+20 boolean reduce 137
+77 CP1 shift 88
+77 CP0 shift 7
+101 cparen reduce 46
+184 if reduce 68
+184 id reduce 68
+20 if reduce 137
+195 int shift 37
+20 id reduce 137
+58 CP2 shift 23
+58 CP3 shift 19
+58 CP0 shift 7
+58 CP1 shift 5
+36 not reduce 128
+80 ELSE_CLAUSES shift 89
+11 boolean reduce 149
+207 final reduce 93
+27 semi reduce 133
+195 OBJECT shift 30
+40 instanceof shift 39
+95 ccurl reduce 23
+80 char reduce 78
+185 FIELD_ACCESS shift 21
+25 cparen reduce 132
+58 CP4 shift 20
+58 CP5 shift 15
+7 while reduce 145
+230 byte reduce 136
+235 FUNC_CALL shift 10
+97 null-lit reduce 113
+35 instanceof reduce 131
+40 ampamp reduce 144
+28 plus reduce 126
+89 ocurl reduce 73
+89 int reduce 73
+213 char reduce 134
+136 ABS_BODY shift 90
+10 short reduce 47
+121 lteq reduce 127
+181 minus reduce 54
+2 cparen reduce 130
+234 int reduce 138
+223 int reduce 125
+234 char reduce 138
+23 return reduce 141
+5 ocurl reduce 143
+94 ADDITIVE_OP shift 91
+85 FINAL_FUNC shift 92
+181 id reduce 54
+181 if reduce 54
+101 gteq reduce 46
+35 byte reduce 131
+152 byte reduce 89
+12 ARITH_FACTOR shift 36
+202 char reduce 45
+166 protected reduce 33
+58 decimal-lit shift 67
+219 ocurl reduce 66
+181 slash reduce 54
+121 gt reduce 127
+55 lteq reduce 150
+41 FUNC_CALL shift 10
+193 dot reduce 8
+36 plus reduce 128
+76 return reduce 88
+91 FIELD_ACCESS shift 21
+79 while reduce 77
+43 ampamp reduce 147
+67 bar reduce 148
+216 if reduce 92
+216 id reduce 92
+143 LITERAL shift 2
+225 decimal-lit shift 67
+12 FIELD_ACCESS_EXP shift 25
+40 if reduce 144
+129 byte reduce 94
+152 for reduce 89
+181 gt reduce 54
+19 semi reduce 139
+11 semi reduce 149
+52 null-lit shift 11
+223 slash shift 93
+16 ARITH_EXP shift 94
+40 id reduce 144
+225 CP5 shift 15
+225 CP4 shift 20
+235 VAR_ASSIGNMENT shift 32
+225 CP1 shift 5
+168 semi reduce 53
+225 CP0 shift 7
+225 CP3 shift 19
+53 for reduce 78
+225 CP2 shift 23
+141 OBJECT shift 30
+129 id reduce 94
+183 return reduce 90
+55 gteq reduce 150
+221 STATIC_MEMBER_VAR shift 95
+183 byte reduce 90
+165 id reduce 70
+177 for shift 96
+165 if reduce 70
+77 FUNC_CALLS shift 27
+50 decimal-lit reduce 123
+89 id reduce 73
+29 return reduce 64
+143 null-lit shift 11
+89 if reduce 73
+67 star reduce 148
+20 ccurl reduce 137
+101 amp reduce 46
+121 noteq reduce 127
+187 int reduce 74
+152 return reduce 89
+169 protected reduce 16
+7 ampamp reduce 145
+138 semi reduce 81
+234 ocurl reduce 138
+129 int reduce 94
+203 boolean reduce 79
+168 char reduce 53
+219 id reduce 66
+77 FIELD_ACCESS shift 21
+219 if reduce 66
+161 minus reduce 48
+224 short reduce 129
+181 bar reduce 54
+1 byte shift 22
+55 not reduce 150
+216 barbar shift 50
+227 ARITH_EXP shift 43
+121 return reduce 127
+40 lt shift 97
+11 gt reduce 149
+191 VAR_ASSIGNMENT shift 32
+55 char reduce 150
+5 while reduce 143
+134 bool-lit reduce 121
+53 byte reduce 78
+217 return reduce 75
+72 id reduce 107
+231 semi reduce 106
+7 cparen reduce 145
+230 semi reduce 136
+61 oparen reduce 111
+10 ampamp reduce 47
+120 bool-lit reduce 122
+224 gteq reduce 129
+185 id shift 35
+174 native shift 98
+168 lteq reduce 53
+184 return reduce 68
+39 id reduce 117
+82 ccurl reduce 69
+139 BLOCK shift 99
+80 return reduce 78
+29 ocurl reduce 64
+67 noteq reduce 148
+202 amp reduce 45
+10 int reduce 47
+201 ARG_LIST shift 62
+43 plus shift 61
+25 eqeq reduce 132
+213 barbar reduce 134
+55 minus reduce 150
+223 semi reduce 125
+1 RETURN shift 14
+184 int reduce 68
+86 ccurl reduce 39
+157 while reduce 60
+67 gt reduce 148
+161 slash reduce 48
+40 bar reduce 144
+80 byte reduce 78
+85 SCOPE shift 100
+187 byte reduce 74
+59 id shift 101
+35 while reduce 131
+198 ccurl reduce 14
+101 noteq reduce 46
+101 return reduce 46
+47 null-lit reduce 108
+100 FUNC_BODY shift 102
+10 for reduce 47
+15 id reduce 135
+15 if reduce 135
+47 decimal-lit reduce 108
+40 noteq reduce 144
+185 oparen shift 56
+25 for reduce 132
+93 null-lit reduce 109
+132 id shift 103
+25 bar reduce 132
+121 plus reduce 127
+167 ocurl reduce 11
+200 boolean reduce 76
+94 gt reduce 146
+154 public reduce 32
+132 FOR_ITER shift 104
+101 plus reduce 46
+133 class reduce 98
+110 for reduce 67
+4 amp reduce 140
+161 eqeq reduce 48
+221 NORMAL_FUNC shift 105
+79 byte reduce 77
+111 cparen shift 106
+41 FIELD_ACCESS shift 21
+52 FUNC_CALL shift 10
+35 cparen reduce 131
+14 int reduce 72
+184 ocurl reduce 68
+67 if reduce 148
+100 MEMBER_VAR_DEF shift 107
+67 id reduce 148
+134 null-lit reduce 121
+8 null-lit reduce 120
+181 char reduce 54
+2 pct reduce 130
+200 char reduce 76
+121 lt reduce 127
+94 if reduce 146
+94 id reduce 146
+94 lteq reduce 146
+19 if reduce 139
+2 ampamp reduce 130
+147 id shift 108
+201 TYPE shift 109
+25 boolean reduce 132
+19 id reduce 139
+121 semi reduce 127
+47 oparen reduce 108
+28 char reduce 126
+183 if reduce 90
+183 id reduce 90
+180 CP4 shift 20
+180 CP3 shift 19
+180 CP2 shift 23
+230 char reduce 136
+180 CP1 shift 5
+224 not reduce 129
+181 lt reduce 54
+180 CP5 shift 15
+118 semi shift 110
+189 semi reduce 42
+11 instanceof reduce 149
+55 barbar reduce 150
+201 short shift 65
+161 short reduce 48
+35 gteq reduce 131
+58 COND_ARITH_EXP shift 111
+224 star reduce 129
+82 for reduce 69
+7 amp reduce 145
+4 ampamp reduce 140
+94 lt reduce 146
+211 public reduce 4
+207 boolean reduce 93
+180 CP0 shift 7
+187 ocurl reduce 74
+121 not reduce 127
+67 ccurl reduce 148
+70 bool-lit shift 55
+186 LITERAL shift 2
+36 int reduce 128
+67 lt reduce 148
+10 bar reduce 47
+202 semi reduce 45
+19 boolean reduce 139
+202 int reduce 45
+58 LITERAL shift 2
+27 char reduce 133
+219 int reduce 66
+207 id reduce 93
+85 ABS_FUNC shift 112
+213 int reduce 134
+177 WHILE shift 113
+48 package shift 114
+71 byte shift 22
+121 id reduce 127
+60 import reduce 7
+121 if reduce 127
+79 ocurl reduce 77
+134 decimal-lit reduce 121
+127 ccurl reduce 25
+7 char reduce 145
+121 amp reduce 127
+161 amp reduce 48
+11 eqeq reduce 149
+100 byte shift 22
+29 byte reduce 64
+186 FIELD_ACCESS shift 21
+121 ampamp reduce 127
+213 short reduce 134
+224 for reduce 129
+71 int shift 37
+99 ccurl reduce 31
+11 short reduce 149
+77 ARITH_TERM shift 28
+40 short reduce 144
+81 id shift 115
+40 not reduce 144
+110 short reduce 67
+28 while reduce 126
+28 not reduce 126
+113 ccurl reduce 71
+230 ccurl reduce 136
+202 short reduce 45
+10 slash reduce 47
+56 decimal-lit shift 67
+165 return reduce 70
+203 byte reduce 79
+88 short reduce 142
+53 ccurl reduce 78
+200 short reduce 76
+121 char reduce 127
+236 NATIVE_BODY shift 116
+64 id shift 117
+11 lteq reduce 149
+177 FUNC_CALLS shift 118
+61 decimal-lit reduce 111
+34 bool-lit reduce 115
+41 CP0 shift 7
+5 eqeq reduce 143
+214 semi shift 119
+88 eqeq reduce 142
+41 CP5 shift 15
+41 CP1 shift 5
+41 CP2 shift 23
+41 CP3 shift 19
+110 return reduce 67
+41 CP4 shift 20
+84 bool-lit reduce 118
+213 byte reduce 134
+213 ampamp shift 120
+148 LOGICAL_OR_OP shift 12
+40 semi reduce 144
+213 return reduce 134
+55 lt reduce 150
+40 int reduce 144
+67 cparen reduce 148
+53 return reduce 78
+100 int shift 37
+161 bar reduce 48
+4 EQUALITY_OP shift 77
+143 ARITH_FACTOR shift 121
+161 return reduce 48
+23 byte reduce 141
+77 FUNC_CALL shift 10
+95 public reduce 23
+206 barbar shift 50
+223 eqeq reduce 125
+217 ocurl reduce 75
+177 VAR_DEFINITION shift 122
+2 semi reduce 130
+202 bar reduce 45
+94 minus shift 123
+216 byte reduce 92
+77 bool-lit shift 55
+1 for shift 96
+35 plus reduce 131
+83 decimal-lit shift 67
+19 cparen reduce 139
+212 semi reduce 84
+29 id reduce 64
+202 boolean reduce 45
+10 ccurl reduce 47
+29 if reduce 64
+201 id shift 46
+101 not reduce 46
+133 abstract shift 124
+29 boolean reduce 64
+53 char reduce 78
+181 not reduce 54
+109 id shift 125
+180 decimal-lit shift 67
+11 star reduce 149
+85 ccurl shift 126
+35 star reduce 131
+168 gt reduce 53
+165 int reduce 70
+53 short reduce 78
+153 while reduce 63
+208 return reduce 65
+27 bar reduce 133
+93 id reduce 109
+85 STATIC_MEMBER_VAR shift 95
+55 gt reduce 150
+213 boolean reduce 134
+80 int reduce 78
+216 char reduce 92
+181 oparen shift 9
+101 for reduce 46
+43 ADDITIVE_OP shift 91
+24 FUNC_CALLS shift 3
+147 FUNC_BODY shift 127
+31 bool-lit reduce 116
+8 id reduce 120
+15 while reduce 135
+208 ccurl reduce 65
+192 id shift 128
+55 amp reduce 150
+221 protected shift 129
+157 return reduce 60
+10 not reduce 47
+174 boolean shift 130
+55 if reduce 150
+181 amp reduce 54
+55 id reduce 150
+26 cparen reduce 35
+221 FINAL_FUNC shift 92
+129 char reduce 94
+11 return reduce 149
+25 instanceof reduce 132
+1 char shift 6
+2 gt reduce 130
+41 ARITH_FACTOR shift 36
+126 EOF reduce 10
+7 for reduce 145
+116 public reduce 28
+157 for reduce 60
+72 eq shift 41
+129 static reduce 94
+232 cparen reduce 49
+5 cparen reduce 143
+113 return reduce 71
+82 ocurl reduce 69
+12 FUNC_CALL shift 10
+190 oparen shift 26
+168 id reduce 53
+168 if reduce 53
+235 STATEMENT_BODY shift 131
+183 while reduce 90
+27 plus reduce 133
+174 char shift 6
+165 char reduce 70
+178 semi shift 132
+226 public shift 133
+4 bar reduce 140
+223 amp reduce 125
+12 ARITH_TERM shift 28
+20 bar shift 134
+76 else reduce 88
+207 byte reduce 93
+27 pct reduce 133
+192 BLOCK shift 76
+35 ampamp reduce 131
+141 int shift 37
+88 int reduce 142
+35 dot shift 135
+2 if reduce 130
+146 id reduce 114
+2 id reduce 130
+11 id reduce 149
+42 TYPE shift 136
+35 ocurl reduce 131
+203 int reduce 79
+158 ocurl reduce 12
+152 boolean reduce 89
+123 null-lit reduce 112
+157 else reduce 60
+11 if reduce 149
+174 id shift 46
+7 short reduce 145
+143 oparen shift 56
+82 while reduce 69
+55 int reduce 150
+7 not reduce 145
+56 FUNC_CALLS shift 27
+89 short reduce 73
+200 while reduce 76
+33 LITERAL shift 137
+181 ocurl reduce 54
+46 id reduce 107
+195 VAR_DEFINITION shift 138
+181 cparen reduce 54
+188 ccurl reduce 20
+229 cparen shift 139
+1 short shift 65
+55 comma reduce 150
+55 return reduce 150
+200 for reduce 76
+90 protected reduce 30
+110 int reduce 67
+141 ARG_LIST shift 140
+27 while reduce 133
+168 while reduce 53
+225 LITERAL shift 2
+177 char shift 6
+69 public reduce 22
+180 null-lit shift 11
+1 boolean shift 130
+181 ampamp reduce 54
+67 amp reduce 148
+116 protected reduce 28
+168 lt reduce 53
+27 return reduce 133
+37 id reduce 100
+202 cparen reduce 45
+137 cparen reduce 52
+20 semi reduce 137
+5 not shift 52
+157 protected reduce 60
+202 while reduce 45
+25 pct reduce 132
+5 int reduce 143
+2 noteq reduce 130
+149 comma shift 141
+19 ccurl reduce 139
+55 semi reduce 150
+1 VAR_ASSIGNMENT shift 142
+1 IF shift 82
+5 noteq reduce 143
+231 dot reduce 106
+203 id reduce 79
+203 if reduce 79
+217 ccurl reduce 75
+28 MULT_OP shift 143
+131 byte reduce 91
+76 ccurl reduce 88
+208 boolean reduce 65
+18 semi shift 144
+47 bool-lit reduce 108
+1 VAR_DEFINITION shift 122
+12 id shift 35
+180 ARITH_EXP shift 43
+67 for reduce 148
+33 FUNC_ARG_LIST shift 145
+40 gt shift 146
+219 return reduce 66
+2 ccurl reduce 130
+11 lt reduce 149
+7 byte reduce 145
+187 short reduce 74
+219 while reduce 66
+224 plus reduce 129
+1 OBJECT shift 30
+28 for reduce 126
+123 oparen reduce 112
+201 cparen reduce 35
+139 ocurl shift 1
+28 slash shift 93
+223 instanceof reduce 125
+36 pct reduce 128
+63 id shift 108
+130 id reduce 99
+2 char reduce 130
+76 byte reduce 88
+25 gt reduce 132
+100 TYPE shift 147
+224 amp reduce 129
+12 oparen shift 56
+83 FIELD_ACCESS_EXP shift 25
+91 FUNC_CALL shift 10
+43 short reduce 147
+56 COND_ARITH_EXP shift 148
+26 ARG shift 149
+5 short reduce 143
+55 for reduce 150
+82 byte reduce 69
+17 CLASS_ADDITION shift 150
+133 CMOD shift 151
+223 star shift 47
+101 lt reduce 46
+85 NORMAL_FUNC shift 105
+187 for reduce 74
+67 ampamp reduce 148
+32 semi shift 152
+168 minus reduce 53
+77 LITERAL shift 2
+200 int reduce 76
+201 boolean shift 130
+25 if reduce 132
+80 for reduce 78
+25 id reduce 132
+235 FUNC_CALLS shift 3
+27 boolean reduce 133
+14 char reduce 72
+113 if reduce 71
+113 id reduce 71
+20 cparen reduce 137
+177 STATEMENT shift 153
+227 bool-lit shift 55
+223 while reduce 125
+228 semi shift 154
+116 ccurl reduce 28
+113 char reduce 71
+230 bar shift 134
+36 short reduce 128
+177 while shift 155
+11 comma reduce 149
+43 amp reduce 147
+43 int reduce 147
+195 VAR_ASSIGNMENT shift 156
+221 SCOPE shift 100
+121 byte reduce 127
+164 ccurl shift 157
+70 FUNC_CALLS shift 27
+163 id shift 158
+70 FIELD_ACCESS_EXP shift 25
+102 ccurl reduce 24
+23 eqeq shift 84
+191 FUNC_CALLS shift 3
+157 byte reduce 60
+25 return reduce 132
+200 byte reduce 76
+168 pct reduce 53
+11 bar reduce 149
+208 short reduce 65
+160 oparen shift 159
+152 int reduce 89
+225 null-lit shift 11
+92 public reduce 18
+230 ampamp reduce 136
+43 lt reduce 147
+217 while reduce 75
+200 ocurl reduce 76
+177 ccurl reduce 61
+43 id reduce 147
+35 lteq reduce 131
+43 if reduce 147
+49 public reduce 19
+35 lt reduce 131
+25 lt reduce 132
+36 return reduce 128
+202 plus reduce 45
+217 boolean reduce 75
+10 eqeq reduce 47
+84 oparen reduce 118
+49 ccurl reduce 19
+202 star reduce 45
+147 VAR_ASSIGNMENT shift 44
+187 char reduce 74
+157 boolean reduce 60
+236 id shift 160
+215 cparen shift 161
+187 boolean reduce 74
+28 ccurl reduce 126
+27 for reduce 133
+152 if reduce 89
+28 ampamp reduce 126
+152 id reduce 89
+106 BLOCK shift 76
+28 pct shift 162
+101 ccurl reduce 46
+55 noteq reduce 150
+24 ocurl shift 1
+88 noteq reduce 142
+50 bool-lit reduce 123
+234 id reduce 138
+70 ARITH_EXP shift 43
+121 bar reduce 127
+234 if reduce 138
+17 implements shift 163
+1 BLOCK_BODY shift 164
+10 lteq reduce 47
+83 ARITH_FACTOR shift 36
+53 id reduce 78
+27 ccurl reduce 133
+53 if reduce 78
+2 lteq reduce 130
+227 FUNC_CALLS shift 27
+101 ocurl reduce 46
+4 semi reduce 140
+168 instanceof reduce 53
+43 while reduce 147
+208 char reduce 65
+153 if reduce 63
+121 for reduce 127
+153 id reduce 63
+101 short reduce 46
+112 ccurl reduce 21
+235 BLOCK shift 76
+223 bar reduce 125
+223 pct shift 162
+35 id reduce 131
+40 char reduce 144
+55 short reduce 150
+153 char reduce 63
+224 byte reduce 129
+118 dot shift 59
+27 star reduce 133
+106 id shift 128
+177 FOR shift 165
+79 for reduce 77
+101 byte reduce 46
+202 not reduce 45
+216 ocurl reduce 92
+204 semi shift 166
+77 ARITH_FACTOR shift 36
+28 cparen reduce 126
+76 while reduce 88
+35 if reduce 131
+134 id reduce 121
+27 byte reduce 133
+50 oparen reduce 123
+234 while reduce 138
+161 dot reduce 48
+68 id shift 167
+141 short shift 65
+186 ARITH_EXP shift 43
+5 return reduce 143
+36 gteq reduce 128
+121 cparen reduce 127
+21 FUNC_CALL shift 168
+101 pct reduce 46
+42 char shift 6
+35 gt reduce 131
+36 instanceof reduce 128
+71 char shift 6
+227 CP2 shift 23
+186 oparen shift 56
+227 CP1 shift 5
+88 ocurl reduce 142
+227 CP0 shift 7
+41 FUNC_CALLS shift 27
+227 CP5 shift 15
+227 CP4 shift 20
+227 CP3 shift 19
+26 short shift 65
+2 slash reduce 130
+177 FUNC_CALL shift 10
+208 byte reduce 65
+25 lteq reduce 132
+234 ampamp reduce 138
+141 TYPE shift 109
+202 slash reduce 45
+10 lt reduce 47
+105 public reduce 17
+67 plus reduce 148
+140 cparen reduce 36
+77 id shift 35
+15 ampamp shift 120
+152 ocurl reduce 89
+35 amp reduce 131
+94 return reduce 146
+192 FUNC_CALLS shift 3
+131 int reduce 91
+27 minus reduce 133
+101 char reduce 46
+168 star reduce 53
+181 for reduce 54
+11 noteq reduce 149
+192 FUNC_CALL shift 10
+146 oparen reduce 114
+14 boolean reduce 72
+128 oparen shift 9
+235 id shift 128
+143 FIELD_ACCESS_EXP shift 25
+186 ARITH_FACTOR shift 36
+28 bar reduce 126
+71 short shift 65
+110 byte reduce 67
+23 barbar reduce 141
+152 while reduce 89
+94 short reduce 146
+202 dot reduce 45
+144 import reduce 2
+76 short reduce 88
+70 FUNC_CALL shift 10
+27 slash reduce 133
+221 CONSTRUCTOR shift 169
+18 dot shift 170
+207 abstract reduce 93
+101 if reduce 46
+70 CP3 shift 19
+101 id reduce 46
+70 CP2 shift 23
+70 CP5 shift 15
+5 boolean reduce 143
+70 CP4 shift 20
+22 id reduce 102
+70 CP1 shift 5
+70 FIELD_ACCESS shift 21
+70 CP0 shift 7
+83 FIELD_ACCESS shift 21
+15 barbar reduce 135
+208 for reduce 65
+67 minus reduce 148
+165 for reduce 70
+35 int reduce 131
+43 return reduce 147
+177 TYPE shift 171
+101 gt reduce 46
+81 FUNC_BODY shift 172
+101 boolean reduce 46
+55 bar reduce 150
+79 ccurl reduce 77
+177 VAR_ASSIGNMENT shift 142
+67 not reduce 148
+94 int reduce 146
+219 for reduce 66
+40 while reduce 144
+224 boolean reduce 129
+16 null-lit shift 11
+213 ccurl reduce 134
+72 dot reduce 107
+41 COND_ARITH_EXP shift 173
+67 while reduce 148
+41 LITERAL shift 2
+153 byte reduce 63
+67 barbar reduce 148
+82 return reduce 69
+183 else reduce 90
+234 semi reduce 138
+131 short reduce 91
+27 eqeq reduce 133
+23 ampamp reduce 141
+157 short reduce 60
+183 ocurl reduce 90
+161 plus reduce 48
+27 ampamp reduce 133
+121 instanceof reduce 127
+55 cparen reduce 150
+61 bool-lit reduce 111
+85 CONSTRUCTOR shift 169
+165 ocurl reduce 70
+66 BOF reduce 0
+3 dot shift 59
+177 int shift 37
+85 MEMBER_VAR shift 69
+183 char reduce 90
+67 instanceof reduce 148
+188 public reduce 20
+10 star reduce 47
+55 plus reduce 150
+77 oparen shift 56
+36 star reduce 128
+190 id reduce 107
+100 static shift 174
+80 while reduce 78
+183 for reduce 90
+2 int reduce 130
+35 slash reduce 131
+36 ampamp reduce 128
+121 ocurl reduce 127
+224 ampamp reduce 129
+80 ELSE_IF shift 53
+191 FUNC_CALL shift 10
+88 byte reduce 142
+1 if shift 175
+1 id shift 176
+85 protected shift 129
+11 ccurl reduce 149
+19 byte reduce 139
+16 bool-lit shift 55
+157 id reduce 60
+185 decimal-lit shift 67
+4 id reduce 140
+4 if reduce 140
+184 char reduce 68
+181 return reduce 54
+157 if reduce 60
+26 TYPE shift 109
+185 bool-lit shift 55
+35 oparen shift 9
+224 pct reduce 129
+26 boolean shift 130
+161 lteq reduce 48
+172 protected reduce 26
+202 minus reduce 45
+83 FUNC_CALL shift 10
+225 ARITH_EXP shift 43
+26 id shift 46
+56 FIELD_ACCESS shift 21
+43 not reduce 147
+1 return shift 70
+148 barbar shift 50
+25 semi reduce 132
+58 ARITH_TERM shift 28
+161 pct reduce 48
+23 while reduce 141
+19 BITWISE_AND_OP shift 83
+58 FIELD_ACCESS_EXP shift 25
+1 STATEMENTS shift 177
+213 semi reduce 134
+113 byte reduce 71
+152 short reduce 89
+16 ARITH_FACTOR shift 36
+108 semi reduce 41
+16 decimal-lit shift 67
+14 ocurl reduce 72
+61 id reduce 111
+230 cparen reduce 136
+216 LOGICAL_OR_OP shift 12
+230 return reduce 136
+216 while reduce 92
+119 import reduce 6
+141 char shift 6
+67 char reduce 148
+202 noteq reduce 45
+154 ccurl reduce 32
+131 while reduce 91
+4 int reduce 140
+205 protected reduce 15
+121 slash reduce 127
+165 short reduce 70
+225 FOR_CLAUSE shift 178
+10 if reduce 47
+113 short reduce 71
+10 id reduce 47
+132 VAR_ASSIGNMENT shift 179
+121 ccurl reduce 127
+26 OBJECT shift 30
+36 while reduce 128
+40 byte reduce 144
+35 return reduce 131
+88 bar reduce 142
+35 semi reduce 131
+121 gteq reduce 127
+230 boolean reduce 136
+71 boolean shift 130
+77 ARITH_EXP shift 43
+23 boolean reduce 141
+180 LITERAL shift 2
+91 bool-lit shift 55
+58 id shift 35
+224 bar reduce 129
+19 char reduce 139
+52 oparen shift 56
+234 short reduce 138
+70 null-lit shift 11
+168 return reduce 53
+80 short reduce 78
+42 byte shift 22
+25 int reduce 132
+56 LITERAL shift 2
+67 lteq reduce 148
+169 public reduce 16
+28 instanceof reduce 126
+29 while reduce 64
+67 int reduce 148
+57 semi reduce 9
+55 ocurl reduce 150
+184 byte reduce 68
+209 oparen shift 180
+21 id shift 181
+146 bool-lit reduce 114
+58 FIELD_ACCESS shift 21
+28 eqeq reduce 126
+40 boolean reduce 144
+161 semi reduce 48
+201 ARGS shift 182
+10 gt reduce 47
+3 semi shift 183
+41 decimal-lit shift 67
+82 boolean reduce 69
+162 id reduce 110
+41 ARITH_TERM shift 28
+56 id shift 35
+225 FUNC_CALL shift 10
+8 oparen reduce 120
+5 for reduce 143
+225 id shift 35
+84 null-lit reduce 118
+168 ampamp reduce 53
+144 public reduce 2
+10 noteq reduce 47
+31 null-lit reduce 116
+19 barbar reduce 139
+120 oparen reduce 122
+112 protected reduce 21
+25 short reduce 132
+43 gt reduce 147
+1 int shift 37
+39 null-lit reduce 117
+30 id reduce 104
+101 barbar reduce 46
+36 if reduce 128
+208 while reduce 65
+1 BLOCK shift 184
+181 while reduce 54
+146 null-lit reduce 114
+76 for reduce 88
+15 LOGICAL_AND_OP shift 185
+36 id reduce 128
+25 amp reduce 132
+124 class reduce 97
+162 bool-lit reduce 110
+168 short reduce 53
+39 bool-lit reduce 117
+40 barbar reduce 144
+103 eq shift 41
+91 FUNC_CALLS shift 27
+143 FIELD_ACCESS shift 21
+20 BITWISE_OR_OP shift 186
+213 LOGICAL_AND_OP shift 185
+177 short shift 65
+12 ARITH_EXP shift 43
+185 FUNC_CALLS shift 27
+224 ocurl reduce 129
+127 public reduce 25
+202 byte reduce 45
+168 eqeq reduce 53
+25 star reduce 132
+192 STATEMENT_BODY shift 187
+67 semi reduce 148
+101 slash reduce 46
+82 int reduce 69
+221 NATIVE_FUNC shift 188
+5 barbar reduce 143
+88 return reduce 142
+11 plus reduce 149
+174 VAR_DEFINITION shift 189
+36 gt reduce 128
+67 byte reduce 148
+16 ARITH_TERM shift 28
+200 id reduce 76
+200 if reduce 76
+2 lt reduce 130
+168 noteq reduce 53
+2 ocurl reduce 130
+100 id shift 190
+198 public reduce 14
+94 while reduce 146
+40 cparen reduce 144
+36 lt reduce 128
+93 oparen reduce 109
+19 return reduce 139
+230 barbar reduce 136
+224 noteq reduce 129
+212 barbar shift 50
+227 oparen shift 56
+181 lteq reduce 54
+55 instanceof reduce 150
+25 noteq reduce 132
+80 else shift 191
+223 byte reduce 125
+54 cparen shift 192
+38 id shift 193
+33 decimal-lit shift 67
+11 not reduce 149
+43 barbar reduce 147
+94 char reduce 146
+43 boolean reduce 147
+88 ccurl reduce 142
+11 int reduce 149
+192 VAR_ASSIGNMENT shift 32
+195 boolean shift 130
+202 eqeq reduce 45
+123 decimal-lit reduce 112
+27 instanceof reduce 133
+220 protected reduce 27
+201 byte shift 22
+94 eqeq reduce 146
+5 char reduce 143
+36 minus reduce 128
+202 barbar reduce 45
+216 return reduce 92
+41 id shift 35
+27 short reduce 133
+92 protected reduce 18
+102 public reduce 24
+225 FIELD_ACCESS shift 21
+10 amp reduce 47
+1 FOR shift 165
+136 id shift 194
+9 LITERAL shift 137
+11 slash reduce 149
+41 oparen shift 56
+43 minus shift 123
+43 byte reduce 147
+161 int reduce 48
+224 lt reduce 129
+225 FIELD_ACCESS_EXP shift 25
+88 id reduce 142
+224 while reduce 129
+16 oparen shift 56
+88 if reduce 142
+202 id reduce 45
+43 eqeq reduce 147
+162 oparen reduce 110
+29 short reduce 64
+202 if reduce 45
+70 LITERAL shift 2
+85 NATIVE_FUNC shift 188
+165 byte reduce 70
+52 id shift 35
+227 ARITH_TERM shift 28
+15 boolean reduce 135
+35 minus reduce 131
+225 ARITH_FACTOR shift 36
+105 protected reduce 17
+94 ocurl reduce 146
+96 oparen shift 195
+48 S shift 196
+133 static shift 197
+208 id reduce 65
+203 for reduce 79
+208 if reduce 65
+28 semi reduce 126
+169 ccurl reduce 16
+12 LITERAL shift 2
+53 while reduce 78
+180 id shift 35
+2 for reduce 130
+181 star reduce 54
+94 amp reduce 146
+195 byte shift 22
+14 byte reduce 72
+10 pct reduce 47
+15 cparen reduce 135
+33 bool-lit shift 55
+145 cparen reduce 51
+165 boolean reduce 70
+94 ccurl reduce 146
+80 ELSE shift 79
+85 DECL shift 198
+11 char reduce 149
+7 id reduce 145
+7 if reduce 145
+195 FOR_PARAMS shift 199
+55 star reduce 150
+2 eqeq reduce 130
+161 gteq reduce 48
+53 ELSE_CLAUSES shift 200
+41 bool-lit shift 55
+7 gt shift 146
+234 boolean reduce 138
+216 int reduce 92
+52 ARITH_TERM shift 28
+23 short reduce 141
+2 not reduce 130
+1 TYPE shift 171
+88 amp reduce 142
+223 char reduce 125
+55 ccurl reduce 150
+88 while reduce 142
+28 amp reduce 126
+5 semi reduce 143
+202 lt reduce 45
+36 eqeq reduce 128
+2 bar reduce 130
+56 ARITH_EXP shift 43
+94 byte reduce 146
+79 return reduce 77
+56 bool-lit shift 55
+86 protected reduce 39
+29 char reduce 64
+194 oparen shift 201
+217 for reduce 75
+171 id shift 103
+20 byte reduce 137
+100 OBJECT shift 30
+59 FUNC_CALL shift 202
+153 for reduce 63
+41 ARITH_EXP shift 43
+94 gteq reduce 146
+185 ARITH_EXP shift 43
+24 STATEMENT_BODY shift 203
+161 while reduce 48
+198 protected reduce 14
+77 decimal-lit shift 67
+205 ccurl reduce 15
+121 boolean reduce 127
+14 short reduce 72
+39 decimal-lit reduce 117
+223 noteq reduce 125
+7 ccurl reduce 145
+191 ocurl shift 1
+184 for reduce 68
+27 not reduce 133
+161 ampamp reduce 48
+56 null-lit shift 11
+223 ccurl reduce 125
+117 cparen shift 204
+184 short reduce 68
+153 ccurl reduce 63
+7 lteq shift 34
+10 boolean reduce 47
+71 id shift 46
+12 FIELD_ACCESS shift 21
+221 DECL shift 205
+153 return reduce 63
+10 instanceof reduce 47
+36 cparen reduce 128
+89 while reduce 73
+33 null-lit shift 11
+181 short reduce 54
+7 barbar reduce 145
+153 short reduce 63
+1 WHILE shift 113
+190 dot reduce 107
+11 cparen reduce 149
+36 ocurl reduce 128
+230 BITWISE_OR_OP shift 186
+67 return reduce 148
+20 while reduce 137
+23 semi reduce 141
+36 semi reduce 128
+227 COND_ARITH_EXP shift 206
+97 decimal-lit reduce 113
+129 short reduce 94
+20 char reduce 137
+16 FIELD_ACCESS shift 21
+35 eqeq reduce 131
+9 cparen reduce 50
+177 OBJECT shift 30
+221 public shift 207
+2 star reduce 130
+56 FUNC_CALL shift 10
+9 bool-lit shift 55
+180 FIELD_ACCESS_EXP shift 25
+195 TYPE shift 171
+203 ocurl reduce 79
+141 boolean shift 130
+207 short reduce 93
+181 boolean reduce 54
+122 semi shift 208
+10 dot reduce 47
+88 ampamp reduce 142
+76 if reduce 88
+156 semi reduce 82
+223 plus reduce 125
+76 id reduce 88
+149 cparen reduce 37
+20 return reduce 137
+230 ocurl reduce 136
+191 if shift 209
+191 id shift 128
+101 lteq reduce 46
+90 public reduce 30
+213 while reduce 134
+141 ARG shift 149
+235 ocurl shift 1
+106 FUNC_CALL shift 10
+55 boolean reduce 150
+161 ccurl reduce 48
+76 ocurl reduce 88
+80 if reduce 78
+52 ARITH_EXP shift 43
+58 FUNC_CALL shift 10
+195 FOR_ASSIGN shift 210
+6 id reduce 101
+27 int reduce 133
+180 FUNC_CALLS shift 27
+80 id reduce 78
+226 IMPORT shift 211
+108 eq shift 41
+216 boolean reduce 92
+29 for reduce 64
+219 char reduce 66
+110 boolean reduce 67
+224 barbar reduce 129
+11 byte reduce 149
+94 not reduce 146
+67 gteq reduce 148
+61 null-lit reduce 111
+212 LOGICAL_OR_OP shift 12
+227 id shift 35
+14 return reduce 72
+35 short reduce 131
+24 BLOCK shift 76
+225 COND_ARITH_EXP shift 212
+221 STATIC_FUNC shift 49
+87 import reduce 5
+25 slash reduce 132
+5 if reduce 143
+35 pct reduce 131
+5 id reduce 143
+88 boolean reduce 142
+82 char reduce 69
+101 minus reduce 46
+223 lteq reduce 125
+97 id reduce 113
+12 CP0 shift 7
+12 CP1 shift 5
+12 CP2 shift 23
+12 CP3 shift 19
+12 CP4 shift 20
+12 CP5 shift 213
+9 decimal-lit shift 67
+42 id shift 46
+225 oparen shift 56
+168 boolean reduce 53
+5 bar reduce 143
+30 dot shift 170
+28 minus reduce 126
+157 int reduce 60
+223 short reduce 125
+62 cparen reduce 34
+195 char shift 6
+36 barbar reduce 128
+120 decimal-lit reduce 122
+234 for reduce 138
+13 CLASS_IMPORT shift 214
+56 FIELD_ACCESS_EXP shift 25
+15 for reduce 135
+7 lt shift 97
+202 gt reduce 45
+67 comma reduce 148
+9 FUNC_ARGS shift 215
+219 byte reduce 66
+16 FUNC_CALL shift 10
+185 LITERAL shift 2
+55 pct reduce 150
+15 byte reduce 135
+177 boolean shift 130
+77 FIELD_ACCESS_EXP shift 25
+230 short reduce 136
+125 comma reduce 38
+2 short reduce 130
+227 FUNC_CALL shift 10
+23 char reduce 141
+99 public reduce 31
+70 COND_ARITH_EXP shift 216
+152 char reduce 89
+208 int reduce 65
+168 for reduce 53
+34 id reduce 115
+227 null-lit shift 11
+90 ccurl reduce 30
+129 final reduce 94
+1 while shift 155
+179 cparen reduce 86
+174 int shift 37
+191 STATEMENT_BODY shift 217
+100 STATIC_NATIVE shift 218
+14 for reduce 72
+195 short shift 65
+2 return reduce 130
+94 for reduce 146
+28 lt reduce 126
+142 semi shift 219
+10 while reduce 47
+36 for reduce 128
+2 amp reduce 130
+203 while reduce 79
+43 for reduce 147
+152 ccurl reduce 89
+60 public reduce 7
+19 for reduce 139
+63 FUNC_BODY shift 220
+234 bar reduce 138
+119 public reduce 6
+80 ocurl reduce 78
+83 oparen shift 56
+94 noteq reduce 146
+217 short reduce 75
+225 semi reduce 85
+168 bar reduce 53
+150 ocurl shift 221
+100 VAR_DEFINITION shift 189
+36 char reduce 128
+56 ARITH_FACTOR shift 36
+84 decimal-lit reduce 118
+34 oparen reduce 115
+28 lteq reduce 126
+28 barbar reduce 126
+176 dot reduce 107
+113 while reduce 71
+143 bool-lit shift 55
+69 ccurl reduce 22
+91 oparen shift 56
+227 decimal-lit shift 67
+230 for reduce 136
+31 id reduce 116
+100 boolean shift 130
+111 LOGICAL_OR_OP shift 12
+143 id shift 35
+28 gt reduce 126
+172 public reduce 26
+55 byte reduce 150
+105 ccurl reduce 17
+226 JCLASS shift 222
+88 barbar reduce 142
+185 ARITH_TERM shift 28
+113 boolean reduce 71
+15 ccurl reduce 135
+91 ARITH_TERM shift 223
+146 decimal-lit reduce 114
+177 BLOCK shift 184
+168 byte reduce 53
+76 char reduce 88
+93 bool-lit reduce 109
+74 id reduce 119
+231 id reduce 106
+234 cparen reduce 138
+110 char reduce 67
+174 OBJECT shift 30
+55 slash reduce 150
+34 null-lit reduce 115
+148 cparen shift 224
+125 cparen reduce 38
+210 semi shift 225
+102 protected reduce 24
+157 public reduce 60
+173 semi reduce 44
+224 slash reduce 129
+183 short reduce 90
+23 cparen reduce 141
+193 semi reduce 8
+15 char reduce 135
+19 ocurl reduce 139
+4 short reduce 140
+70 ARITH_FACTOR shift 36
+28 id reduce 126
+224 cparen reduce 129
+28 if reduce 126
+67 boolean reduce 148
+12 decimal-lit shift 67
+101 ampamp reduce 46
+35 ccurl reduce 131
+20 for reduce 137
+187 ccurl reduce 74
+87 IMPORTS shift 226
+87 public reduce 5
+25 plus reduce 132
+36 noteq reduce 128
+201 OBJECT shift 30
+52 FUNC_CALLS shift 27
+16 FIELD_ACCESS_EXP shift 25
+180 oparen shift 56
+88 semi reduce 142
+168 not reduce 53
+104 cparen reduce 80
+141 id shift 46
+213 id reduce 134
+213 if reduce 134
+155 oparen shift 227
+113 int reduce 71
+11 gteq reduce 149
+223 cparen reduce 125
+11 amp reduce 149
+4 char reduce 140
+166 ccurl reduce 33
+8 bool-lit reduce 120
+24 FUNC_CALL shift 10
+161 id reduce 48
+20 barbar reduce 137
+76 int reduce 88
+27 barbar reduce 133
+131 id reduce 91
+121 short reduce 127
+180 FIELD_ACCESS shift 21
+4 ccurl reduce 140
+161 if reduce 48
+221 ABS_FUNC shift 112
+185 FIELD_ACCESS_EXP shift 25
+223 MULT_OP shift 143
+153 ocurl reduce 63
+121 pct reduce 127
+20 ampamp reduce 137
+23 for reduce 141
+101 star reduce 46
+202 ccurl reduce 45
+185 CP2 shift 23
+131 if reduce 91
+185 CP3 shift 19
+182 cparen shift 228
+185 CP0 shift 7
+10 plus reduce 47
+185 CP1 shift 5
+181 barbar reduce 54
+223 for reduce 125
+26 ARGS shift 229
+19 amp shift 8
+39 oparen reduce 117
+185 CP4 shift 230
+183 ccurl reduce 90
+23 bar reduce 141
+2 gteq reduce 130
+186 FIELD_ACCESS_EXP shift 25
+52 FIELD_ACCESS shift 21
+80 boolean reduce 78
+134 oparen reduce 121
+234 return reduce 138
+201 ARG shift 149
+161 barbar reduce 48
+35 for reduce 131
+10 return reduce 47
+211 import reduce 4
+91 id shift 35
+184 while reduce 68
+170 id shift 231
+154 protected reduce 32
+161 gt reduce 48
+10 byte reduce 47
+10 barbar reduce 47
+40 ocurl reduce 144
+52 LITERAL shift 2
+168 ccurl reduce 53
+224 instanceof reduce 129
+23 noteq shift 74
+9 FUNC_ARG_LIST shift 232
+166 public reduce 33
+172 ccurl reduce 26
+15 short reduce 135
+20 ocurl reduce 137
+12 bool-lit shift 55
+113 ocurl reduce 71
+201 char shift 6
+36 lteq reduce 128
+223 return reduce 125
+94 barbar reduce 146
+36 boolean reduce 128
+25 ccurl reduce 132
+79 int reduce 77
+186 CP2 shift 23
+44 semi reduce 43
+133 final shift 233
+186 CP1 shift 5
+123 bool-lit reduce 112
+161 lt reduce 48
+186 CP0 shift 7
+162 decimal-lit reduce 110
+11 ampamp reduce 149
+186 CP3 shift 234
+11 for reduce 149
+177 id shift 176
+202 ocurl reduce 45
+177 if shift 175
+43 instanceof reduce 147
+24 id shift 128
+203 short reduce 79
+161 boolean reduce 48
+4 barbar reduce 140
+181 plus reduce 54
+28 short reduce 126
+35 bar reduce 131
+46 dot reduce 107
+43 bar reduce 147
+70 decimal-lit shift 67
+85 public shift 207
+58 FUNC_CALLS shift 27
+94 bar reduce 146
+74 decimal-lit reduce 119
+12 null-lit shift 11
+16 id shift 35
+42 boolean shift 130
+225 bool-lit shift 55
+206 cparen shift 235
+161 star reduce 48
+168 cparen reduce 53
+202 instanceof reduce 45
+187 return reduce 74
+219 ccurl reduce 66
+53 boolean reduce 78
+101 dot reduce 46
+218 int shift 236
+2 while reduce 130
+157 char reduce 60
+79 char reduce 77
+121 while reduce 127
+180 ARITH_TERM shift 28
+1 FUNC_CALLS shift 118
+53 else shift 191
+7 semi reduce 145
+186 FUNC_CALLS shift 27
+89 for reduce 73
+2 boolean reduce 130
+91 FIELD_ACCESS_EXP shift 25
+121 eqeq reduce 127
