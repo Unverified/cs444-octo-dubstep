@@ -96,6 +96,7 @@
   (cond
     [(not (rule? rule)) stack]
     [else
+     (printf "reduce by rule: ") (print-rule rule) (printf "~n")
      (define rhs-len (length (rule-rhs rule)))
      (define lhs (rule-lhs rule))
      (define new-tree (tree (node lhs) (reverse (get-n-nodes rhs-len (parser-stack-node stack)))))
@@ -129,6 +130,60 @@
     (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
 
+;public abstract class A { public abstract int m(); }
+(parser (list (token 'public "public")
+              (token 'abstract "abstract")
+              (token 'class "class")
+              (token 'id "A")
+              (token 'ocurl "{")
 
-(parser (list (token 'a "a")))
+;              (token 'public "public")
+;              (token 'int "int")
+;              (token 'id "a1")
+;              (token 'oparen "(")
+;              (token 'cparen ")")
+;              (token 'ocurl "{")
+;              (token 'ccurl "}")
+
+;              (token 'public "public")
+;              (token 'int "int")
+;              (token 'id "a2")
+;              (token 'oparen "(")
+;              (token 'int "int")
+;              (token 'id "arg1")
+;              (token 'comma ",")
+;              (token 'int "int")
+;              (token 'id "arg2")
+;              (token 'cparen ")")
+;              (token 'ocurl "{")
+;              (token 'ccurl "}")
+
+;              (token 'public "public")
+;              (token 'int "int")
+;              (token 'id "b")
+;              (token 'eq "=")
+;              (token 'bool-lit "true")
+;              (token 'semi ";")
+
+;              (token 'public "public")
+;              (token 'int "int")
+;              (token 'id "someint")
+;              (token 'eq "=")
+;              (token 'id "i")
+;              (token 'plus "+")
+;              (token 'oparen "(")
+;              (token 'decimal-lit "1")
+;              (token 'plus "-")
+;              (token 'decimal-lit "2")
+;              (token 'cparen ")")
+;              (token 'semi ";")
+
+
+              (token 'ccurl "}")))
+
+
+
+
+
+
 

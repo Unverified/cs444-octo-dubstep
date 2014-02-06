@@ -53,10 +53,14 @@
 
 ;(: lr-dfa-shift : Symbol Symbol -> Symbol)
 (define (lr-dfa-shift state sym)
-  (dfa-process-sym lr-dfa state sym))
+  (define next-state (dfa-process-sym lr-dfa state sym))
+  (printf "shift ~a : ~a : ~a~n" state sym next-state)
+  next-state)
 
 ;(: lr-dfa-reduce-helper : (Listof reduce) Symbol -> [ rule | Boolean ])
 (define (lr-dfa-reduce-helper reduces next-sym)
+  (printf "################# REDUCES ##################~n")
+  (print-reduces reduces)
   (define rule-to-reduce (memf (lambda (reduce) (equal? next-sym (reduce-lookahead reduce))) reduces))
   (cond
     [(list? rule-to-reduce) (reduce-rule (first rule-to-reduce))]
@@ -64,6 +68,7 @@
 
 ;(: lr-dfa-reduce : Symbol Symbol -> [ rule | Boolean ])
 (define (lr-dfa-reduce state next-sym)
+  (printf "reduce ~a : ~a~n" state next-sym)
   (cond
     [(is-state-accepting lr-dfa state) (lr-dfa-reduce-helper (get-m-md-As lr-dfa state reduce?) next-sym)]
     [else #f]))    
@@ -167,7 +172,7 @@
 (print-machine lr-dfa)
 
 (define start-rule (first rules))
-(define lr-dfa-start-state (machine-start lr-dfa))
+(define lr-dfa-start-state 'g0)
 
 ;==============================================================================================
 ;==== Testing
