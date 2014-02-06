@@ -6,7 +6,7 @@
 
 (define start 'Sp)
 (define terminals (append (list 'BOF 'EOF 'id) (map first token-exps)))
-(define non-terminals (list 'Sp 'S 'JCLASS 'DECLS 'DECL 'TYPE 'ARRAY_TYPE 'OBJECT 'SCOPE 'ARGS 'ARG_LIST 'ARG 'LITERAL 'CMOD 'CONSTRUCTOR 'NORMAL_FUNC 'FINAL_FUNC 'STATIC_FUNC 'ABS_FUNC 'FUNC_BODY 'ABS_BODY 'MEMBER_VAR 'STATIC_MEMBER_VAR 'MEMBER_VAR_DEF 'NATIVE_FUNC 'NATIVE_BODY 'STATIC_NATIVE 'STATEMENTS 'STATEMENT 'BLOCK 'BLOCK_BODY 'IF 'FOR 'FOR_PARAMS 'FOR_ASSIGN 'FOR_CLAUSE 'FOR_ITER 'WHILE 'STATEMENT_BODY 'ELSE_CLAUSES 'ELSE_IF 'ELSE 'COND_ARITH_EXP 'ARITH_EXP 'ARITH_TERM 'ARITH_FACTOR 'ASSIGNMENT_OP 'LOGICAL_OR_OP 'LOGICAL_AND_OP 'BITWISE_OR_OP 'BITWISE_AND_OP 'EQUALITY_OP 'RELATIONAL_OP 'MULT_OP 'ADDITIVE_OP 'CP5 'CP4 'CP3 'CP2 'CP1 'CP0 'EXPRESSION 'VAR_DEFINITION 'VAR_ASSIGNMENT 'FUNC_CALL 'FUNC_ARGS 'FUNC_ARG_LIST 'RETURN 'CLASS_ADDITION 'PACKAGE 'PACKAGE_IMPORT 'IMPORTS 'IMPORT 'CALL_CHANG 'FUNC_CALLS 'FUNC_CALL_STATIC 'CLASS_IMPORT 'OBJECTS 'FIELD_ACCESS_EXP 'FIELD_ACCESS))
+(define non-terminals (list 'Sp 'S 'JCLASS 'DECLS 'DECL 'TYPE 'ARRAY_TYPE 'OBJECT 'SCOPE 'ARGS 'ARG_LIST 'ARG 'LITERAL 'CMOD 'CONSTRUCTOR 'NORMAL_FUNC 'FINAL_FUNC 'STATIC_FUNC 'ABS_FUNC 'FUNC_BODY 'ABS_BODY 'MEMBER_VAR 'STATIC_MEMBER_VAR 'MEMBER_VAR_DEF 'NATIVE_FUNC 'NATIVE_BODY 'STATIC_NATIVE 'STATEMENTS 'STATEMENT 'BLOCK 'BLOCK_BODY 'IF 'FOR 'FOR_PARAMS 'FOR_ASSIGN 'FOR_CLAUSE 'FOR_ITER 'WHILE 'STATEMENT_BODY 'ELSE_CLAUSES 'ELSE_IF 'ELSE 'COND_ARITH_EXP 'ARITH_EXP 'ARITH_TERM 'ARITH_FACTOR 'ASSIGNMENT_OP 'LOGICAL_OR_OP 'LOGICAL_AND_OP 'BITWISE_OR_OP 'BITWISE_AND_OP 'EQUALITY_OP 'RELATIONAL_OP 'MULT_OP 'ADDITIVE_OP 'CP5 'CP4 'CP3 'CP2 'CP1 'CP0 'EXPRESSION 'VAR_DEFINITION 'VAR_ASSIGNMENT 'FUNCTION_CALL 'FUNCTION_ARGS 'FUNC_ARG_LIST 'RETURN 'CLASS_ADDITION 'PACKAGE 'PACKAGE_IMPORT 'IMPORTS 'IMPORT 'CALL_CHANG 'FUNCTION_CALLS 'CLASS_IMPORT 'ID_DOT_LIST 'FIELD_ACCESS 'ID_FUNCTION_DOT_LIST))
 
 ;==============================================================================================
 ;==== Literals
@@ -100,8 +100,8 @@
     (rule 'ARITH_FACTOR (list 'oparen 'COND_ARITH_EXP 'cparen))		
     (rule 'ARITH_FACTOR (list 'LITERAL))		
     (rule 'ARITH_FACTOR (list 'id))
-    (rule 'ARITH_FACTOR (list 'FIELD_ACCESS_EXP))		
-    (rule 'ARITH_FACTOR (list 'FUNC_CALLS))
+    (rule 'ARITH_FACTOR (list 'FIELD_ACCESS))		
+    (rule 'ARITH_FACTOR (list 'FUNCTION_CALLS))
 ))
 
 (define type-rules
@@ -112,9 +112,7 @@
     (rule 'TYPE (list 'byte))
     (rule 'TYPE (list 'short))
     (rule 'TYPE (list 'OBJECT))
-    (rule 'ARRAY_TYPE (list 'TYPE 'osquare 'csquare))
-    (rule 'OBJECT (list 'OBJECT 'dot 'id))
-    (rule 'OBJECT (list 'id))))
+    (rule 'ARRAY_TYPE (list 'TYPE 'osquare 'csquare))))
 
 (define class-mod-rules
   (list
@@ -197,35 +195,6 @@
     (rule 'VAR_DEFINITION (list 'TYPE 'VAR_ASSIGNMENT))
     (rule 'VAR_ASSIGNMENT (list 'id 'eq 'COND_ARITH_EXP))
 
-    ; FUNC_CALL (handles: foo() / foo().bar().etc / foo().a / foo().a.bar() / etc )
-    (rule 'FUNC_CALLS (list 'FUNC_CALLS 'dot 'FUNC_CALL))
-    (rule 'FUNC_CALLS (list 'FUNC_CALLS 'dot 'id))
-    (rule 'FUNC_CALLS (list 'FUNC_CALL))
-    (rule 'FUNC_CALL (list 'id 'oparen 'FUNC_ARGS 'cparen))
-
-    ; FUNC_ARGS
-    (rule 'FUNC_ARGS (list 'FUNC_ARG_LIST))
-    (rule 'FUNC_ARGS empty)
-    (rule 'FUNC_ARG_LIST (list 'LITERAL 'comma 'FUNC_ARG_LIST))
-    (rule 'FUNC_ARG_LIST (list 'LITERAL))
-   
-    ; FIELD_ACCESS_EXP (handles: a.b / a.b.c / etc / a.FUNC_CALLS / a.b.FUNC_CALLS / etc )
-    (rule 'FIELD_ACCESS_EXP (list 'FIELD_ACCESS 'FUNC_CALL))
-    (rule 'FIELD_ACCESS_EXP (list 'FIELD_ACCESS 'id))
-    (rule 'FIELD_ACCESS (list 'FIELD_ACCESS 'id 'dot))
-    (rule 'FIELD_ACCESS (list 'id 'dot))
-
-
-   ; (rule 'FIELD_ACCESS_EXP (list 'FIELD_ACCESS_EXP 'id 'dot 'FIELD_ACCESS))
-   ; (rule 'FIELD_ACCESS_EXP (list 'id 'dot))
-   ; (rule 'FIELD_ACCESS (list 'FUNC_CALLS))
-   ; (rule 'FIELD_ACCESS (list 'id))
-
-    ; EXPRESSION
-    (rule 'EXPRESSION (list 'VAR_DEFINITION 'semi))
-    (rule 'EXPRESSION (list 'VAR_ASSIGNMENT 'semi))
-    (rule 'EXPRESSION (list 'FUNC_CALLS 'semi))
-
     ; BLOCK
     (rule 'BLOCK (list 'ocurl 'BLOCK_BODY 'ccurl))
     (rule 'BLOCK_BODY (list 'STATEMENTS))
@@ -238,7 +207,7 @@
     ; STATEMENT
     (rule 'STATEMENT (list 'VAR_DEFINITION 'semi))
     (rule 'STATEMENT (list 'VAR_ASSIGNMENT 'semi))
-    (rule 'STATEMENT (list 'FUNC_CALLS 'semi))
+    (rule 'STATEMENT (list 'FUNCTION_CALLS 'semi))
     (rule 'STATEMENT (list 'BLOCK))
     (rule 'STATEMENT (list 'IF))
     (rule 'STATEMENT (list 'FOR))
@@ -289,7 +258,7 @@
     ; STATEMENT_BODY
     (rule 'STATEMENT_BODY (list 'BLOCK))
     (rule 'STATEMENT_BODY (list 'VAR_ASSIGNMENT 'semi))
-    (rule 'STATEMENT_BODY (list 'FUNC_CALLS 'semi))
+    (rule 'STATEMENT_BODY (list 'FUNCTION_CALLS 'semi))
     
 ;==============================================================================================
 ;==== Other Statement Rules: WHILE, RETURN
@@ -297,6 +266,30 @@
 
     (rule 'WHILE (list 'while 'oparen 'COND_ARITH_EXP 'cparen 'STATEMENT_BODY))
     (rule 'RETURN (list 'return 'COND_ARITH_EXP))
+
+    (rule 'OBJECT (list 'ID_DOT_LIST))
+    (rule 'OBJECT (list 'id))
+
+    (rule 'FIELD_ACCESS (list 'ID_DOT_LIST))
+
+    ; FUNCTION_CALL (handles: any list of id. or function(). AND ending in function() (eg foo(), foo().bar(), a.foo().c.bar(), etc ) )
+    (rule 'FUNCTION_CALLS (list 'ID_FUNCTION_DOT_LIST 'FUNCTION_CALL))
+    (rule 'FUNCTION_CALLS (list 'FUNCTION_CALL))
+    (rule 'FUNCTION_CALL (list 'id 'oparen 'FUNCTION_ARGS 'cparen))
+
+    ; ID_DOT_LIST (handles: one or more id. or function(). AND ending in an id (eg a.b, a.b.c, a.foo().b, etc ) )
+    (rule 'ID_DOT_LIST (list 'ID_FUNCTION_DOT_LIST 'id))
+
+    (rule 'ID_FUNCTION_DOT_LIST (list 'ID_FUNCTION_DOT_LIST 'id 'dot))
+    (rule 'ID_FUNCTION_DOT_LIST (list 'ID_FUNCTION_DOT_LIST 'FUNCTION_CALL 'dot))
+    (rule 'ID_FUNCTION_DOT_LIST (list 'id 'dot))
+    (rule 'ID_FUNCTION_DOT_LIST (list 'FUNCTION_CALL 'dot))
+
+
+    ; EXPRESSION
+    (rule 'EXPRESSION (list 'VAR_DEFINITION 'semi))
+    (rule 'EXPRESSION (list 'VAR_ASSIGNMENT 'semi))
+    (rule 'EXPRESSION (list 'FUNCTION_CALLS 'semi))
 
 ))
 
