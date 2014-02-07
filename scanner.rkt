@@ -66,7 +66,7 @@
                          [else (let ([tok (call/cc (lambda (cc) (get-token cl (list (machine-start m)) empty cc)))]) 
                                  (if (null? tok)
                                      (error "invalid token")
-                                     (cons (first tok) (scanner m (second tok)))))]))])
+                                     (cons (first tok) (scan (second tok)))))]))])
     
     (with-handlers ([exn:fail? (lambda (exn) #f)])
                    (filter-not (lambda (x) (or (equal? 'WHITESPACE (token-type x)) (equal? 'COMMENT (token-type x)))) 
@@ -84,6 +84,8 @@ public static final class Dicks implements dongs {
    static final int main(int argc, char argv[]) {
        return 0;
    }
+    /*      ***** / ****** 
+          */
 }")
 
-(scanner all-tokens-machine (string->list test1))
+(scanner (all-tokens-machine) (string->list test1))

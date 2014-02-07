@@ -19,4 +19,3 @@
         (write dfa out)
         (close-output-port out)
         dfa)))
-

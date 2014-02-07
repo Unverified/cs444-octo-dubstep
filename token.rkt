@@ -22,6 +22,7 @@
   (map keyword-1 kw))
 
 (define keywords (apply gen-keyword keyword-list))
+
 (define operators '((eq "=") (gt ">") (lt "<") (not "!") (tilde "\\~") (question "?") (colon ":") (eqeq "==")
                              (lteq "<=") (gteq ">=") (noteq "!=") (ampamp "&&") (barbar "\\|\\|") (plusplus "++") (minusminus "--")
                              (plus "+") (minus "-") (star "\\*") (slash "/") (amp "&") (bar "\\|") (carot "^") (pct "%")
@@ -29,8 +30,6 @@
                              (ampeq "&=") (bareq  "\\|=") (caroteq "^=") (pcteq "%=") (ltlteq "<<=") (gtgteq ">>=") (gtgtgteq ">>>=")))
 
 (define separators '((oparen "\\(") (cparen "\\)") (ocurl "{") (ccurl "}") (osquare "[") (csquare "]") (semi ";") (comma ",") (dot ".")))
-
-
 
 (define literals '((null-lit "null") 
                    (bool-lit "true|false")
@@ -41,7 +40,7 @@
                    (char-lit "'(#(char-char)|\\\\(#(reg-escape)|#(oct-escape)))'")
                    (string-lit "\"((#(string-char)|\\\\(#(reg-escape)|#(oct-escape)))*)\"")
                    (comment "//(#(non-break-char)*)")
-                   (comment "/\\*((#(no-star)*)(\\*#(no-slash))*)\\*/")
+                   ;(comment "/\\*((#(no-star)|((\\*)*)#(no-slash))*)\\*/")
                    (whitespace "#(whitespace)")
                    (id "#(java-letter)((#(java-letter)|#(java-digit))*)")))
 
