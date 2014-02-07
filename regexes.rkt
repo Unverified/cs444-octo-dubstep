@@ -70,7 +70,7 @@
      (machine-start machine-1)
      (machine-accepting machine-1)
      (machine-transitions machine-1)
-     (map (lambda (x) (cons x (cons token-name empty))) (machine-accepting machine-1))))) 
+     (map (lambda (x) (list x token-name)) (machine-accepting machine-1))))) 
                         
 
 
