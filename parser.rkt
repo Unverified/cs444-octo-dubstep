@@ -131,11 +131,11 @@
     (reverse (parser-stack-node result-stack))) ;return the node-stack
 
 ;public abstract class A { public abstract int m(); }
-(parser (list (token 'public "public")
-              (token 'abstract "abstract")
-              (token 'class "class")
-              (token 'id "A")
-              (token 'ocurl "{")
+;(parser (list (token 'public "public")
+;              (token 'abstract "abstract")
+;              (token 'class "class")
+;              (token 'id "A")
+;              (token 'ocurl "{")
 
 ;              (token 'public "public")
 ;              (token 'int "int")
@@ -143,7 +143,11 @@
 ;              (token 'oparen "(")
 ;              (token 'cparen ")")
 ;              (token 'ocurl "{")
-;              (token 'ccurl "}")
+
+ ;                 (token 'if "if")
+  ;                (token 'ocurl "{")
+
+   ;           (token 'ccurl "}")
 
 ;              (token 'public "public")
 ;              (token 'int "int")
@@ -179,7 +183,7 @@
 ;              (token 'semi ";")
 
 
-              (token 'ccurl "}")))
+        ;      (token 'ccurl "}")))
 
 
 
