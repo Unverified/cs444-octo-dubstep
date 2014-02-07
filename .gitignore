@@ -1,3 +1,4 @@
 *~
 compiled/
 grammar/bin/
+*.dfa

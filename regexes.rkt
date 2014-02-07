@@ -5,7 +5,6 @@
 
 (provide string->machine)
 
-
 (define (char-range f l)
   (map integer->char (range (char->integer f) (add1 (char->integer l)))))
 
@@ -115,16 +114,6 @@
     [`(#\~ ,x ...) (list->regex x (concatenation R (empty-regex)))] 
     [_ (list->regex (rest lst) (concatenation R (first lst)))]))
 
-(define (parse str)
-  (define (make-sexpr chrs ccp)
-    (match chrs
-      [`(OPARN ,x ...)  empty]
-      [`(CPARN ,x ...)  empty]
-      [x (cons (first x) (make-sexpr (rest x)))]
-    ))
-  
-  (make-sexpr (string->list str)))
-
 (define (tokenize lst)
   (match lst
     [`(#\| ,x ...)     (cons 'ALT (tokenize x))]
@@ -139,17 +128,9 @@
             (cons (literal (first x)) (tokenize (rest x))))]))
 
 
-
 (define (sreg->machine str)
   (regex->machine (list->regex (string->list str) (empty-regex))))
 
-;(tokenize (string->list "a|b|(ac)"))
-
-;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "grey") (empty-regex))))))
-;(expand-parenthesis (string->list "a|e)y") empty 1)
-;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "gr(a|e)y") (empty-regex))))))
-
-;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "a*") (empty-regex))))))
 
 (define (string->machine S token-name)
   (let ([machine-1 (regex->machine (list->regex (string->list S) (empty-regex)))])

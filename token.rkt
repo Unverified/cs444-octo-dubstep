@@ -31,15 +31,6 @@
 (define separators '((oparen "\\(") (cparen "\\)") (ocurl "{") (ccurl "}") (osquare "[") (csquare "]") (semi ";") (comma ",") (dot ".")))
 
 
-;(floating-point-lit "#(digits).(#(digits)|~)(#(exponent-part)|~)(#(float-type-suffix)|~) 
-;|                    (.#(digits)(#(exponent-part)|~)(#(float-type-suffix)|~))  
-;|                    (#(digits)#(exponent-part)(#(float-type-suffix)|~))  
-;|                    (#(digits)(#(exponent-part)|~)#(float-type-suffix))")
-
-		   
-;(define others '(            
-;                 (signed-integer "(+|-|~)#(digits)")
-             
 
 (define literals '((null-lit "null") 
                    (bool-lit "true|false")
