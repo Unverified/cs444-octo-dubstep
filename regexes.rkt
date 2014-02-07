@@ -63,8 +63,16 @@
 
 ;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "a*") (empty-regex))))))
 
-(define (string->machine S)
-  (copy-machine (opt (regex->machine (list->regex (string->list S) (empty-regex))))))
+(define (string->machine S token-name)
+  (let ([machine-1 (copy-machine (opt (regex->machine (list->regex (string->list S) (empty-regex)))))])
+    (machine 
+     (machine-states machine-1)
+     (machine-start machine-1)
+     (machine-accepting machine-1)
+     (machine-transitions machine-1)
+     (map (lambda (x) (cons x (cons token-name empty))) (machine-accepting machine-1))))) 
+                        
+
 
 ;(print-machine (copy-machine (nfa->dfa (regex->machine (concatenation #\g (concatenation #\r (concatenation (k-star (alternation '(#\a #\e))) #\y)))))))
 ;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)") (empty-regex))))))

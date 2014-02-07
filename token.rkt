@@ -87,7 +87,7 @@
                    (char-lit "'(#(char-input-chars)|#(escape-sequence))'")
                    (string-lit "\"(#(string-characters))\"")
 		   (comment-lit-1 "//(#(all-non-break-chars)*)(\n|\r)")
-		   (comment-lit-2 "/\\*#(no-star)(((#(no-star)*)(\\*)((\\*)*)#(no-star-no-slash))*)\\*((\\*)*)/")))
+		   (comment-lit-2 "/\\*#(no-star)((#(no-star)*)|(((#(no-star)*)(\\*)((\\*)*)#(no-star-no-slash))*))\\*((\\*)*)/")))
 
 (define others '(
 
