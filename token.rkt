@@ -3,6 +3,10 @@
 (require racket/string)
 (provide token-exps)
 (provide lookup-regex)
+(provide keywords)
+(provide operators)
+(provide separators)
+(provide literals)
 
 
 (define special-chars (string->list "\\*|~()#"))
@@ -15,6 +19,8 @@
 (define java-char (append (string->list "_$") (char-range #\a #\z) (char-range #\A #\Z)))
 (define digits (char-range #\0 #\9))
 
+;;all-ascii-remove-and-or-remaining : string -> string
+;;removes all chars in remove-chars from all-ascii and returns a regexp containing the "|" of all remaining characters
 (define (all-ascii-remove-and-or-remaining remove-chars)
   (let ([l (filter-not (lambda (x) (member x (string->list remove-chars))) all-ascii)])
     (list->string  
@@ -81,7 +87,7 @@
                    (char-lit "'(#(char-input-chars)|#(escape-sequence))'")
                    (string-lit "\"(#(string-characters))\"")
 		   (comment-lit-1 "//(#(all-non-break-chars)*)(\n|\r)")
-		   (comment-lit-2 "/\\*#(no-star)(((#(no-star)*)((\\*)*)#(no-star-no-slash))*)\\*/")))
+		   (comment-lit-2 "/\\*#(no-star)(((#(no-star)*)(\\*)((\\*)*)#(no-star-no-slash))*)\\*((\\*)*)/")))
 
 (define others '(
 
@@ -149,15 +155,15 @@
   (list->string (expand-list (string->list STR))))
   
   
-(expand-regex "#(decimal-lit)|x")
-(expand-regex "#(bool-lit)|#(decimal-lit)")
+;(expand-regex "#(decimal-lit)|x")
+;(expand-regex "#(bool-lit)|#(decimal-lit)")
 
 ;(expand-regex "#(char-input-chars)#(string-input-chars)")
-(expand-regex "#(string-lit)")
+;(expand-regex "#(string-lit)")
 
-(expand-regex "#(char-lit)")
-(expand-regex "#(comment-lit-1)")
-(expand-regex "#(comment-lit-2)")
+;(expand-regex "#(char-lit)")
+;(expand-regex "#(comment-lit-1)")
+;(expand-regex "#(comment-lit-2)")
 
 (define token-exps 
   (map (lambda (x) (cons (first x) (cons (expand-regex (second x)) empty))) token-exps-1))

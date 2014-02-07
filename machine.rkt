@@ -394,9 +394,9 @@
                                (transition 'D #\0 'C))
                          empty))
 
-(printf "~n")
-(printf "~n~n~nDFA of ClassEx:~n")
-(print-machine (nfa->dfa classex))
+;(printf "~n")
+;(printf "~n~n~nDFA of ClassEx:~n")
+;(print-machine (nfa->dfa classex))
 
 
 ;a NFA that was defined in class in the second lecture
@@ -410,15 +410,15 @@
                           (transition 'B #\1 'C))
                          empty))
 
-(print-machine classex-2)
-(printf "~n")
-(printf "~n~n~nDFA of ClassEx-2:~n")
-(print-machine (nfa->dfa classex-2))
-(print-machine (opt classex-2))
+;(print-machine classex-2)
+;(printf "~n")
+;(printf "~n~n~nDFA of ClassEx-2:~n")
+;(print-machine (nfa->dfa classex-2))
+;(print-machine (opt classex-2))
 
 
-(define ntest (union (list (m-single-char #\a) (m-single-char #\b))))
-(opt ntest)
+;(define ntest (union (list (m-single-char #\a) (m-single-char #\b))))
+;(opt ntest)
 
 
 ;(machine-md (copy-machine (nfa->dfa classex-2)))
