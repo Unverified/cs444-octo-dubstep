@@ -1,6 +1,8 @@
 #lang racket
 
+(require "machine.rkt")
 (require "token-state-handler.rkt")
+(require "create-dfa.rkt")
 
 (provide token)
 (provide token-type)
@@ -43,22 +45,45 @@
   (and (>= (char->integer c) 0)
        (<  (char->integer c) 128)))
 
-(define (scanner cl)
+(define (scanner m cl)
   (letrec ([create-token (lambda (state lex-cl)
-                           (token (get-state-type state) (list->string (reverse lex-cl))))]
+                           (token (get-md m state) (list->string (reverse lex-cl))))]
            [get-token (lambda (cl state lexeme ccp)
                         (cond 
-                          [(and (empty? cl) (empty? lexeme))           (ccp (list (token 'EOF "") cl))]
-                          [(and (empty? cl) (equal? state STATE_NONE)) (ccp null)]
-                          [(empty? cl)                                 (ccp (list (create-token state lexeme) cl))]
-                          [(not (ascii? (first cl)))                   (error "Invalid Character!")]
-                          [(not (equal? state STATE_NONE))             (let ([tok (call/cc (lambda (cc) (get-token (rest cl) (get-transition state (first cl)) (cons (first cl) lexeme) cc)))])
-                                                                         (cond
-                                                                           [(null? tok) (ccp (list (create-token state lexeme) cl))]
-                                                                           [(pair? tok) (ccp tok)]))]
-                          [else (ccp null)]))]
+                          [(empty? cl) (cond
+                                         [(empty? lexeme) (ccp (list (token 'EOF "") cl))]
+                                         [(empty? state)  (ccp null)]
+                                         [(is-state-accepting m (first state)) (ccp (list (create-token state lexeme) cl))]
+                                         [else (ccp null)])]
+                          [(not (ascii? (first cl))) (error "Invalid Character!")]
+                          [(empty? state) (ccp null)]
+                          [(is-state-accepting m (first state)) (let ([tok (call/cc (lambda (cc) (get-token (rest cl) (process-char m state (first cl)) (cons (first cl) lexeme) cc)))])
+                                                                  (cond
+                                                                    [(null? tok) (ccp (list (create-token state lexeme) cl))]
+                                                                    [(pair? tok) (ccp tok)]))]
+                          [else (get-token (rest cl) (process-char m state (first cl)) (cons (first cl) lexeme) ccp)]))]
            [scan (lambda (cl)
                    (cond [(empty? cl) empty]
-                         [else (let ([tok (call/cc (lambda (cc) (get-token cl STATE_START empty cc)))]) (cons (first tok) (scanner (second tok))))]))])
-    (filter-not (lambda (x) (or (equal? 'WHITESPACE (token-type x)) (equal? 'COMMENT (token-type x)))) 
-                (scan cl))))
+                         [else (let ([tok (call/cc (lambda (cc) (get-token cl (list (machine-start m)) empty cc)))]) 
+                                 (if (null? tok)
+                                     (error "invalid token")
+                                     (cons (first tok) (scanner (second tok)))))]))])
+    (with-handler ([exn:fail? (lambda (exn) #f)])
+                  (filter-not (lambda (x) (or (equal? 'WHITESPACE (token-type x)) (equal? 'COMMENT (token-type x)))) 
+                              (scan cl)))))
+
+
+(define test1 
+"
+public static final class Dicks implements dongs {
+   int car = 123;
+  
+   public Dicks() {
+   }
+
+   static final int main(int argc, char argv[]) {
+       return 0;
+   }
+}")
+
+(scanner all-tokens-machine (string->list test1))

@@ -9,6 +9,7 @@
 (provide kleene-star)
 (provide copy-machine)
 (provide nfa->dfa)
+(provide get-md)
 
 (provide m-add-new-start)
 (provide m-add-epsilon-transitions)
