@@ -86,10 +86,9 @@
                    (hex-lit "0(x|X)((0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)*)")
                    (char-lit "'(#(char-input-chars)|#(escape-sequence))'")
                    (string-lit "\"(#(string-characters))\"")
-		   (comment-lit-1 "//(#(all-non-break-chars)*)(\n|\r)")
-                   (id "#(java-letter)((#(java-letter)|#(java-digit))*)")
-		   (comment-lit-2 "/\\*#(no-star)((#(no-star)*)|(((#(no-star)*)(\\*)((\\*)*)#(no-star-no-slash))*))\\*((\\*)*)/")))
-
+                   (comment-lit "#(comment-lit-1)|#(comment-lit-2)")
+		   (id "#(java-letter)((#(java-letter)|#(java-digit))*)")))
+		   
 (define others '(
 
                    (java-letter "$|_|Q|W|E|R|T|Y|U|I|O|P|A|S|D|F|G|H|J|K|L||Z|X|C|V|B|N|M|q|w|e|r|t|y|u|i|o|p|a|s|d|f|g|h|j|k|l|z|x|c|v|b|n|m")
@@ -103,7 +102,11 @@
                    (exponent-part "#(exponent-indicator)#(signed-integer)")
                    (exponent-indicator "e|E")
                    (string-characters "((#(escape-sequence)|#(string-input-chars))*)")
-                   ))
+                   (comment-lit-1 "//(#(all-non-break-chars)*)(\n|\r)")
+                   (comment-lit-2 "/\\*#(no-star)((#(no-star)*)|(((#(no-star)*)(\\*)((\\*)*)#(no-star-no-slash))*))\\*((\\*)*)/")))
+
+                   
+                   
 (define inputs (list
                    (list 'char-input-chars char-input-char-string)
                    (list 'string-input-chars string-input-char-string)
