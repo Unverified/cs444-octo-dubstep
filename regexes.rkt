@@ -27,14 +27,15 @@
              empty)))
 
 (define blocks
-  (let* ([union-blocks (map (lambda (x) (list (first x) (m-char-union (second x))))
+  (let* ([get-machine (lambda (x list) (copy-machine (second (assoc x list))))]
+         [union-blocks (map (lambda (x) (list (first x) (m-char-union (second x))))
                           `((java-digit ,(char-range #\0 #\9))
                             (octal-digit ,(char-range #\0 #\7))
                             (java-letter ,(append (string->list "_$") (char-range #\a #\z) (char-range #\A #\Z)))
                             (one-to-nine ,(char-range #\1 #\9))
                             (zero-to-three ,(char-range #\0 #\3))
                             (exponent-indicator ,(string->list "eE"))
-                            (float-type-suffix  ,(string->list "fFdD"))
+                            (float-suffix  ,(string->list "fFdD"))
                             (reg-escape ,(string->list "btnfr'\"\\"))
                             (hex-digit ,(string->list "0123456789aAbBcCdDeEfF"))
                             (string-char ,(filter-not (lambda (x) (member x (string->list "\\\""))) (map integer->char (range 0 128))))
@@ -44,18 +45,20 @@
                             (no-slash ,(filter-not (lambda (x) (member x (string->list "/"))) (map integer->char (range 0 128))))
                             (no-star-slash ,(filter-not (lambda (x) (member x (string->list "*/"))) (map integer->char (range 0 128))))
                             (whitespace ,(string->list "\t\n\r\f "))
+                            (sign ,(string->list "+-"))
                             ))]
-         [composed-blocks (let ([get-u-machine (lambda (x) (copy-machine (second (assoc x union-blocks))))])
-                            `((digits ,(copy-machine (opt (concat (list (get-u-machine 'java-digit) 
-                                                                        (kleene-star  (get-u-machine 'java-digit)))))))
-                              (oct-escape ,(copy-machine (opt (union (list (get-u-machine 'octal-digit)
-                                                                           (concat (list (get-u-machine 'octal-digit) (get-u-machine 'octal-digit)))
-                                                                           (concat (list (get-u-machine 'zero-to-three) (get-u-machine 'octal-digit) (get-u-machine 'octal-digit))))))))                                    
-                              (decimal-lit ,(copy-machine (opt (union (list (m-char-union (list #\0))
-                                                                            (concat (list (get-u-machine 'one-to-nine) (kleene-star (get-u-machine 'java-digit)))))))))
-
-                              ))])
-  (append union-blocks composed-blocks)))
+         [composed-blocks `((digits ,(copy-machine (opt (concat (list (get-machine 'java-digit union-blocks) 
+                                                                      (kleene-star  (get-machine 'java-digit union-blocks)))))))
+                            (oct-escape ,(copy-machine (opt (union (list (get-machine 'octal-digit union-blocks)
+                                                                         (concat (list (get-machine 'octal-digit union-blocks) (get-machine 'octal-digit union-blocks)))
+                                                                         (concat (list (get-machine 'zero-to-three union-blocks) (get-machine 'octal-digit union-blocks) (get-machine 'octal-digit union-blocks))))))))                                    
+                            (decimal-lit ,(copy-machine (opt (union (list (m-char-union (list #\0))
+                                                                          (concat (list (get-machine 'one-to-nine union-blocks) (kleene-star (get-machine 'java-digit union-blocks)))))))))
+                            )]
+         [top-blocks `((signed-int ,(copy-machine (opt (concat (list (union (list (get-machine 'sign union-blocks) (m-only-epsilon)))
+                                                                     (get-machine 'digits composed-blocks))))))
+                       )])
+  (append top-blocks union-blocks composed-blocks)))
 
 
 ;;(struct : empty-regex ())
