@@ -29,9 +29,9 @@
 
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
-(struct transition (from char to) #:transparent)
+(struct transition (from char to) #:prefab)
 ;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [accepting : (Listof Symbol)] [transitions : (Listof transition)] [md : (Listof (Pair Symbol A)]))
-(struct machine (states start accepting transitions md) #:transparent)
+(struct machine (states start accepting transitions md) #:prefab)
 
 ;==============================================================================================
 ;==== Machine Processing
