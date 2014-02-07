@@ -86,7 +86,7 @@
                    (hex-lit "0(x|X)((0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)*)")
                    (char-lit "'(#(char-input-chars)|#(escape-sequence))'")
                    (string-lit "\"(#(string-characters))\"")
-                   (comment-lit "#(comment-lit-1)|#(comment-lit-2)")
+                   (comment-lit "(#(comment-lit-1)|#(comment-lit-2))")
 		   (id "#(java-letter)((#(java-letter)|#(java-digit))*)")))
 		   
 (define others '(
