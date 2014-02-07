@@ -13,5 +13,5 @@
 
 
 (define all-tokens-regexes (append keywords operators literals separators))
-(define all-tokens-dfa (copy-machine (opt (union (map (lambda (x) (string->machine (first (rest x)) (first x))) all-tokens-regexes)))))
+(copy-machine (nfa->dfa (union (map (lambda (x) (copy-machine (opt (string->machine (first (rest x)) (first x))))) all-tokens-regexes))))
 

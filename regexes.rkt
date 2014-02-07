@@ -24,7 +24,7 @@
     [(empty-regex? R) (m-only-epsilon)]
     [(char? R) (m-single-char R)]
     [(concatenation? R) (concat (list (regex->machine (concatenation-left R)) (regex->machine (concatenation-right R))))]
-    [(alternation? R) (opt (union (map regex->machine (alternation-options R))))]
+    [(alternation? R) (union (map regex->machine (alternation-options R)))]
     [(k-star? R) (kleene-star (regex->machine (k-star-body R)))]
     [else (error "Not a regular expression")]))
 
@@ -64,13 +64,13 @@
 ;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "a*") (empty-regex))))))
 
 (define (string->machine S token-name)
-  (let ([machine-1 (copy-machine (opt (regex->machine (list->regex (string->list S) (empty-regex)))))])
-    (machine 
+  (let ([machine-1 (copy-machine (regex->machine (list->regex (string->list S) (empty-regex))))])
+    (nfa->dfa (machine 
      (machine-states machine-1)
      (machine-start machine-1)
      (machine-accepting machine-1)
      (machine-transitions machine-1)
-     (map (lambda (x) (list x token-name)) (machine-accepting machine-1))))) 
+     (map (lambda (x) (list x token-name)) (machine-accepting machine-1)))))) 
                         
 
 
