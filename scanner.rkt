@@ -48,7 +48,15 @@
 
 (define (scanner m cl)
   (letrec ([create-token (lambda (state lex-cl)
-                           (token (second (get-md m state)) (list->string (reverse lex-cl))))]
+                             (match (second (get-md m state))
+                               ['decimal-lit (let ([lex (string->number (if (member (first lex-cl) '(#\l #\L))
+                                                                            (list->string (reverse (rest lex-cl)))
+                                                                            (list->string (reverse lex-cl))))])
+                                               (cond 
+                                                 [(or (> lex 2147483647) (< lex -2147483648) (not (exact-integer? lex)))
+                                                  (error "Invalid integer")]
+                                                 [else (token 'decimal-lit lex)]))]
+                               [x (token x (list->string (reverse lex-cl)))]))]
            [get-token (lambda (cl state lexeme ccp)
                         (cond 
                           [(empty? cl) (cond
@@ -60,6 +68,7 @@
                           [(not (ascii? (first cl))) (error "Invalid Character!")]
                           [(is-state-accepting m (first state)) (let ([tok (call/cc (lambda (cc) (get-token (rest cl) (process-char m (first state) (first cl)) (cons (first cl) lexeme) cc)))])
                                                                   (cond
+                                                                    [(and (null? tok) (empty? lexeme)) (error "invalid char")]
                                                                     [(null? tok) (ccp (list (create-token (first state) lexeme) cl))]
                                                                     [(pair? tok) (ccp tok)]))]
                           [else (get-token (rest cl) (process-char m (first state) (first cl)) (cons (first cl) lexeme) ccp)]))]
@@ -68,10 +77,7 @@
                          [else (let ([tok (call/cc (lambda (cc) (get-token cl (list (machine-start m)) empty cc)))]) 
                                  (if (null? tok)
                                      (error "invalid token")
-                                     (cons (first tok) (scan (second tok)))))]))])
-    
+                                     (cons (first tok) (scan (second tok)))))]))]) 
     (with-handlers ([exn:fail? (lambda (exn) #f)])
                    (filter-not (lambda (x) (or (equal? 'whitespace (token-type x)) (equal? 'comment (token-type x)))) 
                                (scan cl)))))
-
-
