@@ -43,7 +43,7 @@
                    (char-lit "'(#(char-char)|\\\\(#(reg-escape)|#(oct-escape)))'")
                    (string-lit "\"((#(string-char)|\\\\(#(reg-escape)|#(oct-escape)))*)\"")
                    (comment "//(#(non-break-char)*)")
-                   (comment "/\\*((#(no-star)|\\**#(no-slash))*)\\*/")
+                   (comment "/((\\*((#(no-slash-star)(/*))*))*)\\*/")
                    (whitespace "#(whitespace)*")
                    (id "#(java-letter)((#(java-letter)|#(java-digit))*)")))
 
@@ -62,7 +62,6 @@
 
 (define token-exps 
   (map (lambda (x) (list (first x) (second x))) token-exps-1))
-
 
 (define (find-first sel from ccp)
   (for* ([i sel]
