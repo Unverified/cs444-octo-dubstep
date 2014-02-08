@@ -7,7 +7,7 @@
 
 (define start 'Sp)
 (define terminals (append (list 'BOF 'EOF) (remove-duplicates (map first token-exps))))
-(define non-terminals (list 'Sp 'S 'CLASS 'DECLS 'DECL 'TYPE 'ARRAY_TYPE 'IDS 'SCOPE 'ARGS 'ARG_TYPE_LIST 'ARG 'LITERAL 'CMOD 'CONSTRUCTOR 'NORMAL_FUNC 'FINAL_FUNC 'STATIC_FUNC 'ABS_FUNC 'FUNC_BODY 'ABS_BODY 'MEMBER_VAR 'STATIC_MEMBER_VAR 'MEMBER_VAR_DEF 'NATIVE_FUNC 'NATIVE_BODY 'STATIC_NATIVE 'STATEMENTS 'STATEMENT 'BLOCK 'BLOCK_BODY 'IF 'FOR 'FOR_PARAMS 'FOR_ASSIGN 'FOR_CLAUSE 'FOR_ITER 'WHILE 'STATEMENT_BODY 'ELSE_CLAUSES 'ELSE_IF 'ELSE 'COND_ARITH_EXP 'ARITH_EXP 'ARITH_TERM 'ARITH_FACTOR 'ARITH_EXP2 'ARITH_TERM2 'ARITH_FACTOR2 'ASSIGNMENT_OP 'LOGICAL_OR_OP 'LOGICAL_AND_OP 'BITWISE_OR_OP 'BITWISE_AND_OP 'EQUALITY_OP 'RELATIONAL_OP 'MULT_OP 'ADDITIVE_OP 'CP5 'CP4 'CP3 'CP2 'CP1 'CP0 'EXPRESSION 'VAR_DEFINITION 'VAR_ASSIGNMENT 'FUNCTION_CALL 'FUNCTION_ARGS 'FUNC_ARG_TYPE_LIST 'RETURN 'CLASS_ADDITION 'PACKAGE 'PACKAGE_IMPORT 'IMPORTS 'IMPORT 'CALL_CHANG 'FUNCTION_CALLS 'FUNCTION_CALL_EXP 'CLASS_IMPORT 'FIELD_ACCESS 'ID_FUNCTION_DOT_LIST 'PRIMITIVE 'NEW 'ARG_LIST 'FUNC_ARG_CALL 'FUNC_ARG_DEF 'SOMETHING 'ARGUMENTS 'THIS_ACCESS 'NEW_OBJECT 'NEW_ARRAY 'CAST 'ARITH_STATEMENT 'CAST_OBJ 'CP6 'ENCLOSED_IDS  'ENCLOSED_PRIMITIVE 'CP2b 'DECL_NO_BODY 'DECLS_NO_BODY 'INTERFACE 'IMOD 'INTERFACE_ADDITION 'JCLASS 'IMPLEMENTS 'CASTS 'THROWS))
+(define non-terminals (list 'Sp 'S 'CLASS 'DECLS 'DECL 'TYPE 'ARRAY_TYPE 'IDS 'SCOPE 'ARGS 'ARG_TYPE_LIST 'ARG 'LITERAL 'CMOD 'CONSTRUCTOR 'NORMAL_FUNC 'FINAL_FUNC 'STATIC_FUNC 'ABS_FUNC 'FUNC_BODY 'ABS_BODY 'MEMBER_VAR 'STATIC_MEMBER_VAR 'MEMBER_VAR_DEF 'NATIVE_FUNC 'NATIVE_BODY 'STATIC_NATIVE 'STATEMENTS 'STATEMENT 'BLOCK 'BLOCK_BODY 'IF 'FOR 'FOR_PARAMS 'FOR_ASSIGN 'FOR_CLAUSE 'FOR_ITER 'WHILE 'STATEMENT_BODY 'ELSE_CLAUSES 'ELSE_IF 'ELSE 'COND_ARITH_EXP 'ARITH_EXP 'ARITH_TERM 'ARITH_FACTOR 'ARITH_EXP2 'ARITH_TERM2 'ARITH_FACTOR2 'ASSIGNMENT_OP 'LOGICAL_OR_OP 'LOGICAL_AND_OP 'BITWISE_OR_OP 'BITWISE_AND_OP 'EQUALITY_OP 'RELATIONAL_OP 'MULT_OP 'ADDITIVE_OP 'CP5 'CP4 'CP3 'CP2 'CP1 'CP0 'EXPRESSION 'VAR_DEFINITION 'VAR_ASSIGNMENT 'FUNCTION_CALL 'FUNCTION_ARGS 'FUNC_ARG_TYPE_LIST 'RETURN 'CLASS_ADDITION 'PACKAGE 'PACKAGE_IMPORT 'IMPORTS 'IMPORT 'CALL_CHANG 'FUNCTION_CALLS 'FUNCTION_CALL_EXP 'CLASS_IMPORT 'FIELD_ACCESS 'ID_FUNCTION_DOT_LIST 'PRIMITIVE 'NEW 'ARG_LIST 'FUNC_ARG_CALL 'FUNC_ARG_DEF 'SOMETHING 'ARGUMENTS 'THIS_ACCESS 'NEW_OBJECT 'NEW_ARRAY 'CAST 'ARITH_STATEMENT 'CAST_OBJ 'CP6 'ENCLOSED_IDS  'ENCLOSED_PRIMITIVE 'CP2b 'DECL_NO_BODY 'DECLS_NO_BODY 'INTERFACE 'IMOD 'INTERFACE_ADDITION 'JCLASS 'IMPLEMENTS 'CASTS 'THROWS 'THIS_DOT_ACCESS 'FUNC_ARG_TYPE))
 
 ;==============================================================================================
 ;==== Literals
@@ -15,6 +15,8 @@
 
 (define literal-rules
   (list  
+    (rule 'LITERAL (list 'string-lit))
+    (rule 'LITERAL (list 'char-lit))
     (rule 'LITERAL (list 'decimal-lit))
     (rule 'LITERAL (list 'null-lit))
     (rule 'LITERAL (list 'bool-lit))))
@@ -111,6 +113,7 @@
     (rule 'ARITH_FACTOR (list 'FUNCTION_CALL_EXP))	
     (rule 'ARITH_FACTOR (list 'THIS_ACCESS))	
     (rule 'ARITH_FACTOR (list 'NEW))  
+    (rule 'ARITH_FACTOR (list 'string-lit 'dot 'FUNCTION_CALL_EXP))  
 ))
 
 (define primitive-rules
@@ -128,7 +131,8 @@
     (rule 'TYPE (list 'IDS))
     (rule 'TYPE (list 'ARRAY_TYPE))
     (rule 'TYPE (list 'void))
-    (rule 'ARRAY_TYPE (list 'PRIMITIVE 'osquare 'csquare))))
+    (rule 'ARRAY_TYPE (list 'PRIMITIVE 'osquare 'csquare))
+    (rule 'ARRAY_TYPE (list 'IDS 'osquare 'csquare))))
 
 (define class-mod-rules
   (list
@@ -239,6 +243,7 @@
     (rule 'VAR_DEFINITION (list 'TYPE 'VAR_ASSIGNMENT))
     (rule 'VAR_ASSIGNMENT (list 'id 'eq 'COND_ARITH_EXP))
     (rule 'VAR_ASSIGNMENT (list 'NEW_OBJECT 'eq 'COND_ARITH_EXP))
+    (rule 'VAR_ASSIGNMENT (list 'THIS_DOT_ACCESS 'eq 'COND_ARITH_EXP))
 
     ; BLOCK
     (rule 'BLOCK (list 'ocurl 'BLOCK_BODY 'ccurl))
@@ -306,6 +311,8 @@
     (rule 'STATEMENT_BODY (list 'VAR_ASSIGNMENT 'semi))
     (rule 'STATEMENT_BODY (list 'FUNCTION_CALL_EXP 'semi))
     (rule 'STATEMENT_BODY (list 'THIS_ACCESS 'semi))
+    (rule 'STATEMENT_BODY (list 'FOR))
+    (rule 'STATEMENT_BODY (list 'WHILE))
     (rule 'STATEMENT_BODY (list 'RETURN))
     
 ;==============================================================================================
@@ -314,6 +321,8 @@
 
     (rule 'WHILE (list 'while 'oparen 'COND_ARITH_EXP 'cparen 'STATEMENT_BODY))
     (rule 'RETURN (list 'return 'COND_ARITH_EXP 'semi))
+    (rule 'RETURN (list 'return 'minus 'LITERAL 'semi))
+    (rule 'RETURN (list 'return 'minus 'IDS 'semi))
     (rule 'RETURN (list 'return 'void 'semi))
     (rule 'RETURN (list 'return 'semi))
 
@@ -321,8 +330,9 @@
     (rule 'ARGUMENTS (list 'FUNC_ARG_DEF))
     (rule 'ARGUMENTS (list 'FUNC_ARG_CALL))
     (rule 'ARGUMENTS empty)
-    (rule 'FUNC_ARG_DEF (list 'FUNC_ARG_DEF 'comma 'TYPE 'id))
-    (rule 'FUNC_ARG_DEF (list 'TYPE 'id))
+    (rule 'FUNC_ARG_DEF (list 'FUNC_ARG_DEF 'comma 'FUNC_ARG_TYPE))
+    (rule 'FUNC_ARG_DEF (list 'FUNC_ARG_TYPE))
+    (rule 'FUNC_ARG_TYPE (list 'TYPE 'id)) 
     (rule 'FUNC_ARG_CALL (list 'FUNC_ARG_CALL 'comma 'COND_ARITH_EXP))
     (rule 'FUNC_ARG_CALL (list 'COND_ARITH_EXP))
 
@@ -339,8 +349,9 @@
     (rule 'IDS (list 'id))
 
     (rule 'THIS_ACCESS (list 'this 'dot 'FUNCTION_CALL_EXP))
-    (rule 'THIS_ACCESS (list 'this 'dot 'IDS))
-    (rule 'THIS_ACCESS (list 'this))
+    (rule 'THIS_ACCESS (list 'THIS_DOT_ACCESS))
+    (rule 'THIS_DOT_ACCESS (list 'this 'dot 'IDS))
+    (rule 'THIS_DOT_ACCESS (list 'this))
 
     (rule 'NEW (list 'NEW_ARRAY))
     (rule 'NEW (list 'NEW_OBJECT))
