@@ -1,7 +1,6 @@
-126
+107
 BOF
 EOF
-id
 abstract
 boolean
 break
@@ -100,32 +99,14 @@ null-lit
 bool-lit
 decimal-lit
 octal-lit
-floating-point-lit
 hex-lit
+float-lit
 char-lit
 string-lit
-comment-lit-1
-comment-lit-2
-java-letter
-java-digit
-digits
-float-type-suffix
-signed-integer
-octal-digit
-zero-to-three
-escape-sequence
-exponent-part
-exponent-indicator
-string-characters
-char-input-chars
-string-input-chars
-all-ascii-chars
-all-non-break-chars
-no-star
-no-slash
-no-star-no-slash
-line-terminator
-107
+comment
+whitespace
+id
+108
 Sp
 S
 CLASS
@@ -233,8 +214,9 @@ INTERFACE_ADDITION
 JCLASS
 IMPLEMENTS
 CASTS
+THROWS
 Sp
-198
+201
 Sp BOF S EOF
 S PACKAGE IMPORTS JCLASS
 PACKAGE package IDS semi
@@ -279,9 +261,11 @@ STATIC_FUNC SCOPE static TYPE FUNC_BODY
 NATIVE_FUNC SCOPE STATIC_NATIVE int NATIVE_BODY
 STATIC_NATIVE static native
 ABS_FUNC SCOPE abstract TYPE ABS_BODY
-FUNC_BODY id oparen ARGUMENTS cparen BLOCK
-ABS_BODY id oparen ARGUMENTS cparen semi
+FUNC_BODY id oparen ARGUMENTS cparen THROWS BLOCK
+ABS_BODY id oparen ARGUMENTS cparen THROWS semi
 NATIVE_BODY id oparen int id cparen semi
+THROWS throw IDS
+THROWS
 ARGS ARG_TYPE_LIST
 ARGS
 ARG_TYPE_LIST ARG comma ARG_TYPE_LIST
@@ -363,8 +347,9 @@ CASTS CAST
 CAST oparen PRIMITIVE cparen
 CAST oparen PRIMITIVE osquare csquare cparen
 CAST oparen COND_ARITH_EXP cparen
-CAST oparen COND_ARITH_EXP osquare csquare cparen
+CAST oparen COND_ARITH_EXP cparen osquare csquare
 CAST oparen minus COND_ARITH_EXP cparen
+CAST oparen minus COND_ARITH_EXP cparen osquare csquare
 SCOPE public
 SCOPE protected
 CMOD final

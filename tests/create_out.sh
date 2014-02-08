@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for file in tests/J1*
+for file in tests/tests/J1*
 do
 
   file_contents=`cat $file`
@@ -12,7 +12,7 @@ do
   echo "Compiled" > "out/$file_name"
 done
 
-for file in tests/Je*
+for file in tests/tests/Je*
 do
 
   file_contents=`cat $file`

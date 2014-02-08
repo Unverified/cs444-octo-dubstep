@@ -5,6 +5,7 @@
 (require "weeder.rkt")			;needed for weeding
 (require "token-state-handler.rkt")	;needed for START_STATE
 (require "lr-dfa.rkt")			;needed for rule
+(require "create-dfa.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -51,7 +52,7 @@
 ;Runs the scanner, checks if the scanner properly scanned the tokens, then either calles error or
 ;returns the tokens
 (define (run-scanner chars)
-  (define tokens (scanner chars STATE_START ""))
+  (define tokens (scanner (all-tokens-machine) chars))
   (cond
     [(list? tokens) tokens]
     [else (error)]))
@@ -128,6 +129,7 @@
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
 (define (run-parser tokens)
+  (print-tokens tokens)
   (define node-stack (parser tokens))
   (cond
     [(empty? node-stack) (error)]

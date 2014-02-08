@@ -1,0 +1,506 @@
+// PARSER_WEEDER,CODE_GENERATION
+public class J1_01 {
+    public J1_01() {}
+    public static int test() {
+	int r1 = J1_01.m0(0);
+	int r2 = J1_01.m0(1);
+	int r3 = J1_01.m0(100);
+	int r4 = J1_01.m1(0);
+	int r5 = J1_01.m1(1);
+	int r6 = J1_01.m1(100);
+
+	int r = 0;
+	if (r1==9) r=r+1;
+	if (r2==6) r=r+1;
+	if (r3==6) r=r+1;
+
+	if (r4==6) r=r+1;
+	if (r5==9) r=r+1;
+	if (r6==6) r=r+1;
+	
+	return 117+r;
+    }
+
+    public static int m0(int a) {
+	int r = 0;
+	if (a==0) r=r+1;
+	if (a!=0) r=r+2;
+	if (!(a==0)) r=r+4;
+	if (!(a!=0)) r=r+8;
+	return r;
+    }
+
+    public static int m1(int a) {
+	int r = 0;
+	if (a==1) r=r+1;
+	if (a!=1) r=r+2;
+	if (!(a==1)) r=r+4;
+	if (!(a!=1)) r=r+8;
+	return r;
+    }
+}\n====== Scanned Tokens ======
+(comment) : // PARSER_WEEDER,CODE_GENERATION
+(whitespace) : 
+
+(id public) : public
+(whitespace) :  
+(id class) : class
+(whitespace) :  
+(id) : J1_01
+(whitespace) :  
+(ocurl) : {
+(whitespace) : 
+    
+(id public) : public
+(whitespace) :  
+(id) : J1_01
+(oparen) : (
+(cparen) : )
+(whitespace) :  
+(ocurl) : {
+(ccurl) : }
+(whitespace) : 
+    
+(id public) : public
+(whitespace) :  
+(id static) : static
+(whitespace) :  
+(id int) : int
+(whitespace) :  
+(id) : test
+(oparen) : (
+(cparen) : )
+(whitespace) :  
+(ocurl) : {
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r1
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(id) : J1_01
+(dot) : .
+(id) : m0
+(oparen) : (
+(decimal-lit octal-lit float-lit) : 0
+(cparen) : )
+(semi) : ;
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r2
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(id) : J1_01
+(dot) : .
+(id) : m0
+(oparen) : (
+(float-lit decimal-lit) : 1
+(cparen) : )
+(semi) : ;
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r3
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(id) : J1_01
+(dot) : .
+(id) : m0
+(oparen) : (
+(float-lit decimal-lit) : 100
+(cparen) : )
+(semi) : ;
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r4
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(id) : J1_01
+(dot) : .
+(id) : m1
+(oparen) : (
+(decimal-lit octal-lit float-lit) : 0
+(cparen) : )
+(semi) : ;
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r5
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(id) : J1_01
+(dot) : .
+(id) : m1
+(oparen) : (
+(float-lit decimal-lit) : 1
+(cparen) : )
+(semi) : ;
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r6
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(id) : J1_01
+(dot) : .
+(id) : m1
+(oparen) : (
+(float-lit decimal-lit) : 100
+(cparen) : )
+(semi) : ;
+(whitespace) : 
+
+	
+(id int) : int
+(whitespace) :  
+(id) : r
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(decimal-lit octal-lit float-lit) : 0
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : r1
+(eqeq) : ==
+(float-lit decimal-lit) : 9
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : r2
+(eqeq) : ==
+(float-lit decimal-lit) : 6
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : r3
+(eqeq) : ==
+(float-lit decimal-lit) : 6
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : r4
+(eqeq) : ==
+(float-lit decimal-lit) : 6
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : r5
+(eqeq) : ==
+(float-lit decimal-lit) : 9
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : r6
+(eqeq) : ==
+(float-lit decimal-lit) : 6
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+	
+	
+(id return) : return
+(whitespace) :  
+(float-lit decimal-lit) : 117
+(plus) : +
+(id) : r
+(semi) : ;
+(whitespace) : 
+    
+(ccurl) : }
+(whitespace) : 
+
+    
+(id public) : public
+(whitespace) :  
+(id static) : static
+(whitespace) :  
+(id int) : int
+(whitespace) :  
+(id) : m0
+(oparen) : (
+(id int) : int
+(whitespace) :  
+(id) : a
+(cparen) : )
+(whitespace) :  
+(ocurl) : {
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(decimal-lit octal-lit float-lit) : 0
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : a
+(eqeq) : ==
+(decimal-lit octal-lit float-lit) : 0
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : a
+(noteq) : !=
+(decimal-lit octal-lit float-lit) : 0
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 2
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(not) : !
+(oparen) : (
+(id) : a
+(eqeq) : ==
+(decimal-lit octal-lit float-lit) : 0
+(cparen) : )
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 4
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(not) : !
+(oparen) : (
+(id) : a
+(noteq) : !=
+(decimal-lit octal-lit float-lit) : 0
+(cparen) : )
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 8
+(semi) : ;
+(whitespace) : 
+	
+(id return) : return
+(whitespace) :  
+(id) : r
+(semi) : ;
+(whitespace) : 
+    
+(ccurl) : }
+(whitespace) : 
+
+    
+(id public) : public
+(whitespace) :  
+(id static) : static
+(whitespace) :  
+(id int) : int
+(whitespace) :  
+(id) : m1
+(oparen) : (
+(id int) : int
+(whitespace) :  
+(id) : a
+(cparen) : )
+(whitespace) :  
+(ocurl) : {
+(whitespace) : 
+	
+(id int) : int
+(whitespace) :  
+(id) : r
+(whitespace) :  
+(eq) : =
+(whitespace) :  
+(decimal-lit octal-lit float-lit) : 0
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : a
+(eqeq) : ==
+(float-lit decimal-lit) : 1
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 1
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(id) : a
+(noteq) : !=
+(float-lit decimal-lit) : 1
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 2
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(not) : !
+(oparen) : (
+(id) : a
+(eqeq) : ==
+(float-lit decimal-lit) : 1
+(cparen) : )
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 4
+(semi) : ;
+(whitespace) : 
+	
+(id if) : if
+(whitespace) :  
+(oparen) : (
+(not) : !
+(oparen) : (
+(id) : a
+(noteq) : !=
+(float-lit decimal-lit) : 1
+(cparen) : )
+(cparen) : )
+(whitespace) :  
+(id) : r
+(eq) : =
+(id) : r
+(plus) : +
+(float-lit decimal-lit) : 8
+(semi) : ;
+(whitespace) : 
+	
+(id return) : return
+(whitespace) :  
+(id) : r
+(semi) : ;
+(whitespace) : 
+    
+(ccurl) : }
+(whitespace) : 
+
+(ccurl) : }
+(whitespace) : 
+
+DONE PARSING
+Node Stack:
+leafnode | (comment) : // PARSER_WEEDER,CODE_GENERATION
+leafnode | BOF : BOF
+Error
