@@ -46,6 +46,22 @@
   (and (>= (char->integer c) 0)
        (<  (char->integer c) 128)))
 
+
+
+(define (escape-chars cl) 
+  (match cl
+    [`()               empty]
+    [`(#\\ #\b ,x ...) (cons #\u0008 (escape-chars x))]
+    [`(#\\ #\t ,x ...) (cons #\u0009 (escape-chars x))]
+    [`(#\\ #\n ,x ...) (cons #\u000a (escape-chars x))]
+    [`(#\\ #\f ,x ...) (cons #\u000c (escape-chars x))]
+    [`(#\\ #\r ,x ...) (cons #\u000d (escape-chars x))]
+    [`(#\\ #\" ,x ...) (cons #\u0022 (escape-chars x))]
+    [`(#\\ #\' ,x ...) (cons #\u0027 (escape-chars x))]
+    [`(#\\ #\\ ,x ...) (cons #\u005c (escape-chars x))]
+    [`(#\\ ,a ,b ,c ,x ...) (cons (first x) (escape-chars (rest x)))]
+    [x (cons (first x) (escape-chars (rest x)))]))
+
 (define (scanner m cl)
   (letrec ([create-token (lambda (state lex-cl)
                              (match (second (get-md m state))
@@ -53,9 +69,11 @@
                                                                             (list->string (reverse (rest lex-cl)))
                                                                             (list->string (reverse lex-cl))))])
                                                (cond 
-                                                 [(or (> lex 2147483647) (< lex -2147483648) (not (exact-integer? lex)))
+                                                 [(or (>= lex 2147483647) (<= lex -2147483648) (not (exact-integer? lex)))
                                                   (error "Invalid integer")]
                                                  [else (token 'decimal-lit lex)]))]
+                               ['char-lit    (token 'char-list (list->string (escape-chars (reverse lex-cl))))]
+                               ['string-list (token 'string-lit (list->string (escape-chars (reverse lex-cl))))]
                                [x (token x (list->string (reverse lex-cl)))]))]
            [get-token (lambda (cl state lexeme ccp)
                         (cond 
