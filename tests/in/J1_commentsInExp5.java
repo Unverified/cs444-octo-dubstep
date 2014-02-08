@@ -1,0 +1,10 @@
+public class J1_commentsInExp5 {
+
+    public J1_commentsInExp5 () {}
+
+    public static int test() {
+	String s = (String) "String";
+        return 123;
+    }
+
+}

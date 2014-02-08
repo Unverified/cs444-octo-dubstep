@@ -20,13 +20,13 @@
 ;==============================================================================================
 
 ;(struct: rule ([lhs : Symbol] [rhs : (Listof Symbol)]))
-(struct rule (lhs rhs))
+(struct rule (lhs rhs) #:transparent)
 
 ;(struct: lritem ([dot : Integer] [rule : (Listof rule)]))
 (struct lritem (dot rule))
 
 ;(struct: reduce ([rule : rule] [lookahead : Symbol]))
-(struct reduce (rule lookahead))
+(struct reduce (rule lookahead) #:transparent)
 
 ;==============================================================================================
 ;==== Print Functions
@@ -54,13 +54,10 @@
 ;(: lr-dfa-shift : Symbol Symbol -> Symbol)
 (define (lr-dfa-shift state sym)
   (define next-state (dfa-process-sym lr-dfa state sym))
-  (printf "shift ~a : ~a : ~a~n" state sym next-state)
   next-state)
 
 ;(: lr-dfa-reduce-helper : (Listof reduce) Symbol -> [ rule | Boolean ])
 (define (lr-dfa-reduce-helper reduces next-sym)
-  (printf "################# REDUCES ##################~n")
-  (print-reduces reduces)
   (define rule-to-reduce (memf (lambda (reduce) (equal? next-sym (reduce-lookahead reduce))) reduces))
   (cond
     [(list? rule-to-reduce) (reduce-rule (first rule-to-reduce))]
@@ -68,7 +65,6 @@
 
 ;(: lr-dfa-reduce : Symbol Symbol -> [ rule | Boolean ])
 (define (lr-dfa-reduce state next-sym)
-  (printf "reduce ~a : ~a~n" state next-sym)
   (cond
     [(is-state-accepting lr-dfa state) (lr-dfa-reduce-helper (get-m-md-As lr-dfa state reduce?) next-sym)]
     [else #f]))    
@@ -164,12 +160,12 @@
 ;==== Creation
 ;==============================================================================================
 
-(define file-lines (rmv-beginning (file->lines "grammar/lrtable")))						;open the file as list of string lines
+(define file-lines (rmv-beginning (file->lines "lrtable")))						;open the file as list of string lines
 (define rules (get-rules (string->number (first file-lines)) (strip-n-lines 1 file-lines)))			;get the rules
 (define new-file-lines (strip-n-lines (+ 2 (string->number (first file-lines))) file-lines))			;remove the rules from the list of strings
 (define lr-dfa (get-lr-dfa (string->number (first new-file-lines)) (strip-n-lines 1 new-file-lines) rules))	;parse the shift/reduce lines, create the dfa
 
-(print-machine lr-dfa)
+;(print-machine lr-dfa)
 
 (define start-rule (first rules))
 (define lr-dfa-start-state 'g0)

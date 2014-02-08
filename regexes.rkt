@@ -57,18 +57,18 @@
      
     [else (list->regex (rest lst) (concatenation R (first lst)))]))
 
-(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "grey") (empty-regex))))))
-(expand-parenthesis (string->list "a|e)y") empty 1)
-(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "gr(a|e)y") (empty-regex))))))
+;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "grey") (empty-regex))))))
+;(expand-parenthesis (string->list "a|e)y") empty 1)
+;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "gr(a|e)y") (empty-regex))))))
 
-(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "a*") (empty-regex))))))
+;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "a*") (empty-regex))))))
 
 (define (string->machine S)
   (copy-machine (opt (regex->machine (list->regex (string->list S) (empty-regex))))))
 
-(print-machine (copy-machine (nfa->dfa (regex->machine (concatenation #\g (concatenation #\r (concatenation (k-star (alternation '(#\a #\e))) #\y)))))))
-(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)") (empty-regex))))))
-(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)*") (empty-regex))))))
+;(print-machine (copy-machine (nfa->dfa (regex->machine (concatenation #\g (concatenation #\r (concatenation (k-star (alternation '(#\a #\e))) #\y)))))))
+;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)") (empty-regex))))))
+;(print-machine (copy-machine (nfa->dfa (regex->machine (list->regex (string->list "(1|2|3|4|5|6|7|8|9)*") (empty-regex))))))
 
 ;(print-machine (string->machine "((0|1|2|3|4|5|6|7|8|9)*).((0|1|2|3|4|5|6|7|8|9)*)(((E|e)(+|-|~)(0|1|2|3|4|5|6|7|8|9)((0|1|2|3|4|5|6|7|8|9)*))|~)(f|F|d|D|~)"))
 

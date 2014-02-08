@@ -2,6 +2,7 @@
 
 (require "lr-dfa.rkt")
 (require "scanner.rkt")
+(require "ast-tree.rkt")
 
 (provide parser)
 (provide parser-set-debug-mode)
@@ -12,15 +13,10 @@
 
 (struct parser-stack (state node))
 
-;(struct tree ([sym : Symbol] [child-trees : (Listof tree)]))
-(struct tree (node child-trees))
-(struct node (sym))
-(struct leafnode (token))
-
 ;==============================================================================================
 ;==== Debug
 ;==============================================================================================
-(define debug-mode #t)
+(define debug-mode #f)
 
 (define (parser-set-debug-mode mode)
   (set! debug-mode mode))
@@ -29,21 +25,9 @@
 ;==== Print Functions
 ;==============================================================================================
 
-(define (print-tree tree)
-  (cond
-    [debug-mode
-      (define (print-tree tree indentation)
-        (define treenode (tree-node tree))
-        (cond
-          [(leafnode? treenode) (printf "~aleafnode | " indentation) (print-token (leafnode-token treenode))]
-          [else (printf "~anode | ~a~n" indentation (node-sym treenode))])        
-        (for-each (lambda (child-node) (print-tree child-node (string-append "  " indentation))) (tree-child-trees tree)))
-      (print-tree tree "")]
-    [else (printf "")]))
-
 (define (print-parser-result result-stack)
   (cond
-    [debug-mode
+    [(debug-mode)
       (printf "DONE PARSING~n")
       (printf "Node Stack:~n")
       (for-each (lambda (x) (print-tree x)) (parser-stack-node result-stack))]
@@ -96,7 +80,6 @@
   (cond
     [(not (rule? rule)) stack]
     [else
-     (printf "reduce by rule: ") (print-rule rule) (printf "~n")
      (define rhs-len (length (rule-rhs rule)))
      (define lhs (rule-lhs rule))
      (define new-tree (tree (node lhs) (reverse (get-n-nodes rhs-len (parser-stack-node stack)))))
@@ -119,7 +102,6 @@
        (define next-token (token-type (first tokens)))
        (define new-stack (push-node (tree (leafnode (first tokens)) empty) (reduce stack next-token)))
        (define next-state (lr-dfa-shift (first (parser-stack-state new-stack)) next-token))
-       (printf "from: ~a, tok: ~a, to: ~a~n" (first (parser-stack-state new-stack)) next-token next-state)
        (if (not (symbol? next-state)) new-stack (parse (push-state next-state new-stack) (rest tokens)))]))
   
     (define BOF_TOK (token 'BOF "BOF"))
@@ -129,62 +111,6 @@
                                 (append tokens (list EOF_TOK))))
     (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
-
-;public abstract class A { public abstract int m(); }
-;(parser (list (token 'public "public")
-;              (token 'abstract "abstract")
-;              (token 'class "class")
-;              (token 'id "A")
-;              (token 'ocurl "{")
-
-;              (token 'public "public")
-;              (token 'int "int")
-;              (token 'id "a1")
-;              (token 'oparen "(")
-;              (token 'cparen ")")
-;              (token 'ocurl "{")
-
- ;                 (token 'if "if")
-  ;                (token 'ocurl "{")
-
-   ;           (token 'ccurl "}")
-
-;              (token 'public "public")
-;              (token 'int "int")
-;              (token 'id "a2")
-;              (token 'oparen "(")
-;              (token 'int "int")
-;              (token 'id "arg1")
-;              (token 'comma ",")
-;              (token 'int "int")
-;              (token 'id "arg2")
-;              (token 'cparen ")")
-;              (token 'ocurl "{")
-;              (token 'ccurl "}")
-
-;              (token 'public "public")
-;              (token 'int "int")
-;              (token 'id "b")
-;              (token 'eq "=")
-;              (token 'bool-lit "true")
-;              (token 'semi ";")
-
-;              (token 'public "public")
-;              (token 'int "int")
-;              (token 'id "someint")
-;              (token 'eq "=")
-;              (token 'id "i")
-;              (token 'plus "+")
-;              (token 'oparen "(")
-;              (token 'decimal-lit "1")
-;              (token 'plus "-")
-;              (token 'decimal-lit "2")
-;              (token 'cparen ")")
-;              (token 'semi ";")
-
-
-        ;      (token 'ccurl "}")))
-
 
 
 

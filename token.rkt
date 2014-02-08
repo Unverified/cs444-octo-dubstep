@@ -149,15 +149,15 @@
   (list->string (expand-list (string->list STR))))
   
   
-(expand-regex "#(decimal-lit)|x")
-(expand-regex "#(bool-lit)|#(decimal-lit)")
+;(expand-regex "#(decimal-lit)|x")
+;(expand-regex "#(bool-lit)|#(decimal-lit)")
 
 ;(expand-regex "#(char-input-chars)#(string-input-chars)")
-(expand-regex "#(string-lit)")
+;(expand-regex "#(string-lit)")
 
-(expand-regex "#(char-lit)")
-(expand-regex "#(comment-lit-1)")
-(expand-regex "#(comment-lit-2)")
+;(expand-regex "#(char-lit)")
+;(expand-regex "#(comment-lit-1)")
+;(expand-regex "#(comment-lit-2)")
 
 (define token-exps 
   (map (lambda (x) (cons (first x) (cons (expand-regex (second x)) empty))) token-exps-1))
