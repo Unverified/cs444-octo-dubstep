@@ -9,6 +9,7 @@
 (provide kleene-star)
 (provide copy-machine)
 (provide nfa->dfa)
+(provide get-md)
 
 (provide m-add-new-start)
 (provide m-add-epsilon-transitions)
@@ -29,9 +30,9 @@
 
 (define epsilon #\ε)
 ;(struct: transition ([from : Symbol] [char : Char] [to : Symbol]))
-(struct transition (from char to) #:transparent)
+(struct transition (from char to) #:prefab)
 ;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [accepting : (Listof Symbol)] [transitions : (Listof transition)] [md : (Listof (Pair Symbol A)]))
-(struct machine (states start accepting transitions md) #:transparent)
+(struct machine (states start accepting transitions md) #:prefab)
 
 ;==============================================================================================
 ;==== Machine Processing
@@ -224,11 +225,13 @@
   (define (compose-dfa dfa-states m-out)
     (cond [(empty? dfa-states) m-out]
           [(contains-state-set? m-out (first dfa-states)) (compose-dfa (rest dfa-states) m-out)]
-          [else (let* ([new-trans (new-dfa-trans m (set->list (first dfa-states)))]
+          [else (let* ([new-trans   (new-dfa-trans m (set->list (first dfa-states)))]
                        [next-states (filter-not (curry contains-state-set? m-out) (map transition-to new-trans))]
-                       [nfa-md (get-md-list m (set->list (first dfa-states)))]
-                       [newdfa-md (cond [(empty? nfa-md) empty]
-                                        [else (list (list (first dfa-states) nfa-md))])])
+                       [nfa-md      (get-md-list m (set->list (first dfa-states)))]
+                       [newdfa-md   (cond [(empty? nfa-md) empty]
+                                          [else (list (list (first dfa-states) (flatten nfa-md)))])])
+                  
+                  
                   (compose-dfa (append (rest dfa-states) next-states) 
                                (machine (cons (first dfa-states) (machine-states m-out))
                                         (machine-start m-out)
@@ -243,7 +246,7 @@
 
 ;(: get-md-list : machine (Listof Symbol) -> (Listof A) )
 (define (get-md-list m states)
-  (map second (filter list? (map (curry get-md m) states))))
+  (remove-duplicates (map second (filter list? (map (curry get-md m) states)))))
 
 ;(: get-md : machine Symbol -> A)
 (define (get-md m s)
@@ -352,73 +355,3 @@
     (printf "~a(~a) -> ~a~n" (transition-from t) (transition-char t) (transition-to t)))
   (for-each print-transition-1 t)
   'ok)
-
-;==============================================================================================
-;==== Testing, remove when done
-;==============================================================================================
-(define 1start  (gensym))
-(define 1state1 (gensym))
-(define 1state2 (gensym))
-(define 1state3 (gensym))
-(define 2start  (gensym))
-(define 2state1 (gensym))
-
-(define test1 (machine (list 1start 1state1 1state2 1state3)
-                       1start
-                       (list 1state3)
-                       (list (transition 1start  #\c 1state1)
-                             (transition 1state1 #\a 1state2)
-                             (transition 1state2 #\t 1state3))
-                       empty))
-(define test2 (machine (list 2start 2state1)
-                       2start
-                       (list 2state1)
-                       (list (transition 2start epsilon 2state1)
-                             (transition 2state1 #\a 2start))
-                       empty))
-                       
-(define test3 (union (list test1 test2)))
-(define test4 (concat (list test1 test2)))
-(define test5 (kleene-star test1))
-
-;a NFA that was defined in class in the second lecture
-(define classex (machine '(A B C D)
-                         'A
-                         '(C D)
-                         (list (transition 'A #\0 'B)
-                               (transition 'A epsilon 'C)
-                               (transition 'B #\1 'B)
-                               (transition 'B #\1 'D)
-                               (transition 'C epsilon 'B)
-                               (transition 'C #\0 'D)
-                               (transition 'D #\0 'C))
-                         empty))
-
-;(printf "~n")
-;(printf "~n~n~nDFA of ClassEx:~n")
-;(print-machine (nfa->dfa classex))
-
-
-;a NFA that was defined in class in the second lecture
-(define classex-2 (machine '(A B C)
-                         'A
-                         '(C)
-                         (list
-                          (transition 'A #\0 'B)
-                          (transition 'A #\1 'A)
-                          (transition 'B #\0 'B)
-                          (transition 'B #\1 'C))
-                         empty))
-
-;(print-machine classex-2)
-;(printf "~n")
-;(printf "~n~n~nDFA of ClassEx-2:~n")
-;(print-machine (nfa->dfa classex-2))
-;(print-machine (opt classex-2))
-
-
-(define ntest (union (list (m-single-char #\a) (m-single-char #\b))))
-;(opt ntest)
-
-
-;(machine-md (copy-machine (nfa->dfa classex-2)))
