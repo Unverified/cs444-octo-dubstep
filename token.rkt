@@ -40,8 +40,8 @@
                    (char-lit "'(#(char-char)|\\\\(#(reg-escape)|#(oct-escape)))'")
                    (string-lit "\"((#(string-char)|\\\\(#(reg-escape)|#(oct-escape)))*)\"")
                    (comment "//(#(non-break-char)*)")
-                   ;(comment "/\\*((#(no-star)|((\\*)*)#(no-slash))*)\\*/")
-                   (whitespace "#(whitespace)")
+                   (comment "/\\*((#(no-star)|\\**#(no-slash))*)\\*/")
+                   (whitespace "#(whitespace)*")
                    (id "#(java-letter)((#(java-letter)|#(java-digit))*)")))
 
 (define token-exps-1 (append keywords
