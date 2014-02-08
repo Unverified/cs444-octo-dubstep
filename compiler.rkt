@@ -129,7 +129,6 @@
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
 (define (run-parser tokens)
-  (print-tokens tokens)
   (define node-stack (parser tokens))
   (cond
     [(empty? node-stack) (error)]
