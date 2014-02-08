@@ -3,10 +3,11 @@
 (require "../token.rkt")
 
 (struct rule (lhs rhs))
+(provide operator-rules)
 
 (define start 'Sp)
 (define terminals (append (list 'BOF 'EOF 'id) (map first token-exps)))
-(define non-terminals (list 'Sp 'S 'JCLASS 'DECLS 'DECL 'TYPE 'ARRAY_TYPE 'OBJECT 'SCOPE 'ARGS 'ARG_LIST 'ARG 'LITERAL 'CMOD 'CONSTRUCTOR 'NORMAL_FUNC 'FINAL_FUNC 'STATIC_FUNC 'ABS_FUNC 'FUNC_BODY 'ABS_BODY 'MEMBER_VAR 'STATIC_MEMBER_VAR 'MEMBER_VAR_DEF 'NATIVE_FUNC 'NATIVE_BODY 'STATIC_NATIVE 'STATEMENTS 'STATEMENT 'BLOCK 'BLOCK_BODY 'IF 'FOR 'FOR_PARAMS 'FOR_ASSIGN 'FOR_CLAUSE 'FOR_ITER 'WHILE 'STATEMENT_BODY 'ELSE_CLAUSES 'ELSE_IF 'ELSE 'COND_ARITH_EXP 'ARITH_EXP 'ARITH_TERM 'ARITH_FACTOR 'ASSIGNMENT_OP 'LOGICAL_OR_OP 'LOGICAL_AND_OP 'BITWISE_OR_OP 'BITWISE_AND_OP 'EQUALITY_OP 'RELATIONAL_OP 'MULT_OP 'ADDITIVE_OP 'CP5 'CP4 'CP3 'CP2 'CP1 'CP0 'EXPRESSION 'VAR_DEFINITION 'VAR_ASSIGNMENT 'FUNCTION_CALL 'FUNCTION_ARGS 'FUNC_ARG_LIST 'RETURN 'CLASS_ADDITION 'PACKAGE 'PACKAGE_IMPORT 'IMPORTS 'IMPORT 'CALL_CHANG 'FUNCTION_CALLS 'CLASS_IMPORT 'ID_DOT_LIST 'FIELD_ACCESS 'ID_FUNCTION_DOT_LIST))
+(define non-terminals (list 'Sp 'S 'CLASS 'DECLS 'DECL 'TYPE 'ARRAY_TYPE 'IDS 'SCOPE 'ARGS 'ARG_TYPE_LIST 'ARG 'LITERAL 'CMOD 'CONSTRUCTOR 'NORMAL_FUNC 'FINAL_FUNC 'STATIC_FUNC 'ABS_FUNC 'FUNC_BODY 'ABS_BODY 'MEMBER_VAR 'STATIC_MEMBER_VAR 'MEMBER_VAR_DEF 'NATIVE_FUNC 'NATIVE_BODY 'STATIC_NATIVE 'STATEMENTS 'STATEMENT 'BLOCK 'BLOCK_BODY 'IF 'FOR 'FOR_PARAMS 'FOR_ASSIGN 'FOR_CLAUSE 'FOR_ITER 'WHILE 'STATEMENT_BODY 'ELSE_CLAUSES 'ELSE_IF 'ELSE 'COND_ARITH_EXP 'ARITH_EXP 'ARITH_TERM 'ARITH_FACTOR 'ARITH_EXP2 'ARITH_TERM2 'ARITH_FACTOR2 'ASSIGNMENT_OP 'LOGICAL_OR_OP 'LOGICAL_AND_OP 'BITWISE_OR_OP 'BITWISE_AND_OP 'EQUALITY_OP 'RELATIONAL_OP 'MULT_OP 'ADDITIVE_OP 'CP5 'CP4 'CP3 'CP2 'CP1 'CP0 'EXPRESSION 'VAR_DEFINITION 'VAR_ASSIGNMENT 'FUNCTION_CALL 'FUNCTION_ARGS 'FUNC_ARG_TYPE_LIST 'RETURN 'CLASS_ADDITION 'PACKAGE 'PACKAGE_IMPORT 'IMPORTS 'IMPORT 'CALL_CHANG 'FUNCTION_CALLS 'FUNCTION_CALL_EXP 'CLASS_IMPORT 'FIELD_ACCESS 'ID_FUNCTION_DOT_LIST 'PRIMITIVE 'NEW 'ARG_LIST 'FUNC_ARG_CALL 'FUNC_ARG_DEF 'SOMETHING 'ARGUMENTS 'THIS_ACCESS 'NEW_OBJECT 'NEW_ARRAY 'CAST 'ARITH_STATEMENT 'CAST_OBJ 'CP6 'ENCLOSED_IDS  'ENCLOSED_PRIMITIVE 'CP2b 'DECL_NO_BODY 'DECLS_NO_BODY 'INTERFACE 'IMOD 'INTERFACE_ADDITION 'JCLASS 'IMPLEMENTS 'CASTS))
 
 ;==============================================================================================
 ;==== Literals
@@ -38,8 +39,7 @@
     (rule 'RELATIONAL_OP (list 'lt))
     (rule 'RELATIONAL_OP (list 'gt))
     (rule 'RELATIONAL_OP (list 'lteq))
-    (rule 'RELATIONAL_OP (list 'gteq))
-    (rule 'RELATIONAL_OP (list 'instanceof))))
+    (rule 'RELATIONAL_OP (list 'gteq))))
 
 (define equality-op-rules
   (list
@@ -72,19 +72,24 @@
 
 (define condition-expression-rules
   (list
-    (rule 'COND_ARITH_EXP (list 'COND_ARITH_EXP 'LOGICAL_OR_OP 'CP5))
-    (rule 'COND_ARITH_EXP (list 'CP5))
+    (rule 'COND_ARITH_EXP (list 'CASTS 'CP6))    ; int x = (id)-1
+						
+    (rule 'COND_ARITH_EXP (list 'CP6))
+    (rule 'CP6 (list 'CP6 'LOGICAL_OR_OP 'CP5))
+    (rule 'CP6 (list 'CP5))
     (rule 'CP5 (list 'CP5 'LOGICAL_AND_OP 'CP4))
     (rule 'CP5 (list 'CP4))
     (rule 'CP4 (list 'CP4 'BITWISE_OR_OP 'CP3))
     (rule 'CP4 (list 'CP3))
     (rule 'CP3 (list 'CP3 'BITWISE_AND_OP 'CP2))
     (rule 'CP3 (list 'CP2))
-    (rule 'CP2 (list 'CP2 'EQUALITY_OP 'CP1))
-    (rule 'CP2 (list 'CP1))
-    (rule 'CP1 (list 'CP1 'not 'CP0))
+    (rule 'CP2 (list 'CP2 'EQUALITY_OP 'CP2b))
+    (rule 'CP2 (list 'CP2b))
+    (rule 'CP2b (list 'CP2b 'instanceof 'TYPE))
+    (rule 'CP2b (list 'CP1))
+    (rule 'CP1 (list 'CP1 'RELATIONAL_OP 'CP0))
     (rule 'CP1 (list 'CP0))
-    (rule 'CP0 (list 'CP0 'RELATIONAL_OP 'ARITH_EXP))
+    (rule 'CP0 (list 'not 'ARITH_EXP))
     (rule 'CP0 (list 'ARITH_EXP))
 ))
 
@@ -97,29 +102,42 @@
     (rule 'ARITH_EXP (list 'ARITH_TERM))
     (rule 'ARITH_TERM (list 'ARITH_TERM 'MULT_OP 'ARITH_FACTOR))
     (rule 'ARITH_TERM (list 'ARITH_FACTOR))
-    (rule 'ARITH_FACTOR (list 'oparen 'COND_ARITH_EXP 'cparen))		
-    (rule 'ARITH_FACTOR (list 'LITERAL))		
-    (rule 'ARITH_FACTOR (list 'id))
-    (rule 'ARITH_FACTOR (list 'FIELD_ACCESS))		
-    (rule 'ARITH_FACTOR (list 'FUNCTION_CALLS))
+    (rule 'ARITH_FACTOR (list 'oparen 'minus 'COND_ARITH_EXP 'cparen))
+    (rule 'ARITH_FACTOR (list 'oparen 'minus 'COND_ARITH_EXP 'cparen 'osquare 'COND_ARITH_EXP 'csquare))
+    (rule 'ARITH_FACTOR (list 'oparen 'COND_ARITH_EXP 'cparen))
+    (rule 'ARITH_FACTOR (list 'oparen 'COND_ARITH_EXP 'cparen 'osquare 'COND_ARITH_EXP 'csquare))
+    (rule 'ARITH_FACTOR (list 'IDS))
+    (rule 'ARITH_FACTOR (list 'LITERAL))
+    (rule 'ARITH_FACTOR (list 'FUNCTION_CALL_EXP))	
+    (rule 'ARITH_FACTOR (list 'THIS_ACCESS))	
+    (rule 'ARITH_FACTOR (list 'NEW))  
 ))
+
+(define primitive-rules
+  (list
+    (rule 'PRIMITIVE (list 'boolean))
+    (rule 'PRIMITIVE (list 'int))
+    (rule 'PRIMITIVE (list 'char))
+    (rule 'PRIMITIVE (list 'byte))
+    (rule 'PRIMITIVE (list 'short))))
+
 
 (define type-rules
   (list
-    (rule 'TYPE (list 'boolean))
-    (rule 'TYPE (list 'int))
-    (rule 'TYPE (list 'char))
-    (rule 'TYPE (list 'byte))
-    (rule 'TYPE (list 'short))
-    (rule 'TYPE (list 'OBJECT))
-    (rule 'ARRAY_TYPE (list 'TYPE 'osquare 'csquare))))
+    (rule 'TYPE (list 'PRIMITIVE))
+    (rule 'TYPE (list 'IDS))
+    (rule 'TYPE (list 'ARRAY_TYPE))
+    (rule 'TYPE (list 'void))
+    (rule 'ARRAY_TYPE (list 'PRIMITIVE 'osquare 'csquare))))
 
 (define class-mod-rules
   (list
     (rule 'CMOD (list 'final))
     (rule 'CMOD (list 'static))
     (rule 'CMOD (list 'abstract))
-    (rule 'CMOD empty)))
+    (rule 'CMOD empty)
+    (rule 'IMOD (list 'abstract))
+    (rule 'IMOD empty)))
 
 (define scope-rules
   (list
@@ -132,25 +150,46 @@
     (rule 'Sp (list 'BOF 'S 'EOF))
     (rule 'S (list 'PACKAGE 'IMPORTS 'JCLASS))
 
-    ; JCLASS
-    (rule 'PACKAGE (list 'package 'OBJECT 'semi))
+    ; CLASS
+    (rule 'PACKAGE (list 'package 'IDS 'semi))
     (rule 'PACKAGE empty)
 
-    ; JCLASS
+    ; CLASS
     (rule 'IMPORTS (list 'IMPORTS 'IMPORT))
     (rule 'IMPORTS empty)
-    (rule 'IMPORT (list 'import 'CLASS_IMPORT 'semi))
     (rule 'IMPORT (list 'import 'PACKAGE_IMPORT 'semi))
-    (rule 'CLASS_IMPORT (list 'CLASS_IMPORT 'dot 'id))
+    (rule 'IMPORT (list 'import 'CLASS_IMPORT 'semi))
     (rule 'PACKAGE_IMPORT (list 'CLASS_IMPORT 'dot 'star))
+    (rule 'PACKAGE_IMPORT (list 'star))
+    (rule 'CLASS_IMPORT (list 'CLASS_IMPORT 'dot 'id))
+    (rule 'CLASS_IMPORT (list 'id))
 
-    ; JCLASS
-    (rule 'JCLASS (list 'public 'CMOD 'class 'id 'CLASS_ADDITION 'ocurl 'DECLS 'ccurl))
+    (rule 'JCLASS (list 'CLASS))
+    (rule 'JCLASS (list 'INTERFACE))
+
+    ; CLASS
+    (rule 'CLASS (list 'public 'CMOD 'class 'id 'CLASS_ADDITION 'ocurl 'DECLS 'ccurl))
+    (rule 'INTERFACE (list 'public 'IMOD 'interface 'id 'INTERFACE_ADDITION 'ocurl 'DECLS_NO_BODY 'ccurl))
+
+    ; DECLS
+    (rule 'DECLS_NO_BODY (list 'DECLS_NO_BODY 'DECL_NO_BODY))
+    (rule 'DECLS_NO_BODY empty)
+
+    ; DECL
+    (rule 'DECL_NO_BODY (list 'SCOPE 'TYPE 'id 'oparen 'ARGUMENTS 'cparen 'semi))
+    (rule 'DECL_NO_BODY (list 'SCOPE 'abstract 'TYPE 'id 'oparen 'ARGUMENTS 'cparen 'semi))
+
+    ; INTERFACE_ADDITION
+    (rule 'INTERFACE_ADDITION (list 'implements 'IDS))
+    (rule 'INTERFACE_ADDITION empty)
 
     ; CLASS_ADDITION
-    (rule 'CLASS_ADDITION (list 'extends 'id))
-    (rule 'CLASS_ADDITION (list 'implements 'id))
+    (rule 'CLASS_ADDITION (list 'extends 'IDS))
+    (rule 'CLASS_ADDITION (list 'implements 'IMPLEMENTS))
     (rule 'CLASS_ADDITION empty)
+
+    (rule 'IMPLEMENTS (list 'IMPLEMENTS 'comma 'IDS))
+    (rule 'IMPLEMENTS (list 'IDS ))
 
     ; DECLS
     (rule 'DECLS (list 'DECLS 'DECL))
@@ -174,26 +213,29 @@
     (rule 'NATIVE_FUNC (list 'SCOPE 'STATIC_NATIVE 'int 'NATIVE_BODY))
     (rule 'STATIC_NATIVE (list 'static 'native))
     (rule 'ABS_FUNC (list 'SCOPE 'abstract 'TYPE 'ABS_BODY))
-    (rule 'FUNC_BODY (list 'id 'oparen 'ARGS 'cparen 'BLOCK))
-    (rule 'ABS_BODY (list 'id 'oparen 'ARGS 'cparen 'semi))
+    (rule 'FUNC_BODY (list 'id 'oparen 'ARGUMENTS 'cparen 'BLOCK))
+    (rule 'ABS_BODY (list 'id 'oparen 'ARGUMENTS 'cparen 'semi))
     (rule 'NATIVE_BODY (list 'id 'oparen 'int 'id 'cparen 'semi))
 
     ; ARGS
-    (rule 'ARGS (list 'ARG_LIST))
+    (rule 'ARGS (list 'ARG_TYPE_LIST))
     (rule 'ARGS empty)
-    (rule 'ARG_LIST (list 'ARG 'comma 'ARG_LIST))
-    (rule 'ARG_LIST (list 'ARG))
+    (rule 'ARG_TYPE_LIST (list 'ARG 'comma 'ARG_TYPE_LIST))
+    (rule 'ARG_TYPE_LIST (list 'ARG))
     (rule 'ARG (list 'TYPE 'id))
 
     ; Variable rules
     (rule 'MEMBER_VAR (list 'SCOPE 'MEMBER_VAR_DEF 'semi))
     (rule 'STATIC_MEMBER_VAR (list 'SCOPE 'static 'MEMBER_VAR_DEF 'semi))
+    (rule 'MEMBER_VAR (list 'MEMBER_VAR_DEF 'semi))
+    (rule 'STATIC_MEMBER_VAR (list 'static 'MEMBER_VAR_DEF 'semi))
 
     ; Variable assigment
     (rule 'MEMBER_VAR_DEF (list 'TYPE 'id))
     (rule 'MEMBER_VAR_DEF (list 'VAR_DEFINITION))
     (rule 'VAR_DEFINITION (list 'TYPE 'VAR_ASSIGNMENT))
     (rule 'VAR_ASSIGNMENT (list 'id 'eq 'COND_ARITH_EXP))
+    (rule 'VAR_ASSIGNMENT (list 'NEW_OBJECT 'eq 'COND_ARITH_EXP))
 
     ; BLOCK
     (rule 'BLOCK (list 'ocurl 'BLOCK_BODY 'ccurl))
@@ -207,7 +249,8 @@
     ; STATEMENT
     (rule 'STATEMENT (list 'VAR_DEFINITION 'semi))
     (rule 'STATEMENT (list 'VAR_ASSIGNMENT 'semi))
-    (rule 'STATEMENT (list 'FUNCTION_CALLS 'semi))
+    (rule 'STATEMENT (list 'FUNCTION_CALL_EXP 'semi))
+    (rule 'STATEMENT (list 'THIS_ACCESS 'semi))
     (rule 'STATEMENT (list 'BLOCK))
     (rule 'STATEMENT (list 'IF))
     (rule 'STATEMENT (list 'FOR))
@@ -220,11 +263,11 @@
 
     ; IF / ELSE_IF / ELSE
     (rule 'IF (list 'if 'oparen 'COND_ARITH_EXP 'cparen 'STATEMENT_BODY 'ELSE_CLAUSES))
-    (rule 'ELSE_IF (list 'else 'if 'oparen 'COND_ARITH_EXP 'cparen 'STATEMENT_BODY))
+    (rule 'ELSE_IF (list 'else 'if 'oparen 'COND_ARITH_EXP 'cparen 'STATEMENT_BODY 'ELSE_CLAUSES))
     (rule 'ELSE (list 'else 'STATEMENT_BODY))
 
     ; ELSE_CLASUSE
-    (rule 'ELSE_CLAUSES (list 'ELSE_IF 'ELSE_CLAUSES))
+    (rule 'ELSE_CLAUSES (list 'ELSE_IF))
     (rule 'ELSE_CLAUSES (list 'ELSE))
     (rule 'ELSE_CLAUSES empty)
 
@@ -258,45 +301,67 @@
     ; STATEMENT_BODY
     (rule 'STATEMENT_BODY (list 'BLOCK))
     (rule 'STATEMENT_BODY (list 'VAR_ASSIGNMENT 'semi))
-    (rule 'STATEMENT_BODY (list 'FUNCTION_CALLS 'semi))
+    (rule 'STATEMENT_BODY (list 'FUNCTION_CALL_EXP 'semi))
+    (rule 'STATEMENT_BODY (list 'THIS_ACCESS 'semi))
+    (rule 'STATEMENT_BODY (list 'RETURN))
     
 ;==============================================================================================
 ;==== Other Statement Rules: WHILE, RETURN
 ;==============================================================================================
 
     (rule 'WHILE (list 'while 'oparen 'COND_ARITH_EXP 'cparen 'STATEMENT_BODY))
-    (rule 'RETURN (list 'return 'COND_ARITH_EXP))
+    (rule 'RETURN (list 'return 'COND_ARITH_EXP 'semi))
+    (rule 'RETURN (list 'return 'void 'semi))
+    (rule 'RETURN (list 'return 'semi))
 
-    (rule 'OBJECT (list 'ID_DOT_LIST))
-    (rule 'OBJECT (list 'id))
+    ; FUNCTION_ARGS
+    (rule 'ARGUMENTS (list 'FUNC_ARG_DEF))
+    (rule 'ARGUMENTS (list 'FUNC_ARG_CALL))
+    (rule 'ARGUMENTS empty)
+    (rule 'FUNC_ARG_DEF (list 'FUNC_ARG_DEF 'comma 'TYPE 'id))
+    (rule 'FUNC_ARG_DEF (list 'TYPE 'id))
+    (rule 'FUNC_ARG_CALL (list 'FUNC_ARG_CALL 'comma 'COND_ARITH_EXP))
+    (rule 'FUNC_ARG_CALL (list 'COND_ARITH_EXP))
 
-    (rule 'FIELD_ACCESS (list 'ID_DOT_LIST))
+    ; FUNCTION_CALL (handles: any list of id. or function(). AND ending in function() (eg foo(), a.foo().bar().c.d.f.foo(), a.foo().c.bar(), etc ) )
+    (rule 'FUNCTION_CALL_EXP (list 'FUNCTION_CALL_EXP 'dot 'FUNCTION_CALLS))
+    (rule 'FUNCTION_CALL_EXP (list 'FUNCTION_CALLS))
 
-    ; FUNCTION_CALL (handles: any list of id. or function(). AND ending in function() (eg foo(), foo().bar(), a.foo().c.bar(), etc ) )
-    (rule 'FUNCTION_CALLS (list 'ID_FUNCTION_DOT_LIST 'FUNCTION_CALL))
+    (rule 'FUNCTION_CALLS (list 'IDS 'dot 'FUNCTION_CALL))
     (rule 'FUNCTION_CALLS (list 'FUNCTION_CALL))
-    (rule 'FUNCTION_CALL (list 'id 'oparen 'FUNCTION_ARGS 'cparen))
 
-    ; ID_DOT_LIST (handles: one or more id. or function(). AND ending in an id (eg a.b, a.b.c, a.foo().b, etc ) )
-    (rule 'ID_DOT_LIST (list 'ID_FUNCTION_DOT_LIST 'id))
+    (rule 'FUNCTION_CALL (list 'id 'oparen 'ARGUMENTS 'cparen))
 
-    (rule 'ID_FUNCTION_DOT_LIST (list 'ID_FUNCTION_DOT_LIST 'id 'dot))
-    (rule 'ID_FUNCTION_DOT_LIST (list 'ID_FUNCTION_DOT_LIST 'FUNCTION_CALL 'dot))
-    (rule 'ID_FUNCTION_DOT_LIST (list 'id 'dot))
-    (rule 'ID_FUNCTION_DOT_LIST (list 'FUNCTION_CALL 'dot))
+    (rule 'IDS (list 'IDS 'dot 'id))
+    (rule 'IDS (list 'id))
 
+    (rule 'THIS_ACCESS (list 'this 'dot 'FUNCTION_CALL_EXP))
+    (rule 'THIS_ACCESS (list 'this 'dot 'IDS))
+    (rule 'THIS_ACCESS (list 'this))
 
-    ; EXPRESSION
-    (rule 'EXPRESSION (list 'VAR_DEFINITION 'semi))
-    (rule 'EXPRESSION (list 'VAR_ASSIGNMENT 'semi))
-    (rule 'EXPRESSION (list 'FUNCTION_CALLS 'semi))
+    (rule 'NEW (list 'NEW_ARRAY))
+    (rule 'NEW (list 'NEW_OBJECT))
+    (rule 'NEW_ARRAY (list 'new 'PRIMITIVE 'osquare 'COND_ARITH_EXP 'csquare))
+    (rule 'NEW_OBJECT (list 'new 'id 'oparen 'ARGUMENTS 'cparen))
+    (rule 'NEW_OBJECT (list 'new 'id 'oparen 'ARGUMENTS 'cparen 'dot 'IDS))
+    (rule 'NEW_OBJECT (list 'new 'id 'oparen 'ARGUMENTS 'cparen 'dot 'FUNCTION_CALL_EXP))
+    (rule 'NEW_OBJECT (list 'new 'id 'oparen 'ARGUMENTS 'cparen 'dot 'FUNCTION_CALL_EXP 'dot 'IDS))
+
+    (rule 'CASTS (list 'CASTS 'CAST))
+    (rule 'CASTS (list 'CAST))
+    (rule 'CAST (list 'oparen 'PRIMITIVE 'cparen))
+    (rule 'CAST (list 'oparen 'PRIMITIVE 'osquare 'csquare 'cparen))
+    (rule 'CAST (list 'oparen 'COND_ARITH_EXP 'cparen))
+    (rule 'CAST (list 'oparen 'COND_ARITH_EXP 'cparen 'osquare 'csquare))
+    (rule 'CAST (list 'oparen 'minus 'COND_ARITH_EXP 'cparen))
+    (rule 'CAST (list 'oparen 'minus 'COND_ARITH_EXP 'cparen 'osquare 'csquare))
 
 ))
 
 (define operator-rules (append multiplicative-op-rules additive-op-rules relational-op-rules equality-op-rules bitwise-and-op-rules bitwise-or-op-rules logical-and-op-rules logical-or-op-rules assignment-op-rules ))
 (define expression-rules (append arithmetic-expression-rules condition-expression-rules))
 
-(define rules (append other-rules scope-rules class-mod-rules type-rules operator-rules expression-rules literal-rules))
+(define rules (append other-rules scope-rules class-mod-rules type-rules operator-rules expression-rules literal-rules primitive-rules ))
 
 ;==============================================================================================
 ;==== Writing 
@@ -329,15 +394,6 @@
 (print-list out non-terminals)
 (displayln start out)
 (print-list out rules)  
-
-
-
-
-
-
-
-
-
 
 
 

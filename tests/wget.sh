@@ -15,14 +15,22 @@ do
 
   file_contents=`cat $file.html`
 
+  new_file_name=$file"CS"
+
   file_contents=${file_contents/"<pre>"/""}
   file_contents=${file_contents/"</pre>"/""}
-  file_contents=${file_contents/"<font color=blue>"/""}
-  file_contents=${file_contents/"<font color=\"blue\">"/""}
-  file_contents=${file_contents/"</font>"/""}
+  file_contents=${file_contents//"<font color=blue>"/""}
+  file_contents=${file_contents//"<font color=\"blue\">"/""}
+  file_contents=${file_contents//"</font>"/""}
+  file_contents=${file_contents//"class A"/"class $new_file_name"}
+  file_contents=${file_contents//"interface A"/"interface $new_file_name"}
+  file_contents=${file_contents//"public A("/"public $new_file_name("}
+  file_contents=${file_contents//"&gt;"/">"}
+  file_contents=${file_contents//"&lt;"/"<"}
+  file_contents=${file_contents//"&amp;"/"&"}
 
   rm $file.html
 
-  echo $file_contents > "in/$file"
-  echo "Compiled" > "out/$file"
+  echo $file_contents > "in/$new_file_name"
+  echo "Compiled" > "out/$new_file_name"
 done

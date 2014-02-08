@@ -8,9 +8,11 @@
 (provide token-lexeme)
 (provide scanner)
 (provide print-token)
+(provide print-tokens)
 (provide scanner-set-debug-mode)
 
 (struct token (type lexeme) #:transparent)
+
 ;==============================================================================================
 ;==== Debug
 ;==============================================================================================
@@ -26,12 +28,12 @@
 
 (define (print-token token) 
   (cond
-    [debug-mode (printf "~a : ~a~n" (token-type token) (token-lexeme token))]
+    [(debug-mode) (printf "~a : ~a~n" (token-type token) (token-lexeme token))]
     [else (printf "")]))
   
 (define (print-tokens tokens)
   (cond
-    [debug-mode
+    [(debug-mode)
       (printf "====== Scanned Tokens ======~n")
       (for-each (lambda (x) (print-token x)) tokens)]
     [else (printf "")]))
@@ -73,19 +75,3 @@
                                (scan cl)))))
 
 
-(define test1 
-"
-public static final class Dicks implements dongs {
-   int car = 123;
-   //comments are cool
-   public Dicks() {
-   }
-   /* dicks dicks dicks dicks dicks dicks dicks */
-   static final int main(int argc, char argv[]) {
-       return 0;
-   }
-    /*      ***** / ****** 
-          */
-}")
-
-(scanner (all-tokens-machine) (string->list test1))

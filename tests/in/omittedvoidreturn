@@ -1,1 +1,0 @@
-public class A { public A() {} public void m() { /bin /boot /dev /etc /home /initrd.img /initrd.img.old /lib /lib64 /lost+found /media /mnt /opt /proc /root /run /sbin /selinux /srv /sys /tmp /usr /var /vmlinuz return; in/ out/ } }
