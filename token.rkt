@@ -1,18 +1,21 @@
 #lang racket
 (require "expand-parenthesis.rkt")
+(require "machine.rkt")
 (require racket/string)
+
 (provide token-exps)
 (provide lookup-regex)
 (provide keywords)
 (provide operators)
 (provide separators)
 (provide literals)
+(provide normalize-m-md)
 
 (define keyword-list '(abstract boolean break byte case catch char class const continue default 
-                            do double else extends final finally float for goto if implements import 
-                            instanceof int interface long native new package private protected public
-                            return short static strictfp super switch synchronized this throw throws
-                            transient try void volatile while))
+                                do double else extends final finally float for goto if implements import 
+                                instanceof int interface long native new package private protected public
+                                return short static strictfp super switch synchronized this throw throws
+                                transient try void volatile while))
 
 (define [gen-keyword . kw]
   (define [keyword-1 kw]
@@ -56,6 +59,27 @@
        [(empty? P) (error "Not a valid token name")]
        [else P]))
    (filter (lambda (x) (symbol=? s (first x))) token-exps-1)))
-               
+
 (define token-exps 
   (map (lambda (x) (list (first x) (second x))) token-exps-1))
+
+
+(define (find-first sel from ccp)
+  (for* ([i sel]
+         [j from]) 
+    (if (equal? i j)
+        (ccp i)
+        (void)))
+  )
+
+(define (normalize-m-md m)
+  (machine 
+   (machine-states m)
+   (machine-start m)
+   (machine-accepting m)
+   (machine-transitions m)
+   (map (lambda (x) (let ([state (first x)]
+                          [data  (second x)])
+                      (cond [(equal? (length data) 1) (list state (first data))]
+                            [else (list state (call/cc (lambda (cc) (find-first (map first token-exps) data cc))))]))) (machine-md m))
+  ))

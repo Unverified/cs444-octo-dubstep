@@ -14,7 +14,7 @@
              [dfa (read in)])
         (close-input-port in)
         dfa)
-      (let ([dfa (copy-machine (nfa->dfa (union (map (lambda (x) (copy-machine (opt (string->machine (second x) (first x))))) token-exps))))]
+      (let ([dfa (normalize-m-md (copy-machine (nfa->dfa (union (map (lambda (x) (copy-machine (opt (string->machine (second x) (first x))))) token-exps)))))]
             [out (open-output-file dfa-file)])
         (write dfa out)
         (close-output-port out)

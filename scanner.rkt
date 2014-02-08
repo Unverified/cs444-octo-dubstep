@@ -69,7 +69,7 @@
                                      (cons (first tok) (scan (second tok)))))]))])
     
     (with-handlers ([exn:fail? (lambda (exn) #f)])
-                   (filter-not (lambda (x) (or (equal? 'WHITESPACE (token-type x)) (equal? 'COMMENT (token-type x)))) 
+                   (filter-not (lambda (x) (or (equal? 'whitespace (token-type x)) (equal? 'comment (token-type x)))) 
                                (scan cl)))))
 
 
