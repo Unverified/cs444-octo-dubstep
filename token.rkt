@@ -40,7 +40,7 @@
                    (char-lit "'(#(char-char)|\\\\(#(reg-escape)|#(oct-escape)))'")
                    (string-lit "\"((#(string-char)|\\\\(#(reg-escape)|#(oct-escape)))*)\"")
                    (comment "//(#(non-break-char)*)")
-                   (comment "/((\\*((#(no-slash-star)(/*))*))*)\\*/")
+                   (comment "/((\\*((#(no-star-slash)(/*))*)))((\\*((#(no-star-slash)(/*))*))*)\\*/")
                    (whitespace "#(whitespace)*")
                    (id "#(java-letter)((#(java-letter)|#(java-digit))*)")))
 
