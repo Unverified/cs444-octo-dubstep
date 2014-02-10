@@ -1,5 +1,0 @@
-public class testfile {
-  public testfile() {
-    int a = (int) - foo( 1 + - 1 ).a.bar();
-  }
-}

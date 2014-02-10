@@ -12,6 +12,7 @@
 (provide find-tree-list)
 (provide find-all-trees-containing-child)
 (provide find-child-tree)
+(provide is-node-equal)
 (provide print-tree)
 (provide (struct-out tree))
 (provide (struct-out node))

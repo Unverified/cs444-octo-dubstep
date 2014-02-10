@@ -62,18 +62,19 @@
     [`(#\\ ,a ,b ,c ,x ...) (cons (first x) (escape-chars (rest x)))]
     [x (cons (first x) (escape-chars (rest x)))]))
 
+(define (convert-to-long original lex-cl)
+  (if (member (first lex-cl) '(#\l #\L))
+      (token 'long-lit (list->string (reverse (rest lex-cl))))
+      (token original (list->string (reverse lex-cl)))))
+
 (define (scanner m cl)
   (letrec ([create-token (lambda (state lex-cl)
                              (match (second (get-md m state))
-                               ['decimal-lit (let ([lex (string->number (if (member (first lex-cl) '(#\l #\L))
-                                                                            (list->string (reverse (rest lex-cl)))
-                                                                            (list->string (reverse lex-cl))))])
-                                               (cond 
-                                                 [(or (>= lex 2147483647) (<= lex -2147483648) (not (exact-integer? lex)))
-                                                  (error "Invalid integer")]
-                                                 [else (token 'decimal-lit lex)]))]
-                               ['char-lit    (token 'char-list (list->string (escape-chars (reverse lex-cl))))]
-                               ['string-list (token 'string-lit (list->string (escape-chars (reverse lex-cl))))]
+                               ['decimal-lit (convert-to-long 'decimal-lit lex-cl)]
+                               ['octal-lit (convert-to-long 'octal-lit lex-cl)]
+                               ['hex-lit (convert-to-long 'hex-lit lex-cl)]
+                               ['char-lit (token 'char-lit (list->string (escape-chars (reverse lex-cl))))]
+                               ['string-lit (token 'string-lit (list->string (escape-chars (reverse lex-cl))))]
                                [x (token x (list->string (reverse lex-cl)))]))]
            [get-token (lambda (cl state lexeme ccp)
                         (cond 
