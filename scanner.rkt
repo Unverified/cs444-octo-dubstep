@@ -1,7 +1,6 @@
 #lang racket
 
 (require "machine.rkt")
-(require "create-dfa.rkt")
 
 (provide token)
 (provide token-type)
@@ -26,17 +25,13 @@
 ;==== Print Functions
 ;==============================================================================================
 
-(define (print-token token) 
+(define (print-token . tokens) 
   (cond
-    [(debug-mode) (printf "~a : ~a~n" (token-type token) (token-lexeme token))]
+    [(debug-mode) (for ([tok tokens]) (printf "~a : ~a~n" (token-type tok) (token-lexeme tok)))]
     [else (printf "")]))
-  
-(define (print-tokens tokens)
-  (cond
-    [(debug-mode)
-      (printf "====== Scanned Tokens ======~n")
-      (for-each (lambda (x) (print-token x)) tokens)]
-    [else (printf "")]))
+
+(define (print-tokens token-list)
+  (apply print-token token-list))
 
 ;==============================================================================================
 ;==== Scanner Functions

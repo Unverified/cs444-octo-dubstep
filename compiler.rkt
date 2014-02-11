@@ -1,9 +1,8 @@
 #lang racket
 
 (require "parser.rkt")			;needed for parser
-(require "scanner.rkt")			;needed for scan, token, token-type, token-lexeme
+(require "scanner.rkt")
 (require "weeder.rkt")			;needed for weeding
-(require "token-state-handler.rkt")	;needed for START_STATE
 (require "lr-dfa.rkt")			;needed for rule
 (require "create-dfa.rkt")
 
