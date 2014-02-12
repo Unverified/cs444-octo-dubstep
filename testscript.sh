@@ -31,7 +31,7 @@ then
   files_to_run="$2"
 fi
 
-make raco-make
+make
 rm -f tests/failed_out/*
 
 echo ""

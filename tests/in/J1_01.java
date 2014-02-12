@@ -1,4 +1,11 @@
 // PARSER_WEEDER,CODE_GENERATION
+
+import A.B.C;
+import A.B.D;
+import A.B.E;
+import A.B.F;
+import A.B.*;
+
 public class J1_01 {
     public J1_01() {}
     public static int test() {

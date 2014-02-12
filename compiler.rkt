@@ -6,6 +6,7 @@
 (require "token-state-handler.rkt")	;needed for START_STATE
 (require "lr-dfa.rkt")			;needed for rule
 (require "create-dfa.rkt")
+(require "ast-tree.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -15,13 +16,13 @@
 (define debug-mode (make-parameter #f))
 
 ;Parse the command line arguments and return the file to compile
-(define get-file ;"tests/in/classnamegood")
+(define get-file ;"test.java")
   (command-line
     #:program "compiler"
     #:once-each
     [("-d" "--debug") "Print debug statements" (debug-mode #t)]
-    #:args (file)
-    file))
+    #:args (file..)
+    file..))
 
 ;Get the file we want to compile
 (define file-to-compile get-file)
@@ -105,5 +106,10 @@
 ;Get the input as a list of chars
 (define clist (string->list (file->string file-to-compile)))
 
-(run-weeder (remove-dot-java (get-file-name file-to-compile)) (run-parser (run-scanner clist)))
+(define parse-tree (run-parser (run-scanner clist)))
+(define ast-tree (parse->ast (find-tree 'S parse-tree)))
+
+(if (debug-mode) (printf "========= AST TREE =========~n~a~n" ast-tree) (printf ""))
+
+(run-weeder (remove-dot-java (get-file-name file-to-compile)) parse-tree)
 
