@@ -1,7 +1,6 @@
 #lang racket
 
 (require "machine.rkt")
-(require "create-dfa.rkt")
 
 (provide token)
 (provide token-type)
@@ -26,41 +25,51 @@
 ;==== Print Functions
 ;==============================================================================================
 
-(define (print-token token) 
+(define (print-token . tokens) 
   (cond
-    [(debug-mode) (printf "~a : ~a~n" (token-type token) (token-lexeme token))]
+    [(debug-mode) (for ([tok tokens]) (printf "~a : ~a~n" (token-type tok) (token-lexeme tok)))]
     [else (printf "")]))
-  
-(define (print-tokens tokens)
-  (cond
-    [(debug-mode)
-      (printf "====== Scanned Tokens ======~n")
-      (for-each (lambda (x) (print-token x)) tokens)]
-    [else (printf "")]))
+
+(define (print-tokens token-list)
+  (apply print-token token-list))
 
 ;==============================================================================================
 ;==== Scanner Functions
 ;==============================================================================================
+(define (in-range? low high c)
+  (and (>= (char->integer c) low)
+       (< (char->integer c) high)))
 
-(define (ascii? c)
-  (and (>= (char->integer c) 0)
-       (<  (char->integer c) 128)))
+(define (ascii? c) (in-range? 0 128 c))
+(define (num-oct? c) (in-range? (char->integer #\0) (char->integer #\8) c))
+(define (num-0to3? c) (in-range? (char->integer #\0) (char->integer #\4) c))
 
-
-
-(define (escape-chars cl) 
+;(: escape-chars : (Listof Char) -> (Listof Char))
+(define (escape-chars cl)
+  ;(: match-octal : Nat (Listof Char) -> (Listof Char))
+  (define (match-octal pos cl)
+    (cond [(empty? cl) empty]
+          [(and (= pos 2) (num-0to3? (first cl))) (cons (first cl) (match-octal 2 (rest cl)))]
+          [(and (> pos 0) (num-oct? (first cl))) (cons (first cl) (match-octal (sub1 pos) (rest cl)))]
+          [else empty]))
+  ;(: list->octal : (Listof Char) -> Nat)
+  (define (list->octal cl)
+    (integer->char (string->number (list->string (append (list #\# #\o ) cl)))))    
   (match cl
     [`()               empty]
-    [`(#\\ #\b ,x ...) (cons #\u0008 (escape-chars x))]
-    [`(#\\ #\t ,x ...) (cons #\u0009 (escape-chars x))]
-    [`(#\\ #\n ,x ...) (cons #\u000a (escape-chars x))]
-    [`(#\\ #\f ,x ...) (cons #\u000c (escape-chars x))]
-    [`(#\\ #\r ,x ...) (cons #\u000d (escape-chars x))]
-    [`(#\\ #\" ,x ...) (cons #\u0022 (escape-chars x))]
-    [`(#\\ #\' ,x ...) (cons #\u0027 (escape-chars x))]
-    [`(#\\ #\\ ,x ...) (cons #\u005c (escape-chars x))]
-    [`(#\\ ,a ,b ,c ,x ...) (cons (first x) (escape-chars (rest x)))]
+    [`(#\\ #\b ,x ...) (cons #\backspace (escape-chars x))]
+    [`(#\\ #\t ,x ...) (cons #\tab (escape-chars x))]
+    [`(#\\ #\n ,x ...) (cons #\newline (escape-chars x))]
+    [`(#\\ #\f ,x ...) (cons #\page (escape-chars x))]
+    [`(#\\ #\r ,x ...) (cons #\return (escape-chars x))]
+    [`(#\\ #\" ,x ...) (cons #\" (escape-chars x))]
+    [`(#\\ #\' ,x ...) (cons #\' (escape-chars x))]
+    [`(#\\ #\\ ,x ...) (cons #\\ (escape-chars x))]
+    [`(#\\ ,x ...)     (let* ([octal (match-octal 2 x)]
+                              [value (list->octal octal)])
+                         (cons value (escape-chars (list-tail x (length octal)))))]
     [x (cons (first x) (escape-chars (rest x)))]))
+
 
 (define (convert-to-long original lex-cl)
   (if (member (first lex-cl) '(#\l #\L))

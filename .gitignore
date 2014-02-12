@@ -3,3 +3,4 @@ compiled/
 grammar/bin/
 *.dfa
 tests/failed_out
+*.DS_Store
