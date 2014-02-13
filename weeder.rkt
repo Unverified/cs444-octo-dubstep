@@ -119,20 +119,17 @@
   (if (debug-mode) (printf "Result: ~a~n" result) (printf ""))
   result)
   
-
 ;==============================================================================================
 ;==== Execution
 ;==============================================================================================
 
 (define (weeder-run filename ast-tree)
-  (cond
-    [(not (check-class-name ast-tree filename)) #f]
-    [(not (check-cast-expressions ast-tree)) #f]
-    [(not (check-has-constructor ast-tree)) #f]
-    [(not (check-constructor-names ast-tree filename)) #f]
-    [(not (check-void-types ast-tree)) #f]
-    [(not (check-decimal-bounds ast-tree)) #f]
-    [else #t]))
+  (and (check-class-name ast-tree filename)
+       (check-cast-expressions ast-tree)
+       (check-has-constructor ast-tree)
+       (check-constructor-names ast-tree filename)
+       (check-void-types ast-tree)
+       (check-decimal-bounds ast-tree)))
 
 (define (weeder filename AST)
   (if (debug-mode) (printf "~n========== RUNNING WEEDER ==========~n") (printf ""))
