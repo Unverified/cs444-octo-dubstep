@@ -13,7 +13,7 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-(define files-to-compile (vector->list (current-command-line-arguments)))
+(define files-to-compile (list "tests/in/J1_01.java"));(vector->list (current-command-line-arguments)))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -77,16 +77,6 @@
     [else (error)]))
 
 ;==============================================================================================
-;==== Print
-;==============================================================================================
-
-(define (print-ast ast)
-  (printf "============ AST ============~n~a~n~n" ast))
-
-(define (print-asts asts files)
-  (for-each (lambda(ast) (print-ast ast)) asts))
-
-;==============================================================================================
 ;==== Execution
 ;==============================================================================================
 
@@ -110,5 +100,5 @@
 
 (print-asts asts files-to-compile)
 
-(printf "============== Environments ==============~n")
+(printf "~n============== Environments ==============~n")
 (print-envs (gen-root-env asts))

@@ -78,7 +78,7 @@
 (struct p-type (type) #:transparent)
 (struct r-type (type) #:transparent)
 (struct a-type (type) #:transparent)
-(struct block (statements) #:transparent)
+(struct block (id statements) #:transparent)
 
 (define (parse->ast t)
   (match t
@@ -93,8 +93,8 @@
     [(tree (node 'PACKAGE_IMPORT) `(,_ ,x ,_ ,_ ,_)) (p-import (parse->ast x))]
 
     [(tree (node 'CLASS_OR_INTERFACE_DECLARATION) `(,x)) (parse->ast x)]
-    [(tree (node 'INTERFACE_DECLARATION) x) (interface (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (parse->ast (list-ref x 5)))]
-    [(tree (node 'CLASS_DECLARATION) x) (class (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (parse->ast (list-ref x 5)) (parse->ast (list-ref x 6)))]
+    [(tree (node 'INTERFACE_DECLARATION) x) (interface (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (block (gensym) (parse->ast (list-ref x 5))))]
+    [(tree (node 'CLASS_DECLARATION) x) (class (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (parse->ast (list-ref x 5)) (block (gensym) (parse->ast (list-ref x 6))))]
 
     [(tree (node 'EXTENDS) `(,x ,y)) (parse->ast y)]
     [(tree (node 'IMPLEMENTS) `(,x ,y)) (parse->ast y)]
@@ -144,8 +144,9 @@
     [(tree (node 'IDS) `(,x ,z ,y)) (append (parse->ast x) (list (parse->ast y)))]
     [(tree (node 'IDS) `(,x)) (list (parse->ast x))]
 
-    [(or (tree (node 'BLOCK) `(,_ ,x ,_))
-         (tree (node 'PRIMARY_NO_NEW_ARRAY) `(,_ ,x ,_))
+    [(tree (node 'BLOCK) `(,_ ,x ,_)) (block (gensym) (parse->ast x))]
+
+    [(or (tree (node 'PRIMARY_NO_NEW_ARRAY) `(,_ ,x ,_))
          (tree (node 'INTERFACE_BODY) `(,_ ,x ,_))
          (tree (node 'CLASS_BODY) `(,_ ,x ,_))) (parse->ast x)]
 

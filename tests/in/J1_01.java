@@ -12,7 +12,13 @@ public class J1_01 {
 	int r6 = J1_01.m1(100);
 
 	int r = 0;
-	if (r1==9) r=r+1;
+	if (r1==9) {
+            r=r+1;
+        } else if(r1==1) {
+            r=r+1;
+        } else {
+            r=r+1;
+        }
 	if (r2==6) r=r+1;
 	if (r3==6) r=r+1;
 

@@ -97,7 +97,6 @@
     (define result-stack (parse (parser-stack (list (lr-dfa-shift lr-dfa-start-state (token-type BOF_TOK))) 
                                               (list (tree (leafnode BOF_TOK) empty))) 
                                 (append tokens (list EOF_TOK))))
-    (print-parser-result result-stack)
     (reverse (parser-stack-node result-stack))) ;return the node-stack
 
 
