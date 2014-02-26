@@ -2,6 +2,9 @@
 
 (require "ast-tree.rkt")
 
+(provide gen-root-env)
+(provide print-envs)
+
 (define (c-unit-name ast)
   (match ast
     [(or (c-unit package _ (class _ _ id _ _ _)) 
@@ -11,3 +14,13 @@
 
 (define (gen-root-env asts)
   (map (lambda (x) (list (c-unit-name x) x)) asts))
+
+;==============================================================================================
+;==== Print Functions
+;==============================================================================================
+
+(define (print-env env)
+  (printf "~a~n" (first env)))
+
+(define (print-envs envs)
+  (for-each (lambda (env) (print-env env)) envs))

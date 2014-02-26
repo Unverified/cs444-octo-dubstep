@@ -1,4 +1,5 @@
 // PARSER_WEEDER
+package A.B.C;
 public class J1_assignment {
 
     public J1_assignment() {}
