@@ -2,7 +2,7 @@
 
 (require "lr-dfa.rkt")
 (require "scanner.rkt")
-(require "ast-tree.rkt")
+(require "parse-tree.rkt")
 
 (provide parser)
 (provide (struct-out parser-stack))

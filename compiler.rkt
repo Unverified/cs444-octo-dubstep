@@ -6,6 +6,7 @@
 (require "lr-dfa.rkt")			;needed for rule
 (require "create-dfa.rkt")
 (require "ast-tree.rkt")
+(require "parse-tree.rkt")
 (require "enviroments.rkt")
 
 ;==============================================================================================
@@ -13,7 +14,7 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-(define files-to-compile (list "tests/in/J1_01.java"));(vector->list (current-command-line-arguments)))
+(define files-to-compile (vector->list (current-command-line-arguments)))
 
 ;==============================================================================================
 ;==== Compiler Results
