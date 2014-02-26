@@ -1,6 +1,6 @@
 #lang racket
 
-(require "ast-tree.rkt")
+(require "parse-tree.rkt")
 (require "scanner.rkt")
 
 (provide weeder)
@@ -8,7 +8,6 @@
 ;==============================================================================================
 ;==== Check Decimal Bounds
 ;==============================================================================================
-
 (define (check-decimal-lit-bound number)
   (and (<= number 2147483647) (>= number -2147483648)))
 
@@ -112,7 +111,6 @@
 ;==============================================================================================
 ;==== Execution
 ;==============================================================================================
-
 (define (weeder-run filename ast-tree)
   (and (check-class-name ast-tree filename)
        (check-cast-expressions ast-tree)

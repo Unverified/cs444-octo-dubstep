@@ -1,69 +1,50 @@
 #lang racket
 
 (require "scanner.rkt")
+(require "parse-tree.rkt")
 
-(provide find-tree)
-(provide find-all-trees)
-(provide find-node)
-(provide find-all-nodes)
-(provide find-all-nodes-list)
-(provide find-all-trees-list)
-(provide find-node-list)
-(provide find-tree-list)
-(provide find-all-trees-containing-child)
-(provide find-child-tree)
-(provide is-node-equal)
-(provide print-tree)
 (provide parse->ast)
-(provide (struct-out tree))
-(provide (struct-out node))
-(provide (struct-out leafnode))
-
-;(struct tree ([sym : Symbol] [child-trees : (Listof tree)]))
-(struct tree (node child-trees) #:transparent)
-(struct node (sym) #:transparent)
-(struct leafnode (token) #:transparent)
 
 ;(struct c-unit ([package : (Listof String)] [imports : (Listof (Listof String))] [body : something]))
-(struct c-unit (package imports body) #:transparent)
-(struct c-import (path) #:transparent)
-(struct p-import (path) #:transparent)
+(struct cunit (package imports body) #:transparent)
+(struct cimport (path) #:transparent)
+(struct pimport (path) #:transparent)
 (struct interface (scope mod id extends body) #:transparent)
 (struct class (scope mod id extends implements body) #:transparent)
 (struct constructor (scope method-decl body) #:transparent)
 (struct method (scope mod type method-decl body) #:transparent)
 (struct method-decl (id parameters) #:transparent)
 (struct parameter (type id) #:transparent)
-(struct variable (scope mod type var-assign) #:transparent)
-(struct var-assign (id expr) #:transparent)
-(struct bin-op (op left right) #:transparent)
-(struct un-op (op right) #:transparent)
+(struct var (scope mod type var-assign) #:transparent)
+(struct varassign (id expr) #:transparent)
+(struct binop (op left right) #:transparent)
+(struct unop (op right) #:transparent)
 (struct cast (c expr) #:transparent)
-(struct array-create (type size) #:transparent)
-(struct class-create (class params) #:transparent)
-(struct field-access (left field) #:transparent)
-(struct method-call (left args) #:transparent)
-(struct array-access (left index) #:transparent)
+(struct arraycreate (type size) #:transparent)
+(struct classcreate (class params) #:transparent)
+(struct fieldaccess (left field) #:transparent)
+(struct methodcall (left args) #:transparent)
+(struct arrayaccess (left index) #:transparent)
 (struct iff (test tru fls) #:transparent)
 (struct while (test body) #:transparent)
 (struct for (init clause update body) #:transparent)
 (struct return (expr) #:transparent)
-(struct p-type (type) #:transparent)
-(struct r-type (type) #:transparent)
-(struct a-type (type) #:transparent)
+(struct ptype (type) #:transparent)
+(struct rtype (type) #:transparent)
+(struct atype (type) #:transparent)
 (struct block (statements) #:transparent)
 
 (define (parse->ast t)
   (match t
     [(tree (node _) '()) empty]
-    [(tree (node 'S) `(,x ,y ,z)) (c-unit (parse->ast x) (parse->ast y) (parse->ast z))]
+    [(tree (node 'S) `(,x ,y ,z)) (cunit (parse->ast x) (parse->ast y) (parse->ast z))]
     [(tree (node 'PACKAGE) `(,_ ,x ,_)) (parse->ast x)]
     [(tree (node 'IMPORTS) `(,x)) (parse->ast x)]
     [(tree (node 'IMPORT_LIST) `(,x ,y)) (append (parse->ast x) (list (parse->ast y)))]
     [(tree (node 'IMPORT_LIST) `(,x)) (list (parse->ast x))]
     [(tree (node 'IMPORT) `(,x)) (parse->ast x)]
-    [(tree (node 'CLASS_IMPORT) `(,_ ,x ,_)) (c-import (parse->ast x))]
-    [(tree (node 'PACKAGE_IMPORT) `(,_ ,x ,_ ,_ ,_)) (p-import (parse->ast x))]
+    [(tree (node 'CLASS_IMPORT) `(,_ ,x ,_)) (cimport (parse->ast x))]
+    [(tree (node 'PACKAGE_IMPORT) `(,_ ,x ,_ ,_ ,_)) (pimport (parse->ast x))]
 
     [(tree (node 'CLASS_OR_INTERFACE_DECLARATION) `(,x)) (parse->ast x)]
     [(tree (node 'INTERFACE_DECLARATION) x) (interface (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (parse->ast (list-ref x 5)))]
@@ -89,7 +70,7 @@
     [(tree (node 'ABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'FINAL_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'STATIC_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (parse->ast mod) (p-type (parse->ast type)) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (parse->ast mod) (ptype (parse->ast type)) (parse->ast decl) (parse->ast body))]
     [(tree (node 'CONSTRUCTOR_DECLARATION) `(,scope ,decl ,body)) (constructor (parse->ast scope) (parse->ast decl) (parse->ast body))]
 
     [(tree (node 'STATIC_NATIVE) `(,x ,y)) (list (parse->ast x) (parse->ast x))]
@@ -105,14 +86,14 @@
     [(tree (node 'CLASS_MODIFIER) `(,x)) (parse->ast x)]
 
     [(tree (node 'TYPE) `(,x)) (parse->ast x)]
-    [(tree (node 'PRIMITIVE_TYPE) `(,x)) (p-type (parse->ast x))]
-    [(tree (node 'REFERENCE_TYPE) `(,x)) (r-type (parse->ast x))]
-    [(tree (node 'ARRAY_TYPE) x) (a-type (parse->ast (first x)))]
+    [(tree (node 'PRIMITIVE_TYPE) `(,x)) (ptype (parse->ast x))]
+    [(tree (node 'REFERENCE_TYPE) `(,x)) (rtype (parse->ast x))]
+    [(tree (node 'ARRAY_TYPE) x) (atype (parse->ast (first x)))]
 
-    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,var ,_ )) (variable (parse->ast x) empty (parse->ast type) (parse->ast var)) ]
-    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,var ,_ )) (variable (parse->ast x) 'static (parse->ast type) (parse->ast var)) ]
+    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,v ,_ )) (var (parse->ast x) empty (parse->ast type) (parse->ast v))]
+    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,v ,_ )) (var (parse->ast x) 'static (parse->ast type) (parse->ast v))]
     [(tree (node 'VARIABLE_DECLARATOR_OPT) `( ,x )) (parse->ast x) ]
-    [(tree (node 'VARIABLE_DECLARATOR) `( ,id ,_ ,expr )) (var-assign (parse->ast id) (parse->ast expr)) ]
+    [(tree (node 'VARIABLE_DECLARATOR) `( ,id ,_ ,expr )) (varassign (parse->ast id) (parse->ast expr)) ]
 
     [(tree (node 'IDS) `(,x ,z ,y)) (append (parse->ast x) (list (parse->ast y)))]
     [(tree (node 'IDS) `(,x)) (list (parse->ast x))]
@@ -158,25 +139,25 @@
          (tree (node 'EQUALITY) `(,x ,y ,z))
          (tree (node 'RELATIONAL) `(,x ,y ,z))
          (tree (node 'ADDITIVE) `(,x ,y ,z))
-         (tree (node 'MULTIPLICATIVE) `(,x ,y ,z))) (bin-op (parse->ast y) (parse->ast x) (parse->ast z))] 
+         (tree (node 'MULTIPLICATIVE) `(,x ,y ,z))) (binop (parse->ast y) (parse->ast x) (parse->ast z))] 
 
     [(or (tree (node 'UNARY_MINUS) `(,x ,y))
-         (tree (node 'UNARY_NOT) `(,x ,y))) (un-op (parse->ast y) (parse->ast x))]
+         (tree (node 'UNARY_NOT) `(,x ,y))) (unop (parse->ast y) (parse->ast x))]
 
     [(tree (node 'CAST) `(,_ ,c ,_ ,expr)) (cast (parse->ast c) (parse->ast expr))]
 
-    [(tree (node 'ARRAY_CREATION_EXPRESSION) `(,_ ,type ,_ ,size ,_)) (array-create (parse->ast type) (parse->ast size))]
-    [(tree (node 'CLASS_CREATION_EXPRESSION) `(,_ ,class ,_ ,params ,_)) (class-create (parse->ast class) (parse->ast params))]
+    [(tree (node 'ARRAY_CREATION_EXPRESSION) `(,_ ,type ,_ ,size ,_)) (arraycreate (parse->ast type) (parse->ast size))]
+    [(tree (node 'CLASS_CREATION_EXPRESSION) `(,_ ,class ,_ ,params ,_)) (classcreate (parse->ast class) (parse->ast params))]
 
-    [(tree (node 'FIELD_ACCESS) `(,left ,_ ,field)) (field-access (parse->ast left) (parse->ast field))]
-    [(tree (node 'METHOD_CALL) `(,left ,_ ,args ,_)) (method-call (parse->ast left) (parse->ast args))]
+    [(tree (node 'FIELD_ACCESS) `(,left ,_ ,field)) (fieldaccess (parse->ast left) (parse->ast field))]
+    [(tree (node 'METHOD_CALL) `(,left ,_ ,args ,_)) (methodcall (parse->ast left) (parse->ast args))]
 
     [(tree (node 'ARGUMENT_LIST) `(,args ,_ ,arg)) (append (parse->ast args) (parse->ast arg))]
     [(tree (node 'ARGUMENT_LIST) `(,arg)) (list (parse->ast arg))]
 
-    [(tree (node 'ARRAY_ACCESS) `(,left ,_ ,index ,_)) (array-access (parse->ast left) (parse->ast index))]
+    [(tree (node 'ARRAY_ACCESS) `(,left ,_ ,index ,_)) (arrayaccess (parse->ast left) (parse->ast index))]
 
-    [(tree (node 'ASSIGNMENT) `(,lhs ,_ ,rhs)) (var-assign (parse->ast lhs) (parse->ast rhs))]
+    [(tree (node 'ASSIGNMENT) `(,lhs ,_ ,rhs)) (varassign (parse->ast lhs) (parse->ast rhs))]
 
     [(tree (node 'SCOPE) `(,x)) (parse->ast x)]
 
@@ -185,7 +166,7 @@
     [(tree (node 'BLOCK_STATEMENTS) `(,bs)) (parse->ast bs)]
     [(tree (node 'BLOCK_STATEMENT) `(,x ,_)) (list (parse->ast x))]
     [(tree (node 'BLOCK_STATEMENT) `(,x)) (list (parse->ast x))]
-    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,var)) (variable empty empty (parse->ast type) (parse->ast var))]
+    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v)) (var empty empty (parse->ast type) (parse->ast v))]
 
     [(or (tree (node 'STATEMENT) `(,x))
          (tree (node 'STATEMENT_NO_IF) `(,x))
@@ -223,75 +204,6 @@
 
 
 
-;==============================================================================================
-;==== Print Functions
-;==============================================================================================
-
-(define (print-tree tree)
-  (cond
-    [#t
-      (define (print-tree tree indentation)
-        (define treenode (tree-node tree))
-        (cond
-          [(leafnode? treenode) (printf "~aleafnode | " indentation) (print-token (leafnode-token treenode))]
-          [else (printf "~anode | ~a~n" indentation (node-sym treenode))])        
-        (for-each (lambda (child-node) (print-tree child-node (string-append "  " indentation))) (tree-child-trees tree)))
-      (print-tree tree "")]
-    [else (printf "")]))
-
-
-(define (find-all-trees sym AST)
-  (define (recurse child-trees) (append-map (lambda (tree) (find-all-trees sym tree)) child-trees))
-  (cond
-    [(and (leafnode? (tree-node AST)) (equal? sym (token-type (leafnode-token (tree-node AST))))) (cons AST (recurse (tree-child-trees AST)))]
-    [(and (node? (tree-node AST)) (equal? sym (node-sym (tree-node AST)))) (cons AST (recurse (tree-child-trees AST)))]
-    [else (recurse (tree-child-trees AST))]))
-
-(define (find-tree sym AST)
-  (cond
-    [(and (leafnode? (tree-node AST)) (equal? sym (token-type (leafnode-token (tree-node AST))))) AST]
-    [(and (node? (tree-node AST)) (equal? sym (node-sym (tree-node AST)))) AST]
-    [else (findf (lambda (tree) (tree? (find-tree sym tree))) (tree-child-trees AST))]))
-
-(define (find-all-nodes sym AST)
-  (map (tree-node) (find-all-trees sym AST)))
-
-(define (find-node sym AST)
-  (define tree (find-tree sym AST))
-  (cond
-    [(tree? tree) (tree-node tree)]
-    [else #f]))
-
-(define (find-all-trees-list sym ASTs)
-  (append-map (lambda (AST) (find-all-trees sym AST)) ASTs))
-
-(define (find-all-nodes-list sym ASTs)
-  (append-map (lambda (AST) (find-all-nodes sym AST)) ASTs))
-
-(define (find-tree-list sym ASTs)
-  (map (lambda (AST) (find-tree sym AST)) ASTs))
-
-(define (find-node-list sym ASTs)
-  (map (lambda (AST) (find-node sym AST)) ASTs))
-
-(define (is-node-equal sym AST)
-  (cond
-    [(and (leafnode? (tree-node AST)) (equal? sym (token-type (leafnode-token (tree-node AST))))) #t]
-    [(and (node? (tree-node AST)) (equal? sym (node-sym (tree-node AST)))) #t]
-    [else #f]))
-
-(define (find-child-tree sym ASTs)
-  (findf (lambda (AST) (is-node-equal sym AST))  ASTs))
-
-(define (tree-contians-child sym ASTs)
-  (tree? (find-child-tree sym ASTs)))
-
-;Finds all the trees that have sym as one of its child nodes
-(define (find-all-trees-containing-child sym AST)
-  (define (recurse child-trees) (append-map (lambda (tree) (find-all-trees-containing-child sym tree)) child-trees))
-  (cond
-    [(tree-contians-child sym (tree-child-trees AST)) (cons AST (recurse (tree-child-trees AST)))]
-    [else (recurse (tree-child-trees AST))]))
 
 
   
