@@ -8,27 +8,15 @@
 (provide scanner)
 (provide print-token)
 (provide print-tokens)
-(provide scanner-set-debug-mode)
 
 (struct token (type lexeme) #:transparent)
-
-;==============================================================================================
-;==== Debug
-;==============================================================================================
-
-(define debug-mode #t)
-
-(define (scanner-set-debug-mode mode)
-  (set! debug-mode mode))
 
 ;==============================================================================================
 ;==== Print Functions
 ;==============================================================================================
 
 (define (print-token . tokens) 
-  (cond
-    [(debug-mode) (for ([tok tokens]) (printf "~a : ~a~n" (token-type tok) (token-lexeme tok)))]
-    [else (printf "")]))
+  (for ([tok tokens]) (printf "~a : ~a~n" (token-type tok) (token-lexeme tok))))
 
 (define (print-tokens token-list)
   (apply print-token token-list))

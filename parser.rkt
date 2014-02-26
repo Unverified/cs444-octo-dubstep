@@ -5,7 +5,6 @@
 (require "ast-tree.rkt")
 
 (provide parser)
-(provide parser-set-debug-mode)
 (provide (struct-out parser-stack))
 (provide (struct-out tree))
 (provide (struct-out node))
@@ -14,24 +13,13 @@
 (struct parser-stack (state node))
 
 ;==============================================================================================
-;==== Debug
-;==============================================================================================
-(define debug-mode #f)
-
-(define (parser-set-debug-mode mode)
-  (set! debug-mode mode))
-
-;==============================================================================================
 ;==== Print Functions
 ;==============================================================================================
 
 (define (print-parser-result result-stack)
-  (cond
-    [(debug-mode)
-      (printf "DONE PARSING~n")
-      (printf "Node Stack:~n")
-      (for-each (lambda (x) (print-tree x)) (parser-stack-node result-stack))]
-    [else (printf "")]))
+  (printf "DONE PARSING~n")
+  (printf "Node Stack:~n")
+  (for-each (lambda (x) (print-tree x)) (parser-stack-node result-stack)))
   
 
 ;==============================================================================================

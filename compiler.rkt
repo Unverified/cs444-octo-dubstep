@@ -11,25 +11,8 @@
 ;==== Parse Command Line
 ;==============================================================================================
 
-;Command line debug flag
-(define debug-mode (make-parameter #f))
-
-;Parse the command line arguments and return the file to compile
-(define get-file ;"test.java")
-  (command-line
-    #:program "compiler"
-    #:once-each
-    [("-d" "--debug") "Print debug statements" (debug-mode #t)]
-    #:args (file..)
-    file..))
-
-;Get the file we want to compile
-(define file-to-compile get-file)
-
-;Dont know if this is the best way to pass the debug flag
-(parser-set-debug-mode debug-mode)
-(scanner-set-debug-mode debug-mode)
-(weeder-set-debug-mode debug-mode)
+;Get all the files from the command line
+(define files-to-compile (vector->list (current-command-line-arguments)))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -87,28 +70,41 @@
 
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
-(define (run-weeder filename AST)
+(define (run-weeder filename parse-tree)
   (cond
-    [(weeder filename AST) (compiled)]
+    [(weeder filename parse-tree) (parse->ast (find-tree 'S parse-tree))]
     [else (error)]))
 
+;==============================================================================================
+;==== Print
+;==============================================================================================
+
+(define (print-ast ast)
+  (printf "============ AST ============~n~a~n~n" ast))
+
+(define (print-asts asts files)
+  (map (lambda(ast) (print-ast ast)) asts))
 
 ;==============================================================================================
 ;==== Execution
 ;==============================================================================================
+
 (define (remove-dot-java filename)
   (first (regexp-split #px"\\.java" filename)))
 
 (define (get-file-name filepath)
   (last (regexp-split #px"/" filepath)))
 
-;Get the input as a list of chars
-(define clist (string->list (file->string file-to-compile)))
+(define (parse-file file)
+  (define clist (string->list (file->string file)))
+  (define parse-tree (run-parser (run-scanner clist)))
+  (run-weeder (remove-dot-java (get-file-name file)) parse-tree))
 
-(define parse-tree (run-parser (run-scanner clist)))
-(define ast-tree (parse->ast (find-tree 'S parse-tree)))
+(define (parse-files files)
+  (cond
+    [(empty? files) empty]
+    [else (cons (parse-file (first files)) (parse-files (rest files)))]))
 
-(if (debug-mode) (printf "========= AST TREE =========~n~a~n" ast-tree) (printf ""))
+(define asts (parse-files files-to-compile))
 
-(run-weeder (remove-dot-java (get-file-name file-to-compile)) parse-tree)
-
+(print-asts asts files-to-compile)

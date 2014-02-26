@@ -4,16 +4,6 @@
 (require "scanner.rkt")
 
 (provide weeder)
-(provide weeder-set-debug-mode)
-
-;==============================================================================================
-;==== Debug
-;==============================================================================================
-
-(define debug-mode #f)
-
-(define (weeder-set-debug-mode mode)
-  (set! debug-mode mode))
 
 ;==============================================================================================
 ;==== Check Decimal Bounds
@@ -46,9 +36,9 @@
     [else (parse-tree-recursively tree sym proc recursive-proc)]))
 
 (define (check-decimal-bounds ast-tree)
-  (if (debug-mode) (printf "Checking decimal literal bounds.~n") (printf ""))
+  (printf "Checking decimal literal bounds.~n")
   (define result (parse-tree ast-tree 'UNARY_MINUS look-for-literal andmap))
-  (if (debug-mode) (printf "Result: ~a~n" result) (printf ""))
+  (printf "Result: ~a~n" result)
   result)
 
 ;==============================================================================================
@@ -61,10 +51,10 @@
   (or (not is-void) (and is-void (member (node-sym (tree-node tree)) valid-void-type-nodes))))
 
 (define (check-void-types ast-tree)
-  (if (debug-mode) (printf "Checking void only in function types.~n") (printf ""))
+  (printf "Checking void only in function types.~n")
   (define all-trees-containing-type (find-all-trees-containing-child 'TYPE ast-tree))
   (define result (andmap (lambda (tree) (check-valid-type tree)) all-trees-containing-type))
-  (if (debug-mode) (printf "Result: ~a~n" result) (printf ""))
+  (printf "Result: ~a~n" result)
   result)
 
 ;==============================================================================================
@@ -72,10 +62,10 @@
 ;==============================================================================================
 
 (define (check-constructor-names ast-tree filename)
-  (if (debug-mode) (printf "Checking constructor names equal filename: \"~a\"~n" filename) (printf ""))
+  (printf "Checking constructor names equal filename: \"~a\"~n" filename)
   (define all-constructor-id-nodes (find-node-list 'id (find-all-trees-list 'METHOD_DECLARATOR (find-all-trees 'CONSTRUCTOR_DECLARATION ast-tree))))
   (define result (andmap (lambda(id-node) (equal? filename (token-lexeme (leafnode-token id-node)))) all-constructor-id-nodes))
-  (if (debug-mode) (printf "Result: ~a~n" result) (printf ""))
+  (printf "Result: ~a~n" result)
   result)
 
 ;==============================================================================================
@@ -83,11 +73,11 @@
 ;==============================================================================================
 
 (define (check-class-name ast-tree filename)
-  (if (debug-mode) (printf "Checking class/interface name equals filename: \"~a\"~n" filename) (printf ""))
+  (printf "Checking class/interface name equals filename: \"~a\"~n" filename)
   (define class-node (find-tree 'CLASS_OR_INTERFACE_DECLARATION ast-tree))
   (define id-leafnode (tree-node (list-ref (tree-child-trees (first (tree-child-trees class-node))) 3)))
   (define result (equal? filename (token-lexeme (leafnode-token id-leafnode))))
-  (if (debug-mode) (printf "Result: ~a~n" result) (printf ""))
+  (printf "Result: ~a~n" result)
   result)
 
 (define (check-tree-structure ast-tree expected-syms)
@@ -102,21 +92,21 @@
     [else #f]))
 
 (define (check-cast-expressions ast-tree)
-  (if (debug-mode) (printf "Checking Cast Nodes for correct form.~n") (printf ""))
+  (printf "Checking Cast Nodes for correct form.~n")
   (define all-cast-nodes (find-all-trees 'CAST ast-tree))
  ; (printf "CASES: ~a~n" all-cast-nodes)
   (define expected-symss (list (list 'EXPRESSION 'ASSIGNMENT_EXPRESSION 'LOGICAL_OR 'LOGICAL_AND 'BITWISE_OR 'BITWISE_AND 'EQUALITY 'RELATIONAL 'ADDITIVE 'MULTIPLICATIVE 'UNARY_MINUS 'UNARY_NOT 'POSTFIX_EXPRESSION 'IDS)
                                (list 'PRIMITIVE_TYPE)
                                (list 'ARRAY_TYPE)))
   (define result (andmap (lambda (cast-tree) (ormap (lambda (expected-syms) (list? (check-tree-structure (list (first (rest (tree-child-trees cast-tree)))) expected-syms))) expected-symss)) all-cast-nodes))
-  (if (debug-mode) (printf "Result: ~a~n" result) (printf ""))
+  (printf "Result: ~a~n" result)
   result)
 
 (define (check-has-constructor ast-tree)
-  (if (debug-mode) (printf "Checking existance of constructor.~n") (printf ""))
+  (printf "Checking existance of constructor.~n")
   (define class-tree (find-tree 'CLASS_DECLARATION ast-tree))
   (define result (if (tree? class-tree) (tree? (find-tree 'CONSTRUCTOR_DECLARATION ast-tree)) #t))
-  (if (debug-mode) (printf "Result: ~a~n" result) (printf ""))
+  (printf "Result: ~a~n" result)
   result)
   
 ;==============================================================================================
@@ -132,6 +122,6 @@
        (check-decimal-bounds ast-tree)))
 
 (define (weeder filename AST)
-  (if (debug-mode) (printf "~n========== RUNNING WEEDER ==========~n") (printf ""))
+  (printf "~n========== RUNNING WEEDER ==========~n")
   (weeder-run filename AST))
   
