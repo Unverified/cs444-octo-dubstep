@@ -6,6 +6,8 @@
 (require "lr-dfa.rkt")			;needed for rule
 (require "create-dfa.rkt")
 (require "ast-tree.rkt")
+(require "parse-tree.rkt")
+(require "enviroments.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -83,7 +85,7 @@
   (printf "============ AST ============~n~a~n~n" ast))
 
 (define (print-asts asts files)
-  (map (lambda(ast) (print-ast ast)) asts))
+  (for-each (lambda(ast) (print-ast ast)) asts))
 
 ;==============================================================================================
 ;==== Execution
@@ -108,3 +110,6 @@
 (define asts (parse-files files-to-compile))
 
 (print-asts asts files-to-compile)
+
+(printf "============== Environments ==============~n")
+(print-envs (gen-root-env asts))
