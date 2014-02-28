@@ -8,6 +8,7 @@
 (require "ast-tree.rkt")
 (require "parse-tree.rkt")
 (require "enviroments.rkt")
+(require "type-linker.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -104,7 +105,9 @@
 
 (printf "~n============== Environments ==============~n")
 (define root (gen-root-env asts))
+
 (print-envs root)
+root
 
-(map (lambda (x) (gen-class-envs (second x))) root)
-
+(printf "~n============== Type Linker ==============~n")
+(gen-typelink-lists asts root)
