@@ -14,8 +14,8 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-;(define files-to-compile (vector->list (current-command-line-arguments)))
-(define files-to-compile (list "tests/test1.java"))
+(define files-to-compile (vector->list (current-command-line-arguments)))
+;(define files-to-compile (list "tests/test1.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
