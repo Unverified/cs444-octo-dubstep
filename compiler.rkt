@@ -105,9 +105,9 @@
 
 (printf "~n============== Environments ==============~n")
 (define root (gen-root-env asts))
-(print-envs root)
 
-(map (lambda (x) (gen-class-envs (second x))) root)
+(print-envs root)
+root
 
 (printf "~n============== Type Linker ==============~n")
 (gen-typelink-lists asts root)
