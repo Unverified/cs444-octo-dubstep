@@ -10,8 +10,6 @@
 
 (struct envs (vars methods types) #:transparent)
 
-
-
 (define (c-unit-name ast)
   (match ast
     [(or (cunit package _ (class _ _ id _ _ _)) 
@@ -22,7 +20,7 @@
 ;==== Environment Generation
 ;======================================================================================
 (define (gen-root-env asts)
-  (map (lambda (x) (list (c-unit-name x) x)) asts))
+  (map (lambda (x) (list (c-unit-name x) x)) (gen-class-envs asts) ))
 
 (define (gen-class-envs ast)
   (define (gen-class-env-id scope ast)
@@ -34,9 +32,11 @@
       [_ env-empty]))
   
     (match ast
-      [(or (cunit _ _ b)
-           (class _ _ _ _ _ b)
-           (interface _ _ _ _ b)) (gen-class-envs b)]
+      [(cunit _ _ b) (gen-class-envs b)]
+      [(class _ _ id _ _ b) (let ([e (gen-class-envs b)])
+                              (envs (envs-vars e) (envs-methods e) (cons (list id 'class) (envs-types e))))]
+      [(interface _ _ id _ b) (let ([e (gen-class-envs b)])
+                              (envs (envs-vars e) (envs-methods e) (cons (list id 'interface) (envs-types e))))]
       [(block id bdy) (apply env-append (map (curry gen-class-env-id id) bdy))]))
 
 ;======================================================================================
