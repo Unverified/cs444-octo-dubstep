@@ -25,9 +25,9 @@
   (define (gen-class-env-id scope ast)
     (match ast
       [(constructor scop mdecl _)       (envs empty `((,mdecl ,scope)) empty)]
-      [(method scop mod typ mdecl _)    (envs empty `((,mdecl ,scope))  empty)]
-      [(or (var _ _ _ (varassign id _))
-           (var _ _ _ id))              (envs `((,id ,scope)) empty empty)]
+      [(method scop mod type mdecl _)    (envs empty `((,mdecl ,scope))  empty)]
+      [(or (var _ _ type (varassign id _))
+           (var _ _ type id))              (envs `((,id ,scope)) empty empty)]
       [_ env-empty]))
   
     (match ast
@@ -66,14 +66,15 @@
   (for-each (lambda (env) (print-env env)) envs))
 
 
-(define test1 (cunit '() '() (class 'public '() "test1" '() '(("java" "io" "Serializable"))
-  (block
-   'g47330
-   (list (constructor 'public (mdecl "test1" '()) (block 'g47331 '()))
-         (var 'public '() (ptype 'int) "x")
-         (var 'public '() (ptype 'int) (varassign "y" "2"))
-         (method 'public '(static) (ptype 'int) (mdecl "test" '()) (block 'g47332 (list (return "123"))))
-         )))))
 
 
-(gen-class-envs test1)
+;(define test1 (cunit '() '() (class 'public '() "test1" '() '(("java" "io" "Serializable"))
+;  (block
+;   'g47330
+;   (list (constructor 'public (methoddecl "test1" '()) (block 'g47331 '()))
+;         (var 'public '() (ptype 'int) "x")
+;         (var 'public '() (ptype 'int) (varassign "y" "2"))
+;         (method 'public '(static) (ptype 'int) (methoddecl "test" '()) (block 'g47332 (list (return "123"))))
+;         )))))
+
+;(gen-class-envs test1)
