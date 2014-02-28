@@ -5,9 +5,10 @@
 (require "weeder.rkt")			;needed for weeding
 (require "lr-dfa.rkt")			;needed for rule
 (require "create-dfa.rkt")
-(require "astv2.rkt")
+(require "ast-tree.rkt")
 (require "parse-tree.rkt")
-;(require "enviroments.rkt")
+(require "enviroments.rkt")
+(require "type-linker.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -15,6 +16,7 @@
 
 ;Get all the files from the command line
 (define files-to-compile (vector->list (current-command-line-arguments)))
+;(define files-to-compile (list "tests/test1.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -102,4 +104,10 @@
 (print-asts asts files-to-compile)
 
 (printf "~n============== Environments ==============~n")
-;(print-envs (gen-root-env asts))
+(define root (gen-root-env asts))
+(print-envs root)
+
+(map (lambda (x) (gen-class-envs (second x))) root)
+
+(printf "~n============== Type Linker ==============~n")
+(gen-typelink-lists asts root)

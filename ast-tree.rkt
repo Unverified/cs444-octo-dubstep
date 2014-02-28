@@ -1,4 +1,4 @@
-#lang racket
+ #lang racket
 
 (require "scanner.rkt")
 (require "parse-tree.rkt")
@@ -36,6 +36,8 @@
 
 (provide parse->ast)
 (provide print-asts)
+(provide ast-recurse)
+(provide get-class-name)
 
 ;==============================================================================================
 ;==== AST Structures
@@ -335,6 +337,51 @@
 ))
 
 ;==============================================================================================
+;==== Helper
+;==============================================================================================
+
+;(ast-recurse [ast : "anything"] [proc : procedure] [base : "anything"]) -> (Listof (proc out))
+;What this function does is tries to match ast to any structure found in the ast, if a match is found then proc is applied to all items in the structure and the outputs of proc are appended together, this assumes that proc returns a list. To be honest, I made this for type linking, I dont even know if anyone else will use this, I might just be talking to myself.
+(define (ast-recurse ast proc)
+  (cond
+    [(list? ast) (append-map (lambda(x) (proc x)) ast)]
+    [else (match ast
+            [(cunit package imports body) (append (proc package) (proc imports) (proc body))]
+            [(cimport path) (append (proc path))]
+            [(pimport path) (append (proc path))]
+            [(interface scope mod id extends body) (append (proc scope) (proc mod) (proc id) (proc extends) (proc body))]
+            [(class scope mod id extends implements body) (append (proc scope) (proc mod) (proc id) (proc extends) (proc implements) (proc body))]
+            [(constructor scope methoddecl body) (append (proc scope) (proc methoddecl) (proc body))]
+            [(method scope mod type methoddecl body) (append (proc scope) (proc mod) (proc type) (proc methoddecl) (proc body))]
+            [(methoddecl id parameters) (append (proc id) (proc parameters))]
+            [(parameter type id) (append (proc type) (proc id))]
+            [(var scope mod type var-assign) (append (proc scope) (proc mod) (proc type) (proc var-assign))]
+            [(varassign id expr) (append (proc id) (proc expr))]
+            [(binop op left right) (append (proc op) (proc left) (proc right))]
+            [(unop op right) (append (proc op) (proc right))]
+            [(cast c expr) (append (proc c) (proc expr))]
+            [(arraycreate type size) (append (proc type) (proc size))]
+            [(classcreate class params) (append (proc class) (proc params))]
+            [(fieldaccess left field) (append (proc left) (proc field))]
+            [(methodcall left args) (append (proc left) (proc args))]
+            [(arrayaccess left index) (append (proc left) (proc index))]
+            [(iff test tru fls) (append (proc test) (proc tru) (proc fls))]
+            [(while test body) (append (proc test) (proc body))]
+            [(for init clause update body) (append (proc init) (proc clause) (proc update) (proc body))]
+            [(return expr) (append (proc expr))]
+            [(ptype type) (append (proc type))]
+            [(rtype type) (append (proc type))]
+            [(atype type) (append (proc type))]
+            [(block id statements) (append (proc statements))]
+            [_ empty])]))
+
+(define (get-class-name ast)
+  (match ast
+    [(or (cunit package _ (class _ _ id _ _ _)) 
+         (cunit package _ (interface _ _ id _ _))) id]
+    [_ (error "Something went terribly wrong in get-class-name")]))
+
+;==============================================================================================
 ;==== Print
 ;==============================================================================================
 
@@ -349,6 +396,7 @@
 
     [(class scope mod id extends implements body) (printf "~aclass ~a ~a ~a ~a ~a~n" indent scope mod id extends implements)
 			                          (print-ast body (string-append indent "  "))]
+
 
     [(constructor scope methoddecl body) (printf "~aconstructor ~a ~a~n" indent scope methoddecl)
 			                  (print-ast body (string-append indent "  "))]
