@@ -5,9 +5,9 @@
 (require "weeder.rkt")			;needed for weeding
 (require "lr-dfa.rkt")			;needed for rule
 (require "create-dfa.rkt")
-(require "ast-tree.rkt")
+(require "astv2.rkt")
 (require "parse-tree.rkt")
-(require "enviroments.rkt")
+;(require "enviroments.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -102,4 +102,4 @@
 (print-asts asts files-to-compile)
 
 (printf "~n============== Environments ==============~n")
-(print-envs (gen-root-env asts))
+;(print-envs (gen-root-env asts))
