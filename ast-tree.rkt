@@ -13,7 +13,7 @@
 (provide (struct-out class))
 (provide (struct-out constructor))
 (provide (struct-out method))
-(provide (struct-out method-decl))
+(provide (struct-out mdecl))
 (provide (struct-out parameter))
 (provide (struct-out var))
 (provide (struct-out varassign))
@@ -45,9 +45,9 @@
 (struct pimport (path) #:transparent)
 (struct interface (scope mod id extends body) #:transparent)
 (struct class (scope mod id extends implements body) #:transparent)
-(struct constructor (scope method-decl body) #:transparent)
-(struct method (scope mod type method-decl body) #:transparent)
-(struct method-decl (id parameters) #:transparent)
+(struct constructor (scope mdecl body) #:transparent)
+(struct method (scope mod type mdecl body) #:transparent)
+(struct mdecl (id parameters) #:transparent)
 (struct parameter (type id) #:transparent)
 (struct var (scope mod type var-assign) #:transparent)
 (struct varassign (id expr) #:transparent)
@@ -109,8 +109,8 @@
 
     [(tree (node 'STATIC_NATIVE) `(,x ,y)) (list (parse->ast x) (parse->ast x))]
 
-    [(tree (node 'METHOD_DECLARATOR) `(,id ,_ ,params ,_)) (method-decl (parse->ast id) (parse->ast params))]
-    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (method-decl (parse->ast id) (list (parameter (parse->ast int) (parse->ast p-id))))]
+    [(tree (node 'METHOD_DECLARATOR) `(,id ,_ ,params ,_)) (mdecl (parse->ast id) (parse->ast params))]
+    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (mdecl (parse->ast id) (list (parameter (parse->ast int) (parse->ast p-id))))]
 
     [(tree (node 'PARAMETER_LIST) `(,params ,_ ,param)) (append (parse->ast params) (parse->ast param))]
     [(tree (node 'PARAMETER_LIST) `(,param)) (parse->ast param)]
@@ -252,10 +252,10 @@
     [(class scope mod id extends implements body) (printf "~aclass ~a ~a ~a ~a ~a~n" indent scope mod id extends implements)
 			                          (print-ast body (string-append indent "  "))]
 
-    [(constructor scope method-decl body) (printf "~aconstructor ~a ~a~n" indent scope method-decl)
+    [(constructor scope mdecl body) (printf "~aconstructor ~a ~a~n" indent scope mdecl)
 			                  (print-ast body (string-append indent "  "))]
 
-    [(method scope mod type method-decl body) (printf "~amethod ~a ~a ~a ~a~n" indent scope mod type method-decl)
+    [(method scope mod type mdecl body) (printf "~amethod ~a ~a ~a ~a~n" indent scope mod type mdecl)
 			                      (print-ast body (string-append indent "  "))]
 
     [(iff test tru fls) (printf "~aiff ~a~n" indent test)
