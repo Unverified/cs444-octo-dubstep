@@ -20,7 +20,7 @@
 ;==== Environment Generation
 ;======================================================================================
 (define (gen-root-env asts)
-  (map (lambda (x) (list (c-unit-name x) x)) (gen-class-envs asts) ))
+  (map (lambda (x) (list (c-unit-name x) (gen-class-envs x))) asts))
 
 (define (gen-class-envs ast)
   (define (gen-class-env-id scope ast)
