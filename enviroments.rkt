@@ -7,7 +7,9 @@
 (provide gen-class-envs)
 (provide (struct-out envs))
 
-(struct funt (id argt) #:transparent)
+(struct funt (id argt)   #:transparent )
+(struct eval (scope ast) #:transparent )
+
 (struct envs (vars types methods constructors) #:transparent)
 
 (define (c-unit-name ast)
@@ -32,27 +34,26 @@
 (define (gen-class-envs ast)
   (define (_gen-class-env scope asts envt)
     (match asts
-      [`() envt]
-     
+      [`() envt]     
       [`(,(constructor scop mdecl _) ,rst ...)     (let* ([const-call (mdecl->funt mdecl)]
-                                                          [const-envt (envs empty empty empty `((,const-call ,scope)))])
+                                                          [value (eval scope (first asts))]
+                                                          [const-envt (envs empty empty empty `((,const-call ,value)))])
                                                      (if (false? (assoc const-call (envs-constructors envt)))
                                                       (_gen-class-env scope rst (env-append envt const-envt))
                                                       (error "duplicate constructor defined")))]
-      
-      
-      [`(,(method scop mod type mdecl _) ,rst ...) (let* ([method-call (mdecl->funt mdecl)]
+      [`(,(method scop mod type mdecl _) ,rst ...) (let* ([method-call (mdecl->funt mdecl)]                                                   
+                                                          [value (eval scope (first asts))]
                                                           [method-envt (envs empty `((,method-call ,scope)) `((,method-call ,type)) empty)])
                                                      (if (false? (assoc method-call (envs-methods envt)))
                                                       (_gen-class-env scope rst (env-append envt method-envt))
                                                       (error "duplicate method defined")))]
       [`(,(or (var _ _ type (varassign id _))
-              (var _ _ type id)) ,rst ...)         (let ([var-envt (envs `((,id ,scope)) empty `((,id ,type)) empty)])  
+              (var _ _ type id)) ,rst ...)         (let* ([value (eval scope (first asts))]
+                                                          [var-envt (envs `((,id ,value)) empty `((,id ,type)) empty)])  
                                                      (if  (false? (assoc id (envs-vars envt)))
                                                           (_gen-class-env scope rst (env-append envt var-envt))
                                                           (error "duplicate field variable name defined")))]
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
-  
     (match ast
       [(cunit _ _ b) (gen-class-envs b)]
       [(class _ _ id _ _ b) (let ([e (gen-class-envs b)])
@@ -89,9 +90,6 @@
 
 (define (print-envs envs)
   (for-each (lambda (env) (print-env env)) envs))
-
-
-
 
 (define test1 (cunit '() '() (class 'public '() "test1" '() '(("java" "io" "Serializable"))
   (block
