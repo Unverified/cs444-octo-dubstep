@@ -51,11 +51,10 @@
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
   (match ast
     [(cunit _ _ b) (gen-class-envs b)]
-    [(class _ _ id _ _ b) (let ([e (gen-class-envs b)])
-                            (envs (cons (list id 'class) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
-    [(interface _ _ id _ b) (let ([e (gen-class-envs b)])
-                              (envs (cons (list id 'interface) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
-    [(block id bdy) (_gen-class-env id bdy env-empty)]))
+    [(or (class _ _ id _ _ b)
+         (interface _ _ id _ b)) (let ([e (gen-class-envs b)])
+                                   (envs (cons (list id ast) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
+   [(block id bdy) (_gen-class-env id bdy env-empty)]))
 
 ;======================================================================================
 ;==== Environment Transformation
@@ -80,17 +79,29 @@
 ;==== Print Functions
 ;==============================================================================================
 
+(define (ast-type-print ast)
+  (define (print-type type mod)
+    (cond [(empty? mod) (printf "~a" type)]
+          [else (printf "~a ~a" mod type)]))
+    
+  (match ast
+    [(class _ mod _ _ _ _)   (print-type "class" mod)]
+    [(interface _ mod _ _ _) (print-type "interface" mod)]
+    [_ (printf "~a" ast)]))
+
 (define (funt-print f)
-  (printf "~a~a" (funt-id f) (funt-argt f)))
+  (match f
+    [(funt id argt) (printf "~a~a" id argt)]
+    [_ (printf "~a" f)]))
 
 (define (envs-print e)
   (printf "Types~n")
   (for-each (lambda (x) 
               (printf "(")
-              (if (funt? (first x))
-                  (begin0 (funt-print (first x))
-                          (printf ": ~a)~n" (second x)))
-                  (printf "~a, ~a)~n" (first x) (second x)))) (envs-types e))
+              (funt-print (first x))
+              (printf ", ")
+              (ast-type-print (second x))
+              (printf ")~n")) (envs-types e))
   (printf "~nVars~n")
   (for-each (lambda (x) (printf "(~a, ~a)~n" (first x) (eval-scope (second x)))) (envs-vars e))
   (printf "~nConstructors~n")
