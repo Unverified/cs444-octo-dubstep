@@ -130,6 +130,12 @@
 ;==== AST Generation
 ;==============================================================================================
 
+(define (create-new-blocks s)
+  (cond
+    [(empty? s) empty]
+    [(var? (first s)) (list (first s) (block (gensym) (create-new-blocks (rest s))))]
+    [else (cons (first s) (create-new-blocks (rest s)))]))
+
 (define (parse->ast t)
   (match t
     [(tree (node _) '()) empty]
@@ -195,7 +201,7 @@
          (tree (node 'UNARY_NOT) `(,x ,y))) (unop (parse->ast y) (parse->ast x))]
 
     ;block
-    [(tree (node 'BLOCK) `(,_ ,x ,_)) (block (gensym) (parse->ast x))]
+    [(tree (node 'BLOCK) `(,_ ,x ,_)) (block (gensym) (create-new-blocks (parse->ast x)))]
 
     ;cast
     [(tree (node 'CAST) `(,_ ,c ,_ ,expr)) (cast (parse->ast c) (parse->ast expr))]

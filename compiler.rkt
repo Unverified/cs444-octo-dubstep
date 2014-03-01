@@ -92,14 +92,19 @@
 (define (get-file-name filepath)
   (last (regexp-split #px"/" filepath)))
 
-(define (add-stdlib-import ast)
-  (cunit (cunit-package ast) (cons (pimport (list "java" "lang")) (cunit-imports ast)) (cunit-body ast)))
+(define (do-import-stuff ast)
+  (define (same-imports x y)
+    (cond
+      [(and (cimport? x) (cimport? y)) (equal? (cimport-path x) (cimport-path y))]
+      [(and (pimport? x) (pimport? y)) (equal? (pimport-path x) (pimport-path y))]
+      [else #f]))
+  (cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
 
 (define (parse-file file)
   (printf "GETTING AST FOR ~a~n" file)
   (define clist (string->list (file->string file)))
   (define parse-tree (run-parser (run-scanner clist)))
-  (add-stdlib-import (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
+  (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
 (define (parse-files files)
   (cond

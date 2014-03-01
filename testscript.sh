@@ -14,7 +14,7 @@ OUT_TEST_DIR="$TEST_DIR/out"
 FAILED_TEST_DIR="$TEST_DIR/failed_out"
 
 # get the command-line arguments
-files_to_run="*"
+files_to_run="$IN_TEST_DIR/*"
 flag=""
 
 if [ "$1" != "" ]
@@ -32,16 +32,15 @@ then
   files_to_run="$2"
 fi
 
-#make
-rm -f tests/failed_out/*
+make
 
 echo ""
 echo "Using input files located in: \"$IN_TEST_DIR/\""
 echo "Using output files located in \"$OUT_TEST_DIR/\""
-echo "Running tests on: $IN_TEST_DIR/$files_to_run"
+echo "Running tests on: $files_to_run"
 echo ""
 
-for test in $IN_TEST_DIR/$files_to_run
+for test in $files_to_run
 do
   if [ -d "$test" ]				
   then
@@ -62,7 +61,7 @@ do
   echo "$test_files"
   echo "$STDLIB"
     
-  racket compiler.rkt $test_files $STDLIB > $FAILED_TEST_DIR/$test_name.out
+  racket compiler.rkt $test_files $STDLIB # > $FAILED_TEST_DIR/$test_name.out
   test_output=$?
   expected_output=`cat $out_file`
 
