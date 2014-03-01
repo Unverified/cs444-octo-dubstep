@@ -12,7 +12,7 @@
 
 ;;cyclic? : (id-getter : Y -> X) (children-getter : Y -> listof Y) (visited-nodes : listof X) (node : Y) -> Boolean
 ;;Should be able to detect cycle in any graph given
-
+;; we'll have to wait and see
 (define (cyclic? id-getter children-getter visited-nodes node)
   (cond
     [(member (id-getter node) visited-nodes) #t]
@@ -25,7 +25,9 @@
                    (cyclic? id-getter children-getter (cons id visited-nodes) child))
               children))]))
                  
+;;=================================================
 ;;testing
+;;=================================================
 (struct simple-graph (id children))
 (cyclic? simple-graph-id simple-graph-children empty (simple-graph 'A (list (simple-graph 'B empty) (simple-graph 'C empty))))
 
