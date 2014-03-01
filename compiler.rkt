@@ -93,7 +93,7 @@
   (last (regexp-split #px"/" filepath)))
 
 (define (add-stdlib-import ast)
-  (cunit (cunit-package ast) (cunit-imports ast) (cunit-body ast)))
+  (cunit (cunit-package ast) (cons (pimport (list "java" "lang")) (cunit-imports ast)) (cunit-body ast)))
 
 (define (parse-file file)
   (printf "GETTING AST FOR ~a~n" file)

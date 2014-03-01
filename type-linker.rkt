@@ -16,7 +16,7 @@
                                                            (check-for-clashes (link-single-imports (filter cimport? (cunit-imports ast)) root) (list (get-class-name ast)))
                                               (find-package-links (get-package-name ast) root)
                                               (reverse (check-for-ondemand-clashes (link-on-demand-imports (filter pimport? (cunit-imports ast)) root) empty))
-                                              (map (lambda(r) (list (first r) (lambda()(second r)))) root)) root ast)) 
+                                              (map (lambda(r) (list (first r) (const (second r)))) root)) root ast)) 
                     asts root))
 
 (define (gen-typelink-list linked-imports root ast)
@@ -58,14 +58,14 @@
 (define (find-fully-qualified-link name root)
   (define r (findf (lambda(x) (equal? name (first x))) root))
   (cond
-    [(list? r) (lambda()(second r))]
+    [(list? r) (const (second r))]
     [else #f]))
 
 (define (find-package-links package root)
   (define (find-package-links-helper r package)
     (define r-package (reverse (rest (reverse (first r)))))
     (cond
-      [(equal? package r-package) (list (list (list (last (first r))) (lambda()(second r))))]
+      [(equal? package r-package) (list (list (list (last (first r))) (const (second r))))]
       [else empty]))
   (append-map (lambda(r) (find-package-links-helper r package)) root))
 
@@ -86,6 +86,10 @@
       [else link]))
   
   (map (lambda(x) (list (list (last (cimport-path x))) (get-clink (cimport-path x) root))) imports))
+
+;======================================================================================
+;==== Import clash checking
+;======================================================================================
 
 (define (check-for-clashes links seen-so-far)
   (cond
