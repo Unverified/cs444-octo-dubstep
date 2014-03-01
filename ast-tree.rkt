@@ -57,7 +57,7 @@
 ;(struct interface ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [body : block]))
 (struct interface (scope mod id extends body) #:transparent)
 
-;(struct class ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [extends : (Listof (Listof String))] [body : block]))
+;(struct class ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [extends : (Listof (Listof String))] [implements : string] [body : block]))
 (struct class (scope mod id extends implements body) #:transparent)
 
 ;(struct constructor ([scope : Symbol] [methoddecl : methoddecl] [body : block]))

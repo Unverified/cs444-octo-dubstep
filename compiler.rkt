@@ -27,7 +27,7 @@
   (printf "Error~n")
   (exit 42))
 
-;Call this when the compiler successfully compiled the program. Tis will print "Compiled" and exit
+;Call this when the compiler successfully compiled the program. This will print "Compiled" and exit
 (define (compiled)
   (printf "Compiled~n")
   (exit 0))
@@ -106,7 +106,6 @@
 (printf "~n============== Environments ==============~n")
 (define root (gen-root-env asts))
 
-(print-envs root)
 root
 
 (printf "~n============== Type Linker ==============~n")
