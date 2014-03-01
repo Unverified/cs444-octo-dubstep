@@ -38,6 +38,8 @@
 (provide print-asts)
 (provide ast-recurse)
 (provide get-class-name)
+(provide get-package-name)
+(provide c-unit-name)
 
 ;==============================================================================================
 ;==== AST Structures
@@ -380,6 +382,18 @@
     [(or (cunit package _ (class _ _ id _ _ _)) 
          (cunit package _ (interface _ _ id _ _))) id]
     [_ (error "Something went terribly wrong in get-class-name")]))
+
+(define (get-package-name ast)
+  (match ast
+    [(or (cunit package _ (class _ _ id _ _ _)) 
+         (cunit package _ (interface _ _ id _ _))) package]
+    [_ (error "Something went terribly wrong in get-class-name")]))
+
+(define (c-unit-name ast)
+  (match ast
+    [(or (cunit package _ (class _ _ id _ _ _)) 
+         (cunit package _ (interface _ _ id _ _))) (append package (list id))]
+    [_ (error "c-unit->env requires a ")]))
 
 ;==============================================================================================
 ;==== Print

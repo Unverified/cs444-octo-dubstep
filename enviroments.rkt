@@ -10,12 +10,6 @@
 
 (struct envs (vars methods types) #:transparent)
 
-(define (c-unit-name ast)
-  (match ast
-    [(or (cunit package _ (class _ _ id _ _ _)) 
-         (cunit package _ (interface _ _ id _ _))) (append package (list id))]
-    [_ (error "c-unit->env requires a ")]))
-
 ;======================================================================================
 ;==== Environment Generation
 ;======================================================================================

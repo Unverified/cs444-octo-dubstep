@@ -1,74 +1,102 @@
 #lang racket
 
 (require "ast-tree.rkt")
+(require "enviroments.rkt")
 
 (provide gen-typelink-lists)
-
-(struct link (ci name decl) #:transparent)
 
 ;======================================================================================
 ;==== Linker Generation
 ;======================================================================================
 
 (define (gen-typelink-lists asts root)
-  (print-all-links (map (lambda (ast) (check-for-clashes (gen-typelink-imports (cunit-imports ast) root) (list (get-class-name ast)))) asts)))
+  (print-all-links (map (lambda (ast) (gen-typelink-list (append (list (list (get-class-name ast) (find-fully-qualified-link (c-unit-name ast) root)))
+                                              (check-for-clashes (link-single-imports (filter cimport? (cunit-imports ast)) root) (list (get-class-name ast)))
+                                              (find-package-links (get-package-name ast) root)
+                                              (reverse (check-for-ondemand-clashes (link-on-demand-imports (filter pimport? (cunit-imports ast)) root) empty))
+                                              (map (lambda(r) (list (first r) (lambda()(second r))  )) root)) root ast)) asts)))
 
-(define (gen-typelink-list ast root)
-  (define (typelink-helper ci name decl)
+(define (gen-typelink-list linked-imports root ast)
+  (define (resolve-type name)
+    (match (assoc name linked-imports)
+      [`(,key ,value) (value)]
+      [_ (printf "Could not resolve type ~a assco:~a~n" name (assoc name linked-imports))(error "")]))
+
+  (define (typelink-helper name)
     (cond
       [(empty? name) empty]
-      [else (link ci name decl)]))
+      [else (list name (resolve-type name))]))
 
-  (define (typelink-class ci ast)
-    (define (typelink ast)
-      (match ast
+  (define (typelink ast)
+    (match ast
 
-        [(interface _ _ id e b) (append (list (typelink-helper id e "decl")) (typelink-class id b))]
+      [(interface _ _ id e b) (append (list (typelink-helper e)) (typelink b))]
 
-        [(class _ _ id e i b) (append  (list (typelink-helper id e "decl"))
-                                       (map (lambda(x) (typelink-helper id x "decl")) i)
-                                       (typelink-class id b))]
+      [(class _ _ id e i b) (append  (list (typelink-helper e))
+                                     (map (lambda(x) (typelink-helper x)) i)
+                                     (typelink b))]
 
-        [(rtype t) (cond
-                     [(list? t) (cons (typelink-helper ci t "decl") empty)]
-                     [else (typelink t)])]
+      [(rtype t) (cond
+                   [(list? t) (cons (typelink-helper t) empty)]
+                   [else (typelink t)])]
 
-        [(atype t) (cond
-                     [(list? t) (cons (typelink-helper ci t "decl") empty)]
-                     [else (typelink t)])]
+      [(atype t) (cond
+                   [(list? t) (cons (typelink-helper t) empty)]
+                   [else (typelink t)])]
 
-        [_ (ast-recurse ast typelink)]))
+      [_ (ast-recurse ast typelink)]))
 
-    (typelink ast))
-  (typelink-class "" ast))
+  (typelink ast))
 
 ;======================================================================================
 ;==== Import Linker Generation
 ;======================================================================================
 
-(define (gen-typelink-imports imports root)
-  (define (link-name-helper r name)
-    (cond
-      [(equal? name (first r)) (list (second r))]
-      [else empty]))
-
-  (define (link-name name)
-    (cond
-      [(equal? 1 (length name)) (error)] ;might not be right, but i cant find a case in java where you can import just a file (ex "import ClassA;")
-      [else (define links (append-map (lambda(r) (link-name-helper r name)) root))
-            (cond
-              [(equal? 1 (length links)) (first links)]
-              [else (error)])])) ;An import should only link to one package + class name, if theres none then the import doesnt exist, if there is more than one then there is 2 files with the same package and class declaration
-
+(define (find-fully-qualified-link name root)
+  (define r (findf (lambda(x) (equal? name (first x))) root))
   (cond
-    [(empty? imports) empty]
-    [else (cons (link "" (cimport-path (first imports)) (link-name (cimport-path (first imports)))) (gen-typelink-imports (rest imports) root))]))
+    [(list? r) (lambda()(second r))]
+    [else #f]))
+
+(define (find-package-links package root)
+  (define (find-package-links-helper r package)
+    (define r-package (reverse (rest (reverse (first r)))))
+    (cond
+      [(equal? package r-package) (list (list (list (last (first r))) (lambda()(second r))))]
+      [else empty]))
+  (append-map (lambda(r) (find-package-links-helper r package)) root))
+
+(define (link-on-demand-imports imports root)
+  (define (get-plinks package root)
+    (define links (find-package-links package root))
+    (cond
+      [(empty? links) (error "Could not find a package declaration for an import on demand.")]
+      [else links]))
+
+  (append-map (lambda(x) (get-plinks (pimport-path x) root)) imports))
+
+(define (link-single-imports imports root)
+  (define (get-clink name root)
+    (define link (find-fully-qualified-link name root))
+    (cond
+      [(false? link) (error "Could not find a link for a single import.")]
+      [else link]))
+  
+  (map (lambda(x) (list (last (cimport-path x)) (get-clink (cimport-path x) root))) imports))
 
 (define (check-for-clashes links seen-so-far)
   (cond
     [(empty? links) empty]
-    [(list? (memf (lambda(x) (equal? x (last (link-name (first links))))) seen-so-far)) (error)]
-    [else (cons (first links) (check-for-clashes (rest links) (cons (last (link-name (first links))) seen-so-far)))]))
+    [(list? (memf (lambda(x) (equal? x (first (first links)))) seen-so-far)) (error "Single import clashing.")]
+    [else (cons (first links) (check-for-clashes (rest links) (cons (first (first links)) seen-so-far)))]))
+
+(define (check-for-ondemand-clashes links seen-so-far)
+  (define (get-package-ci link) (last (first link)))
+  (cond
+    [(empty? links) empty]
+    [(list? (memf (lambda(x) (equal? x (get-package-ci (first links)))) seen-so-far)) (cons (list (first (first links)) (lambda () (error "On demand clashing"))) 
+                                                                                            (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]
+    [else (cons (first links) (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]))
 
 ;======================================================================================
 ;==== Print Functions
@@ -80,15 +108,17 @@
 (define (print-links links)
   (for-each (lambda(x) (print-link x)) links))
 
-(define (print-link link)
-  (printf "~nNAME: ~a IN: ~a LINKS TO:~n~a~n" (link-name link) (link-ci link) (link-decl link)))
+(define (print-link l)
+  (match l
+    [`(,name ,env) (printf "~nTYPE: ~a LINKS TO:~n~a~n" name env)]
+    [`() (printf "")]))
 
 ;======================================================================================
 ;==== ERROR
 ;======================================================================================
 
-(define (error)
-  (printf "Error~n")
+(define (error message)
+  (printf "ERROR: ~a~n" message)
   (exit 42))
     
 

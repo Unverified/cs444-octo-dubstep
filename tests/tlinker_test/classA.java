@@ -1,11 +1,11 @@
 package tlinker_test;
 
-import tlinker_test.classB;
+import tlinker_test.A.*;
 
 public class classA extends classB {
   public classA() {}
-  public tlinker_test.A.classB m1() {
-    classB var = null;
+  public classA m1() {
+    classA var = classA.m1();
     return var;
   }
 }
