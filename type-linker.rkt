@@ -6,6 +6,23 @@
 (provide gen-typelink-lists)
 (provide print-all-links)
 
+(struct link (full env) #:transparent)
+
+;======================================================================================
+;==== Helper Functions
+;======================================================================================
+
+;removes the last element of a list
+(define (remove-last l)
+  (reverse (rest (reverse l))))
+
+; is "a" a prefix of "b"
+(define (is-prefix a b) 
+  (cond
+    [(empty? b) #f]
+    [(equal? a b) #t]
+    [else (is-prefix a (remove-last b))]))
+
 ;======================================================================================
 ;==== Linker Generation
 ;======================================================================================
@@ -16,7 +33,7 @@
                                                            (check-for-clashes (link-single-imports (filter cimport? (cunit-imports ast)) root) (list (get-class-name ast)))
                                               (find-package-links (get-package-name ast) root)
                                               (reverse (check-for-ondemand-clashes (link-on-demand-imports (filter pimport? (cunit-imports ast)) root) empty))
-                                              (map (lambda(r) (list (first r) (const (second r)))) root)) root ast)) 
+                                              (map (lambda(r) (list (first r) (const (apply link r)))) root)) root ast)) 
                     asts root))
 
 (define (gen-typelink-list linked-imports root ast)
@@ -58,14 +75,14 @@
 (define (find-fully-qualified-link name root)
   (define r (findf (lambda(x) (equal? name (first x))) root))
   (cond
-    [(list? r) (const (second r))]
+    [(list? r) (const (apply link r))]
     [else #f]))
 
 (define (find-package-links package root)
   (define (find-package-links-helper r package)
-    (define r-package (reverse (rest (reverse (first r)))))
+    (define r-package (remove-last (first r)))
     (cond
-      [(equal? package r-package) (list (list (list (last (first r))) (const (second r))))]
+      [(equal? package r-package) (list (list (list (last (first r))) (const (apply link r))))]
       [else empty]))
   (append-map (lambda(r) (find-package-links-helper r package)) root))
 
@@ -86,6 +103,9 @@
       [else link]))
   
   (map (lambda(x) (list (list (last (cimport-path x))) (get-clink (cimport-path x) root))) imports))
+
+;(define (is-package-prefix-decl package root)
+;  (findf (lambda(x) (is-prefix package (first x))) root)
 
 ;======================================================================================
 ;==== Import clash checking
