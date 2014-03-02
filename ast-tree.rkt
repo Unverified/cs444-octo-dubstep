@@ -29,6 +29,7 @@
 (provide (struct-out while))
 (provide (struct-out for))
 (provide (struct-out return))
+(provide (struct-out literal))
 (provide (struct-out ptype))
 (provide (struct-out rtype))
 (provide (struct-out atype))
@@ -113,6 +114,9 @@
 
 ;(struct return ([expr : "expression"]))
 (struct return (expr) #:prefab)
+
+;(struct literal ([type: ptype | rtype | atype][value : Any])
+(struct literal (type value) #:transparent)
 
 ;(struct ptype ([type : Symbol]))
 (struct ptype (type) #:prefab)
@@ -333,14 +337,15 @@
     [(tree (node 'RETURN_STATEMENT) `(,_ ,x ,_)) (return (parse->ast x))]
 
     [(tree (leafnode (token 'void x)) _) 'void]
-    [(or (tree (leafnode (token 'id x)) _) 
-         (tree (leafnode (token 'decimal-lit x)) _) 
-         (tree (leafnode (token 'null-lit x)) _)
-         (tree (leafnode (token 'string-lit x)) _)
-         (tree (leafnode (token 'char-lit x)) _)
-         (tree (leafnode (token 'bool-lit x)) _)) x]
-
+    
+    [(tree (leafnode (token 'decimal-lit x)) _) (literal (ptype 'int) (string->number x))]
+    [(tree (leafnode (token 'null-lit x)) _)    (literal (ptype 'null) x)]
+    [(tree (leafnode (token 'string-lit x)) _)  (literal (rtype '("java" "lang" "String")) x)]
+    [(tree (leafnode (token 'char-lit x)) _)    (literal (ptype 'char) x)]
+    [(tree (leafnode (token 'bool-lit x)) _)    (literal (ptype 'bool) x)]
+    
     [(tree (leafnode (token 'semi x)) _) empty]
+    [(tree (leafnode (token 'id x)) _) x]
     [(tree (leafnode (token x _)) _) x]
 ))
 

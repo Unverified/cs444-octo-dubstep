@@ -15,8 +15,8 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-(define files-to-compile (vector->list (current-command-line-arguments)))
-;(define files-to-compile (list "tests/test1.java"))
+;(define files-to-compile (vector->list (current-command-line-arguments)))
+(define files-to-compile (list "tests/test1.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -132,8 +132,9 @@
 
 (printf "~n============== Environments ==============~n")
 (define root (gen-root-env asts))
-
-root
+(for-each (lambda (x) 
+            (printf "~a~n============================~n" (first x))
+            (envs-print (second x))) root)
 
 (printf "~n============== Type Linker ==============~n")
 (print-all-links (gen-typelink-lists asts root))
