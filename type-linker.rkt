@@ -6,7 +6,7 @@
 (provide gen-typelink-lists)
 (provide print-all-links)
 
-(struct link (full env) #:transparent)
+(struct link (full env) )
 
 ;======================================================================================
 ;==== Helper Functions
@@ -28,24 +28,46 @@
 ;======================================================================================
 
 (define (gen-typelink-lists asts root)
-  (filter-not empty? (map (lambda (ast r) (printf "LINKING NAMES IN FILE: ~a~n" (first r)) 
-                                        (gen-typelink-list (append (list (list (list (get-class-name ast)) (find-fully-qualified-link (c-unit-name ast) root)))
-                                                           (check-for-clashes (link-single-imports (get-package-name ast) (filter cimport? (cunit-imports ast)) root) (list (get-class-name ast)))
-                                              (find-default-package-links ast root)
-                                              (reverse (check-for-ondemand-clashes (link-on-demand-imports (get-package-name ast) (filter pimport? (cunit-imports ast)) root) empty))
-                                              (map (lambda(r) (list (first r) (const (apply link r)))) root)) root ast)) 
-                    asts root)))
+  (map (lambda (ast r) (printf "############ LINKING NAMES IN FILE: ~a ############~n" (first r))
+         (define enclosing-class-links (list (list (list (get-class-name ast)) (find-fully-qualified-link (c-unit-name ast) root))))
+	 (define enclosing-package-links (find-default-package-links ast root))
+         (define single-import-links (check-for-clashes (link-single-imports (get-package-name ast) (filter cimport? (cunit-imports ast)) root) (list (get-class-name ast))))
+         (define on-demand-import-links (reverse (check-for-ondemand-clashes (link-on-demand-imports (get-package-name ast) (filter pimport? (cunit-imports ast)) root) empty)))
 
-(define (gen-typelink-list linked-imports root ast)
-  (define (resolve-type name)
-    (match (assoc name linked-imports)
+         ;(printf "======== enclosing-class-links ========")
+         ;(print-links enclosing-class-links)
+
+         ;(printf "~n======== enclosing-package-links ========")
+         ;(print-links enclosing-package-links)
+
+         ;(printf "~n======== single-import-links ========")
+         ;(print-links single-import-links)
+
+         ;(printf "~n======== on-demand-import-links ========")
+         ;(print-links on-demand-import-links)
+ 
+         (define links-fully-qualified (append enclosing-class-links single-import-links enclosing-package-links on-demand-import-links))
+         (define links-single-type (map (lambda(r) (list (first r) (const (apply link r)))) root))
+
+         (define class-type-links (filter-not empty? (gen-typelink-list links-fully-qualified links-single-type ast)))
+
+         ;(printf "~n======== class-type-links ========~n~a~n"class-type-links)
+
+	 (remove-duplicates (append class-type-links (map (lambda(x) (list (first x) ((second x))) ) links-single-type))))
+         ;(append class-type-links single-import-links on-demand-import-links)) 
+       asts root))
+
+(define (gen-typelink-list links-fully-qualified links-single-type ast)
+  (define (resolve-type name assoc-list)
+    (match (assoc name assoc-list)
       [`(,key ,value) (value)]
-      [_ (printf "Could not resolve type ~a~n" name) (print-links linked-imports) (error "")]))
+      [_ (printf "Could not resolve type ~a~n" name) (print-links assoc-list) (error "")]))
 
   (define (typelink-helper name)
     (cond
       [(empty? name) empty]
-      [else (list name (resolve-type name))]))
+      [(equal? 1 (length name)) (list name (resolve-type name links-fully-qualified))]
+      [else (list name (resolve-type name links-single-type))]))
 
   (define (typelink ast)
     (match ast
@@ -143,16 +165,17 @@
 ;==== Print Functions
 ;======================================================================================
 
-(define (print-all-links all-links)
-  (for-each (lambda(x) (printf "~n--- LINKS ---~n") (print-links x)) all-links) )
+(define (print-all-links all-links root)
+  (for-each (lambda(x r) (printf "~n======= LINKS FOR FILE: ~a =======~n" (first r)) (print-links x)) all-links root) )
 
 (define (print-links links)
   (for-each (lambda(x) (print-link x)) links))
 
 (define (print-link l)
   (match l
-    [`(,name ,l) (printf "~nTYPE: ~a LINKS TO:~n~a~n" name (link-full l))]
-    [`() (printf "")]))
+    [`(,name ,(link x y)) (printf "~nTYPE: ~a LINKS TO:~n~a~n" name x)]
+    [`(,name ,x) (printf "~nTYPE: ~a LINKS TO:~n~a~n" name x)]
+    [`() (printf "EMPTY PAIR???~n")]))
 
 ;======================================================================================
 ;==== ERROR
