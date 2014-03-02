@@ -235,8 +235,10 @@
     [(tree (node 'WHILE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,body)) (while (parse->ast test) (parse->ast body))]
 
     ;for
-    [(tree (node 'FOR_STATEMENT) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body)) (for (parse->ast init) (parse->ast clause) (parse->ast update) (parse->ast body))]
-    [(tree (node 'FOR_STATEMENT_NO_IF) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body)) (for (parse->ast init) (parse->ast clause) (parse->ast update) (parse->ast body))]
+    [(or (tree (node 'FOR_STATEMENT) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body))
+         (tree (node 'FOR_STATEMENT_NO_IF) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body))) (let* ([body-ast (parse->ast body)]
+                                                                                                  [body (if (block? body-ast) body-ast (block (gensym) (list body-ast)))])
+                                                                                             (for (parse->ast init) (parse->ast clause) (parse->ast update) body))]
     
 ;==============================================================================================
 ;==== REDUCTION RULES, all rules below serve to strip junk from the parse tree

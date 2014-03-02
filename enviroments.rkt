@@ -13,7 +13,7 @@
 (struct funt (id argt)   #:transparent )
 (struct eval (scope ast) #:transparent )
 
-(struct envs (types vars methods constructors) #:transparent)
+(struct envs (types vars methods constructors) #:prefab)
 
 ;======================================================================================
 ;==== Environment Generation
@@ -56,23 +56,27 @@
   (params->envs env-empty (methoddecl-parameters decl)))
 
 (define (va tenv cenv ast)
+  (define block-hash (make-hash))
   (define (_va block-id lenv ast)
     (match ast
       [`(,var) (if (false? (assoc var (envs-vars lenv)))
                    (error (string-append "declaraition made to " var " which doesn't exist!"))
-                   lenv)]            
-      [(var _ _ type (varassign id bdy)) (begin0 (_va block-id lenv bdy)
-                                                 (_va block-id (add-env-variable lenv id block-id type ast)))]
-      [(varassign id bdy)                (begin0 (_va block-id lenv id)
-                                                 (_va block-id lenv bdy))]
-      [(while test body)                 (begin0 (_va block-id lenv test)
-                                                 (_va block-id lenv body))]
+                   lenv)]
       
-      [(return expr)        (_va block-id lenv expr)]
-      [(binop _ left right) (begin0 (_va block-id lenv left)
-                                    (_va block-id lenv right))]
-      [(unop _ right)       (_va block-id lenv right)]
-      [(cast c expr)        (_va block-id lenv expr)]
+      [(var _ _ type (varassign id bdy)) (_va block-id lenv bdy)
+                                         (add-env-variable lenv id block-id type ast)]
+      
+      [(varassign id bdy) (_va block-id lenv id)
+                          (_va block-id lenv bdy)]
+      
+      [(while test body) (_va block-id lenv test)
+                         (_va block-id lenv body)]
+      
+      [(return expr) (_va block-id lenv expr)]
+      [(binop _ left right) (_va block-id lenv left)
+                            (_va block-id lenv right)]
+      [(unop _ right) (_va block-id lenv right)]
+      [(cast c expr) (_va block-id lenv expr)]
       
       [(or (ptype _)
            (rtype _)
@@ -87,7 +91,15 @@
       [(iff test tru fls) (begin0 (_va block-id lenv test)
                                   (_va block-id lenv tru)
                                   (_va block-id lenv fls))]
-      [(block id bdy)  (_va-list id lenv bdy)]))
+      
+      [(for init clause update (block id bdy)) (let ([for-envt (_va id lenv init)])
+                                                 (hash-set! block-hash id (env-append for-envt cenv))
+                                                 (_va id for-envt clause)
+                                                 (_va-list id for-envt bdy))]
+      
+      [(block id bdy) (hash-set! block-hash id (env-append lenv cenv))
+                      (_va-list id lenv bdy)
+                      lenv]))
   
   (define (_va-list block-id lenv asts)
     (cond
@@ -97,7 +109,9 @@
   (define (_top_va id ast)
     (match ast
       [(or (method _ _ _ decl (block id bdy))
-           (constructor _ decl (block id bdy))) (_va-list id (mdecl->envs id decl) bdy)]
+           (constructor _ decl (block id bdy))) (let ([lenv (mdecl->envs id decl)])
+                                                  (hash-set! block-hash id (env-append lenv cenv))
+                                                  (_va-list id lenv bdy))]
       [(var _ _ t (varassign _ ex))  (_va id env-empty ex)]
       [_ env-empty]))
   
@@ -107,8 +121,10 @@
     (match ast
       [(or (cunit _ _ bdy)
            (class _ _ _ _ _ bdy)) (va tenv cenv bdy)]
-      [(interface _ _ _ _ _)                        empty]
-      [(block id bdy)             (map (curry _top_va id) bdy)])))
+      [(interface _ _ _ _ _) block-hash]
+      [(block id bdy) (hash-set! block-hash id cenv)
+                      (map (curry _top_va id) bdy)
+                      block-hash])))
 
 ;======================================================================================
 ;==== Environment Transformation
@@ -122,26 +138,29 @@
 
 ;(: env-append : envs envs... -> envs )
 (define (env-append le . r)
-  (foldr env-append-1 le r))
+  (foldr env-append-1 env-empty (cons le r)))
 
+;(: add-env-const : envs methoddeclaration symbol ast -> envs )
 (define (add-env-const envt mdecl scope ast)
   (let ([key (mdecl->funt mdecl)]
         [value (eval scope ast)])
     (if (false? (assoc key (envs-constructors envt)))
-        (env-append envt (envs empty empty empty `((,key ,value))))
+        (env-append (envs empty empty empty `((,key ,value))) envt)
         (error "adding constructor to enviroment that contains same type"))))
 
+;(: add-env-method : envs methoddeclaration symbol type ast -> envs )
 (define (add-env-method envt mdecl scope return-type ast)
   (let ([key (mdecl->funt mdecl)]
         [value (eval scope ast)])
     (if (false? (assoc key (envs-methods envt)))
-        (env-append envt (envs `((,key ,return-type)) empty `((,key ,value)) empty))
+        (env-append (envs `((,key ,return-type)) empty `((,key ,value)) empty) envt)
         (error "adding method to enviroment that contains same method"))))
 
+;(: add-env-variable : envs string symbol type ast -> envs )
 (define (add-env-variable envt var-name scope type ast)
   (let ([value (eval scope ast)])
     (if (false? (assoc var-name (envs-vars envt)))
-        (env-append envt (envs `((,var-name ,type)) `((,var-name ,value)) empty empty))
+        (env-append (envs `((,var-name ,type)) `((,var-name ,value)) empty empty) envt)
         (error "adding variable to enviroment that contains same name"))))
 
 ;======================================================================================
@@ -153,6 +172,7 @@
 ;==== Print Functions
 ;==============================================================================================
 
+;(: ast-type-print : ast -> void ) 
 (define (ast-type-print ast)
   (define (print-type type mod)
     (cond [(empty? mod) (printf "~a" type)]
@@ -194,20 +214,37 @@
 ;==== Testing Function
 ;==============================================================================================
 (define test1
-  (cunit '() '()
-         (class 'public '() "test1" '() '(("java" "io" "Serializable"))
-           (block 'g103103
+  (cunit '() '(#s(pimport ("java" "lang")))
+         (class 'public '() "test1" '() '()
+           (block 'g187796
                   (list
-                   (constructor 'public (methoddecl "test1" '()) (block 'g103104 '()))
-                   (var 'public '() (ptype 'int) "x")
-                   (var 'public '() (ptype 'int) (varassign "y" (literal (ptype 'int) "2")))
-                   (method 'public '() (ptype 'int) (methoddecl "test1" '()) (block 'g103105 (list (return (literal (ptype 'int) "123")))))
-                   (method 'public '() (ptype 'int) (methoddecl "cocks" (list (parameter (ptype 'int) "number") (parameter (ptype 'char) "type")))
-                           (block 'g103106 
-                                  (list 
-                                   (return (binop 'plus '("number") (literal (rtype '("java" "lang" "String")) "\" cocks\n\"")))))))))))
+                   '#s(constructor public #s(methoddecl "test1" ()) #s(block g187797 ()))
+                   '#s(var public () #s(ptype int) "x")
+                   (var 'public '() '#s(ptype int) (varassign "y" (literal '#s(ptype int) 2)))
+                   (method 'public '() '#s(ptype int) '#s(methoddecl "test1" ())
+                           (block 'g187798
+                                  (list
+                                   (var '() '() '#s(ptype int) (varassign "x" (literal '#s(ptype int) 12)))
+                                   (block 'g187800
+                                          (list
+                                           (var '() '() '#s(ptype char) (varassign "y" (literal '#s(ptype char) "'a'")))
+                                           (block 'g187801
+                                                  (list
+                                                   (for
+                                                       (var '() '() '#s(ptype int) (varassign "i" (literal '#s(ptype int) 0)))
+                                                        '#s(binop lt ("i") ("x"))
+                                                        (varassign '("i") (binop 'plus '("i") (literal '#s(ptype int) 1)))
+                                                     '#s(block g187799 (#s(varassign ("x") ("i")))))
+                                                   (varassign '("y") (literal '#s(ptype char) "'b'"))
+                                                   '#s(return ("x")))))))))
+                   (method 'public '() '#s(ptype int) '#s(methoddecl "cocks" (#s(parameter #s(ptype int) "number") #s(parameter #s(ptype char) "type")))
+                    (block 'g187802 
+                           (list (return (binop 'plus '("number") (literal '#s(rtype ("java" "lang" "String")) "\" cocks\n\"")))))))))))
 
 (define (gen-test1) (gen-class-envs test1))
 (envs-print (gen-test1))
 
-(define do-test1 (va env-empty (gen-test1) test1))
+(define (do-test1) (va env-empty (gen-test1) test1))
+(hash-for-each (do-test1) (lambda (k v)
+                           (printf "~n~a~n==================~n" k)
+                          (envs-print v)))
