@@ -53,10 +53,10 @@
 
          ;(printf "~n======== on-demand-import-links ========")
          ;(print-links on-demand-import-links)
- 
+
          (define links-fully-qualified (append enclosing-class-links single-import-links enclosing-package-links on-demand-import-links))
          (define links-single-type (map (lambda(r) (pair (first r) (const (apply link r)))) root))
-
+        
          (define package-prefixes 
            (remove-duplicates (append (get-all-prefixes (get-package-name ast)) 
                                       (append-map (lambda(ci) (get-all-prefixes (remove-last (cimport-path ci)))) (filter cimport? (cunit-imports ast)))
@@ -71,6 +71,7 @@
 
 (define (gen-typelink-list ast links-fully-qualified links-single-type package-prefixes enclosing-package)
   (define (resolve-type typename assoc-list)
+    ;(printf "getting link for typename: ~a~n" typename)
     (match (assoc typename assoc-list)
       [`(,key ,value) (value)]
       [_ (error "Could not resolve typename:" typename)]))
@@ -79,9 +80,9 @@
     (cond
       [(empty? typename) empty]
       [(equal? 1 (length typename)) (define typelink (resolve-type typename links-fully-qualified))
-                                    (pair typename (check-type-is-no-prefix typename typelink package-prefixes enclosing-package))]
+                                    (pair typename typelink)]
       [else (define typelink (resolve-type typename links-single-type))
-            (pair typename (check-type-is-no-prefix typename typelink package-prefixes enclosing-package))]))
+            (pair typename typelink)]))
 
   (define (typelink ast)
     (match ast
@@ -163,6 +164,8 @@
     [else (cons (first links) (check-for-clashes (rest links) (cons (first (first links)) seen-so-far)))]))
 
 (define (check-for-ondemand-clashes links seen-so-far)
+ ; (printf "CHECKING CLASH FOR ~a, seen-do-far: ~a~n" (first links) seen-so-far)
+
   (define (get-package-ci link) (last (first link)))
   (cond
     [(empty? links) empty]
