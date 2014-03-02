@@ -6,6 +6,8 @@
 (provide envs-print)
 (provide gen-root-env)
 (provide gen-class-envs)
+(provide va)
+
 (provide (struct-out envs))
 
 (struct funt (id argt)   #:transparent )
@@ -35,12 +37,16 @@
       [`(,(or (var _ _ type (varassign id _))
               (var _ _ type id)) ,rst ...)         (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
-  (match ast
-    [(cunit _ _ b) (gen-class-envs b)]
-    [(or (class _ _ id _ _ b)
-         (interface _ _ id _ b)) (let ([e (gen-class-envs b)])
-                                   (envs (cons (list id ast) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
-    [(block id bdy) (_gen-class-env id bdy env-empty)]))
+  
+  (with-handlers ([exn:fail? (lambda (exn) 
+                               (printf "~a" (exn-message exn))
+                               (exit 42))])
+    (match ast
+      [(cunit _ _ b) (gen-class-envs b)]
+      [(or (class _ _ id _ _ b)
+           (interface _ _ id _ b)) (let ([e (gen-class-envs b)])
+                                     (envs (cons (list id ast) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
+      [(block id bdy) (_gen-class-env id bdy env-empty)])))
 
 (define (mdecl->envs scope decl)
   (define (params->envs envt params)
@@ -95,11 +101,14 @@
       [(var _ _ t (varassign _ ex))  (_va id env-empty ex)]
       [_ env-empty]))
   
-  (match ast
-    [(or (cunit _ _ bdy)
-         (class _ _ _ _ _ bdy)) (va tenv cenv bdy)]
-    [(interface _ _ _ _ _)                        empty]
-    [(block id bdy)             (map (curry _top_va id) bdy)]))
+  (with-handlers ([exn:fail? (lambda (exn) 
+                               (printf "~a" (exn-message exn))
+                               (exit 42))])
+    (match ast
+      [(or (cunit _ _ bdy)
+           (class _ _ _ _ _ bdy)) (va tenv cenv bdy)]
+      [(interface _ _ _ _ _)                        empty]
+      [(block id bdy)             (map (curry _top_va id) bdy)])))
 
 ;======================================================================================
 ;==== Environment Transformation
@@ -196,8 +205,7 @@
                    (method 'public '() (ptype 'int) (methoddecl "cocks" (list (parameter (ptype 'int) "number") (parameter (ptype 'char) "type")))
                            (block 'g103106 
                                   (list 
-                                   (return (binop 'plus '("number") (literal (rtype '("java" "lang" "String")) "\" cocks\n\""))))))
-                   )))))
+                                   (return (binop 'plus '("number") (literal (rtype '("java" "lang" "String")) "\" cocks\n\"")))))))))))
 
 (define (gen-test1) (gen-class-envs test1))
 (envs-print (gen-test1))
