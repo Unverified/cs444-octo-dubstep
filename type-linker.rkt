@@ -61,7 +61,7 @@
   (define (resolve-type name assoc-list)
     (match (assoc name assoc-list)
       [`(,key ,value) (value)]
-      [_ (printf "Could not resolve type ~a~n" name) (print-links assoc-list) (error "")]))
+      [_ (printf "Could not resolve type ~a~n" name) (error "")]))
 
   (define (typelink-helper name)
     (cond
@@ -85,6 +85,10 @@
       [(atype t) (cond
                    [(list? t) (cons (typelink-helper t) empty)]
                    [else (typelink t)])]
+
+      [(cast c e) (cond
+                   [(not (ptype? c)) (cons (typelink-helper c) (typelink e))]
+                   [else (typelink e)])]
 
       [_ (ast-recurse ast typelink)]))
 
@@ -157,7 +161,7 @@
   (define (get-package-ci link) (last (first link)))
   (cond
     [(empty? links) empty]
-    [(list? (memf (lambda(x) (equal? x (get-package-ci (first links)))) seen-so-far)) (cons (list (first (first links)) (const (error "On demand clashing"))) 
+    [(list? (memf (lambda(x) (equal? x (get-package-ci (first links)))) seen-so-far)) (cons (list (first (first links)) (const (error "On demand clashing" (get-package-ci (first links))))) 
                                                                                             (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]
     [else (cons (first links) (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]))
 
