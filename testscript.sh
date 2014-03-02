@@ -8,12 +8,13 @@
 
 TEST_DIR="tests"
 
+STDLIB=`find stdlib -iname "*.java"`
 IN_TEST_DIR="$TEST_DIR/in"
 OUT_TEST_DIR="$TEST_DIR/out"
 FAILED_TEST_DIR="$TEST_DIR/failed_out"
 
 # get the command-line arguments
-files_to_run="*"
+files_to_run="$IN_TEST_DIR/*"
 flag=""
 
 if [ "$1" != "" ]
@@ -32,41 +33,45 @@ then
 fi
 
 make
-rm -f tests/failed_out/*
 
 echo ""
 echo "Using input files located in: \"$IN_TEST_DIR/\""
 echo "Using output files located in \"$OUT_TEST_DIR/\""
-echo "Running tests on: $IN_TEST_DIR/$files_to_run"
+echo "Running tests on: $files_to_run"
 echo ""
 
-all_tests_passed=true
-
-for in_file in $IN_TEST_DIR/$files_to_run
+for test in $files_to_run
 do
-  dir_array=(`echo $in_file | tr '/' ' '`)
-  let in_file_pos=${#dir_array[@]}-1
-  in_file_name=${dir_array[$in_file_pos]}
-  out_file=$OUT_TEST_DIR/$in_file_name
-  
-  echo "Running compiler on: $in_file"
+  if [ -d "$test" ]				
+  then
+    test_files=`find $test -iname "*.java"`
+  elif [[ "$test" == *.java ]]
+  then
+    test_files=$test
+  else
+    continue
+  fi
 
-  test_output=`racket compiler.rkt $in_file`
+  dir_array=(`echo $test | tr '/' ' '`)
+  let test_name_pos=${#dir_array[@]}-1
+  test_name=${dir_array[$test_name_pos]}
+  out_file=$OUT_TEST_DIR/$test_name
+
+  echo "Running compiler with files:"
+  echo "$test_files"
+  echo "$STDLIB"
+    
+  racket compiler.rkt $test_files $STDLIB # > $FAILED_TEST_DIR/$test_name.out
+  test_output=$?
   expected_output=`cat $out_file`
 
   if [ "$test_output" == "$expected_output" ]
   then
+    rm $FAILED_TEST_DIR/$test_name.out
     echo "Test Passed!"
   else
-    all_tests_passed=false
-
     echo "Test Failed! Compiler returned: $test_output, Expected: $expected_output"
-    echo "Re-running test with debug flag and putting output in file: $FAILED_TEST_DIR/$in_file_name.out"
-    
-    in_file_contents=`cat $in_file`
-    debug_output=`racket compiler.rkt -d $in_file` # > $FAILED_TEST_DIR/$in_file_name.out
-
-    echo "$in_file_contents\n$debug_output" > $FAILED_TEST_DIR/$in_file_name.out
+    echo "Output in file: $FAILED_TEST_DIR/$in_file_name.out"
 
     if [ "$flag" != "-a" ]
     then
@@ -77,9 +82,4 @@ do
   echo ""
 done
 
-if [ $all_tests_passed == true ]
-then
-  echo "ALL TESTS PASSED!"
-else
-  echo "A TEST FAILED!"
-fi
+echo "DONE TESTING!"

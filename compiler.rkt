@@ -39,6 +39,7 @@
 ;Runs the scanner, checks if the scanner properly scanned the tokens, then either calles error or
 ;returns the tokens
 (define (run-scanner chars)
+  (printf "RUNNING SCANNER~n")
   (define tokens (scanner (all-tokens-machine) chars))
   (cond
     [(list? tokens) tokens]
@@ -62,6 +63,7 @@
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
 (define (run-parser tokens)
+  (printf "RUNNING PARSER~n")
   (define node-stack (parser tokens))
   (cond
     [(empty? node-stack) (error)]
@@ -75,6 +77,7 @@
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
 (define (run-weeder filename parse-tree)
+  (printf "RUNNING WEEDER~n")
   (cond
     [(weeder filename parse-tree) (parse->ast (find-tree 'S parse-tree))]
     [else (error)]))
@@ -89,10 +92,19 @@
 (define (get-file-name filepath)
   (last (regexp-split #px"/" filepath)))
 
+(define (do-import-stuff ast)
+  (define (same-imports x y)
+    (cond
+      [(and (cimport? x) (cimport? y)) (equal? (cimport-path x) (cimport-path y))]
+      [(and (pimport? x) (pimport? y)) (equal? (pimport-path x) (pimport-path y))]
+      [else #f]))
+  (cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
+
 (define (parse-file file)
+  (printf "GETTING AST FOR ~a~n" file)
   (define clist (string->list (file->string file)))
   (define parse-tree (run-parser (run-scanner clist)))
-  (run-weeder (remove-dot-java (get-file-name file)) parse-tree))
+  (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
 (define (parse-files files)
   (cond
@@ -110,4 +122,6 @@
             (envs-print (second x))) root)
 
 (printf "~n============== Type Linker ==============~n")
-(gen-typelink-lists asts root)
+(print-all-links (gen-typelink-lists asts root))
+
+(compiled)
