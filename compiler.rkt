@@ -15,8 +15,8 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-;(define files-to-compile (vector->list (current-command-line-arguments)))
-(define files-to-compile (list "tests/test1.java"))
+(define files-to-compile (vector->list (current-command-line-arguments)))
+;(define files-to-compile (list "tests/test1.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -137,6 +137,6 @@
             (envs-print (second x))) root)
 
 (printf "~n============== Type Linker ==============~n")
-(print-all-links (gen-typelink-lists asts root))
+(print-all-links (gen-typelink-lists asts root) root)
 
 (compiled)

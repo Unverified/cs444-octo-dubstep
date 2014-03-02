@@ -116,7 +116,7 @@
 (struct return (expr) #:prefab)
 
 ;(struct literal ([type: ptype | rtype | atype][value : Any])
-(struct literal (type value) #:transparent)
+(struct literal (type value) #:prefab)
 
 ;(struct ptype ([type : Symbol]))
 (struct ptype (type) #:prefab)
