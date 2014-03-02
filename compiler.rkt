@@ -83,6 +83,21 @@
     [else (error)]))
 
 ;==============================================================================================
+;==== Get STDLIB asts
+;==============================================================================================
+
+(define stdlib-files (list "stdlib/java/io/OutputStream.java" "stdlib/java/io/PrintStream.java" "stdlib/java/io/Serializable.java" "stdlib/java/lang/Boolean.java" "stdlib/java/lang/Byte.java" "stdlib/java/lang/Character.java" "stdlib/java/lang/Class.java" "stdlib/java/lang/Cloneable.java" "stdlib/java/lang/Integer.java" "stdlib/java/lang/Number.java" "stdlib/java/lang/Object.java" "stdlib/java/lang/Short.java" "stdlib/java/lang/String.java" "stdlib/java/lang/System.java" "stdlib/java/util/Arrays.java"))
+(define stdlib-file (string->path "stdlib.asts"))
+(define (all-stdlib-asts) 
+  (if (file-exists? stdlib-file)
+      (call-with-input-file stdlib-file read)
+      (let ([stdlib (parse-files stdlib-files)]
+            [out (open-output-file stdlib-file)])
+        (write stdlib out)
+        (close-output-port out)
+        stdlib)))
+
+;==============================================================================================
 ;==== Execution
 ;==============================================================================================
 
@@ -111,7 +126,7 @@
     [(empty? files) empty]
     [else (cons (parse-file (first files)) (parse-files (rest files)))]))
 
-(define asts (parse-files files-to-compile))
+(define asts (append (parse-files files-to-compile) (all-stdlib-asts)))
 
 (print-asts asts files-to-compile)
 

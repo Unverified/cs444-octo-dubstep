@@ -46,85 +46,85 @@
 ;==============================================================================================
 
 ;(struct c-unit ([package : (Listof String)] [imports : (Listof (Listof String))] [body : class U import]))
-(struct cunit (package imports body) #:transparent)
+(struct cunit (package imports body) #:prefab)
 
 ;(struct cimport ([path : (Listof String)]))
-(struct cimport (path) #:transparent)
+(struct cimport (path) #:prefab)
 
 ;(struct pimport ([path : (Listof String)]))
-(struct pimport (path) #:transparent)
+(struct pimport (path) #:prefab)
 
 ;(struct interface ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [body : block]))
-(struct interface (scope mod id extends body) #:transparent)
+(struct interface (scope mod id extends body) #:prefab)
 
 ;(struct class ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [extends : (Listof (Listof String))] [implements : string] [body : block]))
-(struct class (scope mod id extends implements body) #:transparent)
+(struct class (scope mod id extends implements body) #:prefab)
 
 ;(struct constructor ([scope : Symbol] [methoddecl : methoddecl] [body : block]))
-(struct constructor (scope methoddecl body) #:transparent)
+(struct constructor (scope methoddecl body) #:prefab)
 
 ;(struct method ([scope : Symbol] [mod : (Listof Symbol)] [methoddecl : methoddecl] [body : block]))
-(struct method (scope mod type methoddecl body) #:transparent)
+(struct method (scope mod type methoddecl body) #:prefab)
 
 ;(struct methoddecl ([id : String] [parameters : (Listof parameter)]))
-(struct methoddecl (id parameters) #:transparent)
+(struct methoddecl (id parameters) #:prefab)
 
 ;(struct parameter ([type : (ptype, rtype, atype)] [id : String]))
-(struct parameter (type id) #:transparent)
+(struct parameter (type id) #:prefab)
 
 ;(struct var ([scope : Symbol] [mod : Symbol] [type : (ptype, rtype, atype)] [var-assign : varassign]))
-(struct var (scope mod type var-assign) #:transparent)
+(struct var (scope mod type var-assign) #:prefab)
 
 ;(struct varassign ([id : String] [expr : "alot of things"]))
-(struct varassign (id expr) #:transparent)
+(struct varassign (id expr) #:prefab)
 
 ;(struct binop ([op : Symbol] [left: "expression"] [right: "expression"]))
-(struct binop (op left right) #:transparent)
+(struct binop (op left right) #:prefab)
 
 ;(struct unop ([op : Symbol] [right: "expression"]))
-(struct unop (op right) #:transparent)
+(struct unop (op right) #:prefab)
 
 ;(struct cast ([c : Symbol] [expr: "expression"]))
-(struct cast (c expr) #:transparent)
+(struct cast (c expr) #:prefab)
 
 ;(struct arraycreate ([type : (ptype, (Listof String))] [size: "expression"]))
-(struct arraycreate (type size) #:transparent)
+(struct arraycreate (type size) #:prefab)
 
 ;(struct classcreate ([class : (Listof String)] [params: (Listof "expression")]))
-(struct classcreate (class params) #:transparent)
+(struct classcreate (class params) #:prefab)
 
 ;(struct fieldaccess ([left : "primary"] [field: String]))
-(struct fieldaccess (left field) #:transparent)
+(struct fieldaccess (left field) #:prefab)
 
 ;(struct methodcall ([left : (Listof String) | fieldaccess] [args: (Listof "expression")]))
-(struct methodcall (left args) #:transparent)
+(struct methodcall (left args) #:prefab)
 
 ;(struct arrayaccess ([left : (Listof String) | "primary, no new arrays"] [index: "expression"]))
-(struct arrayaccess (left index) #:transparent)
+(struct arrayaccess (left index) #:prefab)
 
 ;(struct iff ([test : "expression"] [tru: block | "lots of things"] [fls: block | "lots of things"]))
-(struct iff (test tru fls) #:transparent)
+(struct iff (test tru fls) #:prefab)
 
 ;(struct while ([test : "expression"] [body: block | "lots of things"]))
-(struct while (test body) #:transparent)
+(struct while (test body) #:prefab)
 
 ;(struct for ([init : var | varassign | methodcall | classcreate] [clause: "expression"] [update: varassign | methodcall | classcreate]))
-(struct for (init clause update body) #:transparent)
+(struct for (init clause update body) #:prefab)
 
 ;(struct return ([expr : "expression"]))
-(struct return (expr) #:transparent)
+(struct return (expr) #:prefab)
 
 ;(struct ptype ([type : Symbol]))
-(struct ptype (type) #:transparent)
+(struct ptype (type) #:prefab)
 
 ;(struct rtype ([type : Symbol]))
-(struct rtype (type) #:transparent)
+(struct rtype (type) #:prefab)
 
 ;(struct atype ([type : Symbol]))
-(struct atype (type) #:transparent)
+(struct atype (type) #:prefab)
 
 ;(struct block ([id : Symbol] [statements : (Listof "lots of things")]))
-(struct block (id statements) #:transparent)
+(struct block (id statements) #:prefab)
 
 ;==============================================================================================
 ;==== AST Generation

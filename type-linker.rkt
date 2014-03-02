@@ -28,13 +28,13 @@
 ;======================================================================================
 
 (define (gen-typelink-lists asts root)
-  (map (lambda (ast r) (printf "LINKING NAMES IN FILE: ~a~n" (first r)) 
+  (filter-not empty? (map (lambda (ast r) (printf "LINKING NAMES IN FILE: ~a~n" (first r)) 
                                         (gen-typelink-list (append (list (list (list (get-class-name ast)) (find-fully-qualified-link (c-unit-name ast) root)))
-                                                           (check-for-clashes (link-single-imports (filter cimport? (cunit-imports ast)) root) (list (get-class-name ast)))
+                                                           (check-for-clashes (link-single-imports (get-package-name ast) (filter cimport? (cunit-imports ast)) root) (list (get-class-name ast)))
                                               (find-default-package-links ast root)
-                                              (reverse (check-for-ondemand-clashes (link-on-demand-imports (filter pimport? (cunit-imports ast)) root) empty))
+                                              (reverse (check-for-ondemand-clashes (link-on-demand-imports (get-package-name ast) (filter pimport? (cunit-imports ast)) root) empty))
                                               (map (lambda(r) (list (first r) (const (apply link r)))) root)) root ast)) 
-                    asts root))
+                    asts root)))
 
 (define (gen-typelink-list linked-imports root ast)
   (define (resolve-type name)
@@ -73,8 +73,8 @@
 ;======================================================================================
 
 (define (find-default-package-links ast root)
-  (define default-pacakge (get-package-name ast))
-  (define links (find-package-links default-pacakge root))
+  (define default-package (get-package-name ast))
+  (define links (find-package-links default-package default-package root))
   (map (lambda(l) (list (first l) (const ((second l))) )) links))
 
 (define (find-fully-qualified-link name root)
@@ -83,35 +83,43 @@
     [(list? r) (const (apply link r))]
     [else #f]))
 
-(define (find-package-links package root)
+(define (find-package-links default-package package root)
   (define (find-package-links-helper r package)
     (define r-package (remove-last (first r)))
     (cond
       [(equal? package r-package) (list (list (list (last (first r))) (const (apply link r))))]
-      [(is-prefix (first r) package) (list (list (list (last (first r))) (const (error "Fully qualified type is clashing with package." (first r) package))))]
+      [(and (not (is-in-default-package (first r) default-package)) (is-prefix (first r) package)) (list (list (list (last (first r))) (const (error "Fully qualified type is clashing with package." (first r) package))))]
       [else empty]))
   (append-map (lambda(r) (find-package-links-helper r package)) root))
 
-(define (link-on-demand-imports imports root)
+(define (link-on-demand-imports default-package imports root)
   (define (get-plinks package root)
-    (define links (find-package-links package root))
+    (define links (find-package-links default-package package root))
     (cond
       [(and (empty? links) (not (is-package-prefix-decl package root))) (error "Could not find a package declaration for an import on demand.")]
       [else links]))
 
   (append-map (lambda(x) (get-plinks (pimport-path x) root)) imports))
 
-(define (link-single-imports imports root)
+(define (link-single-imports default-package imports root)
   (define (get-clink name root)
     (define link (find-fully-qualified-link name root))
     (cond
       [(false? link) (error "Could not find a link for a single import.")]
+      [(check-for-package-prefixs default-package (remove-last name) root) (error "Fully qualified type is clashing with package import prefix." name)]
       [else link]))
   
   (map (lambda(x) (list (list (last (cimport-path x))) (get-clink (cimport-path x) root))) imports))
 
+(define (is-in-default-package check default-package)
+  (define check-package (remove-last check))
+  (equal? check-package default-package))
+
 (define (is-package-prefix-decl package root)
   (list? (findf (lambda(x) (is-prefix package (first x))) root)))
+
+(define (check-for-package-prefixs default-package package root)
+  (list? (findf (lambda(x) (and (not (is-in-default-package (first x) default-package)) (is-prefix (first x) package))) root)))
 
 ;======================================================================================
 ;==== Error Checking
