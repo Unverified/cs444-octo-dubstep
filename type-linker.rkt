@@ -5,7 +5,7 @@
 
 (provide gen-typelink-lists)
 (provide print-all-links)
-
+(provide (struct-out link))
 (struct link (full env) )
 
 ;======================================================================================
