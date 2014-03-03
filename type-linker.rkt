@@ -1,7 +1,7 @@
 #lang racket
 
 (require "ast-tree.rkt")
-(require "enviroments.rkt")
+(require "environments.rkt")
 
 (provide gen-typelink-lists)
 (provide print-all-links)

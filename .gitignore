@@ -7,3 +7,5 @@ tests/failed_out
 joosc
 \#*
 stdlib.asts
+*.swp
+
