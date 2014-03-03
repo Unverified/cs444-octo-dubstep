@@ -240,16 +240,11 @@
 
     (define cur-class-env (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
 
-    ; "DO STUFF HERE"
-
-
-
-      
-    
+    ; "DO STUFF HERE"    
     (map (lambda (x) (check-single-field x (envs-vars cur-class-env) cur-class-env extends-env)) (envs-vars extends-env))
     
 
-    (env-append-nocons cur-class-env extends-env))
+    (combine-ci-envs links cur-class-env extends-env))
 
 
   (define (get-interface-heriarchy ast links impls)
@@ -285,7 +280,7 @@
   
   (define (combine-step par env)
     (match par
-      [`(,#f ,x) (env-append env (envs (list x) empty (list (assoc (first x) (envs-methods ienv))) empty))]
+      [`(,#f ,x) (env-append-nocons env (envs (list x) empty (list (assoc (first x) (envs-methods ienv))) empty))]
       [`(,x ,y)  (if (are-equal? (second x) (second y)) env (error "return types not equal"))]))
   (foldr combine-step cenv mtch))
   
