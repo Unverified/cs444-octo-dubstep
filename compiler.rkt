@@ -7,9 +7,9 @@
 (require "create-dfa.rkt")
 (require "ast-tree.rkt")
 (require "parse-tree.rkt")
-(require "enviroments.rkt")
+(require "environments.rkt")
 (require "type-linker.rkt")
-;(require "heirarchy.rkt")
+(require "heirarchy-checker.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -148,177 +148,9 @@
 (print-all-links all-links rootenvs)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+(printf "~n============== Heirarchy Checker ==========~n")
 (define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
 (define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
-
-(define (check-for-duplication l parents)
-  (cond 
-    [(list? (member (link-full (second l)) parents)) (printf "Either a class extends looped or you are implementing an interface twice.~n") (error)]
-    [else l]))
-
-(define (get-ast-extends ast)
-  (define extends (get-extends ast))
-  (define java-lang-Object (list "java" "lang" "Object")) 
-  (cond
-;    [(and (empty? extends) (not (equal? (c-unit-name ast) java-lang-Object))) java-lang-Object]
-    [else extends]))
-
-(define (get-env p)
-  (roote-env (link-env (second p))))
-
-(define (get-full typename links)
-  (link-full (second (assoc typename links))))
-
-
-(define (compare-method-modifier-lists base-list derived-list)
-  (cond
-    [(and (list? (member 'static base-list)) (not (list? (member 'static derived-list)))) 
-     (printf "Cannot replace a static method with a non-static method")
-     (exit 42)]
-    
-    [(list? (member 'final base-list))
-     (printf "Cannot replace a final method")
-     (exit 42)]
-    
-    [else #t]))
-
-(define (check-heirarchies asts all-links)
-  (define (get-linked-ast l)
-    (define rootenv (link-env (second l)))
-    (define id (roote-id rootenv))
-    (second (assoc id asts)))
-  
-  (define (get-linked-links l)
-    (define rootenv (link-env (second l)))
-    (define id (roote-id rootenv))
-    (second (assoc id all-links)))
-
-  (define (check-class-link l parent-extds)
-    (cond
-      [(false? l) l]
-      [(not (is-class (get-linked-ast l))) (error "Must extend a class.")]
-      [else (check-for-duplication l parent-extds)]))
-
-  (define (check-interface-links ls seen-so-far)
-    (define (check-interface-link l)
-      (cond
-        [(false? l) l]
-        [(not (is-interface (get-linked-ast l))) (error "Must implement an interface.")]
-        [else (check-for-duplication l seen-so-far)]))
-    (cond
-      [(empty? ls) empty]
-      [else (cons (check-interface-link (first ls)) (check-interface-links (rest ls) (cons (link-full (second (first ls))) seen-so-far)))]))
-
-  (define (get-class-stuff class-link parent-extds)
-    (printf "--- Getting class stuff for: ~a~n" class-link)
-    (cond
-      [(false? class-link) env-empty]
-      [else (get-class-heriarchy (get-linked-ast class-link) (get-linked-links class-link) parent-extds)]))
-
-  (define (get-interface-stuff interface-link parent-impls)
-    (printf "--- Getting interface stuff for: ~a~n" interface-link)
-    (cond
-     [(false? interface-link) env-empty]
-      [else (get-interface-heriarchy (get-linked-ast interface-link) (get-linked-links interface-link) parent-impls)]))
-
-  (define (get-class-heriarchy ast links extds)
-    (printf "CHECKING CLASS HEIR FOR: ~a~n" (c-unit-name ast))
-    (define parent-extds (cons (c-unit-name ast) extds))
-
-    (define extends (get-ast-extends ast))
-    (define implements (get-implements ast))
-
-    (printf "--- EXTENDS: ~a~n" extends)
-    (printf "--- IMPLEMENTS: ~a~n" implements)
-
-    (define class-link (check-class-link (assoc extends links) parent-extds))
-    (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) implements) empty))
-    
-    (define extends-env (get-class-stuff class-link parent-extds))
-    (define interface-envs (map (lambda(x) (get-interface-stuff x empty)) interface-links))
-
-    (define cur-class-env (foldr (curry combine-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
-
-    ; "DO STUFF HERE"    
-
-    (combine-envs links cur-class-env extends-env))
-
-
-  (define (get-interface-heriarchy ast links impls)
-    (printf "CHECKING INTERFACE HEIR FOR: ~a~n" (c-unit-name ast))
-    (define parent-impls (cons (c-unit-name ast) impls))
-
-    (define extends (get-extends ast))
-    (printf "--- EXTENDS: ~a~n" extends)
-
-    (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls))
-    (define interface-envs (map (lambda(x) (get-interface-stuff x parent-impls)) interface-links))
-
-    (foldr (curry combine-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
-
-  (define (check-heirarchy ast links)
-    (cond
-      [(is-class ast) (print-heir (get-class-heriarchy ast links empty))]
-      [(is-interface ast) (print-heir (get-interface-heriarchy ast links empty))]))
-
-  (map (lambda(ast links) (printf "====== CHECKING HEIRARCHY FOR AST, class/interface: ~a ======~n" (c-unit-name (second ast))) (check-heirarchy (second ast) (second links))) asts all-links))
-  
-(define (type-ast=? links t1 t2)
-  (match (list t1 t2)
-    [`(,(ptype _ ta) ,(ptype _ tb)) (equal? ta tb)]
-    [`(,(atype _ ta) ,(atype _ tb)) (type-ast=? links ta tb)]
-    [`(,(rtype _ ta) ,(rtype _ tb)) (type-ast=? links ta tb)]
-    [`((,ta ...) (,tb ...)) (equal? (get-full ta links) (get-full tb links))]
-    [_ #f]))
-
-(define (scope<=? s1 s2)
-  (define (get-scope-val scope)
-    (define scope-order '(public protected private))
-    (length (takef-right scope-order (curry symbol=? scope))))
-  (<= (get-scope-val s1) (get-scope-val s2)))
-
-(define (combine-envs links take-from combine-in)
-  (define methods (map first (envs-methods take-from)))
-  (define method-pairs (map (lambda (x) (list (assoc x (envs-methods combine-in)) (assoc x (envs-methods take-from)))) methods))
-  (define (can-shadow? m1 m2)
-    (match-let ([(method _ s1 m1 t1 _ _) m1]
-                [(method _ s2 m2 t2 _ _) m2])
-      (cond
-        [(not (scope<=? s1 s2)) (error "subclass can not lower" s1 s2)]
-        [(not (type-ast=? links t1 t2)) (error "return types not equal")]
-        [else #t])))
-  
-  (define (combine-step par env)
-    (match par
-      [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
-      [`(,x ,y)  (if (can-shadow? (eval-ast (second x)) (eval-ast (second y))) env (error))]))
-
-  (define (combine-fields par env)
-    (match par
-      [`(,key ,value) (env-append env (envs (list (assoc key (envs-types take-from))) (list par) empty empty))]))
-  
-  (foldr combine-fields (foldr combine-step combine-in method-pairs) (envs-vars take-from)))
-
-(define (print-heir e)
-  (printf "CLASS ENV:~n")
-  (envs-print e))
-
-(printf "~n============== BLAH ==============~n")
 (check-heirarchies ref-asts ref-all-links)
 
-;(printf "~n============== Heirarchy Checker ==========~n")
-;(check-heirarchy all-links)
-;(compiled)
+(compiled)
