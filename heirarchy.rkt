@@ -8,13 +8,15 @@
 
 (define universal-base-class '("java" "lang" "Object"))
 
-(define typelink-lists '())
+;(define typelink-lists '())
 
 (define (fully-qualified-name-equal? fqn uqn)
   '())
 
 (define (fqn->uqn name)
-  (list (last name)))
+  (cond
+    [(empty? name) (printf "~a is empty!" name) (error "OYT")]
+    [else  (list (last name))]))
 
 (define (uqn? name)
   (empty? (rest name)))
@@ -27,13 +29,13 @@
 
 
 
-(define (type-equal? t1 t2 L)
-  true)
-;  '(match (list t1 t2)
-;    [(list (ptype _ typ1) (ptype _ typ2)) (symbol=? typ1 typ2)]
-;     [(list (atype _ typ1) (atype _ typ2)) (type-equal? typ1 typ2 L)]
-;     [(list (rtype _ l1) (rtype _ l2)) (equal? (link-full ) (link-full (second (assoc l2 L))))]
-;     [_ #f]))
+(define (type-equal? t1 t2 typelink-list typelink-lists)
+  
+  '(match (list t1 t2)
+     [(list (ptype _ typ1) (ptype _ typ2)) (symbol=? typ1 typ2)]
+     [(list (atype _ typ1) (atype _ typ2)) (type-equal? typ1 typ2 typelink-list typelink-lists)]
+     [(list (rtype _ l1) (rtype _ l2)) (equal? (link-full (get-any-link l1 typelink-list)) (link-full (get-any-link l2 typelink-list)))]
+     [(list _ _) #f]))
 
 
 (define (check-interfaces current-env-pair L)
@@ -107,6 +109,11 @@
     [else (append  (recurse (first L)) (get-all-fully-qualified-names (rest L)))]))
 
 
+(define (get-any-link name current-typelink-list typelink-lists)
+  (cond
+    [(uqn? name) (get-link name current-typelink-list)]
+    [else (get-fqn-link name typelink-lists)]))
+
 ;;Gets the link for a fully-qualified name
 (define (get-fqn-link fqn typelink-lists)
   (let 
@@ -141,22 +148,31 @@
 
 ;;my-typelink-list is the current file environment
 (define (augment-environment link typelink-lists previously-visited-classes)
+
+  (printf "~a~n" (link-full link))
+
   (cond
     
     [(not (is-class? link)) (printf "ERROR: Class ~a extends interface ~a. Try implements instead~n" (first (fqn->uqn (first previously-visited-classes))) (first (fqn->uqn (link-full link)))) (exit 42)]
     ;[(false? link) (printf "~a~n" previously-visited-classes) (error "You dun goofed")]
     [(member (link-full link) previously-visited-classes) (printf "~a~n" "Circularity in inheritance heirarchy!") (exit 42)]
     [(equal? (link-full link) universal-base-class)  (link-env link)]
-    [else        
+    [else      
      (let* ([parent-class (get-extends-class-name (first (fqn->uqn (link-full link))) (link-env link))]
+            [nothing (printf "~a~n" parent-class)]
+            [parent-class-fqn
+             (cond
+               [(empty? parent-class) empty]
+               [(uqn? parent-class) (append (fqn-qualifier (link-full link)) parent-class)]
+               [else parent-class])]
+            [nothing-2 (printf "~a~n" parent-class-fqn)]
             [env (cond
-                  [(empty? parent-class) (augment-environment (get-fqn-link universal-base-class typelink-lists) '()  (cons (link-full link) previously-visited-classes))]
-                  [(uqn? parent-class) (augment-environment (get-fqn-link (append (fqn-qualifier (link-full link)) parent-class) typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))]
-                  [else (augment-environment (get-fqn-link parent-class typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))])])
-       (merge-environments (link-env link) env))]))
+                  [(empty? parent-class-fqn) (augment-environment (get-fqn-link universal-base-class typelink-lists) '()  (cons (link-full link) previously-visited-classes))]
+                  ;[(uqn? parent-class) (augment-environment (get-fqn-link (append (fqn-qualifier (link-full link)) parent-class) typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))]
+                  [else (printf "~a~n" parent-class-fqn) (augment-environment (get-fqn-link parent-class-fqn typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))])])
+       (merge-environments (link-env link) env (get-fqn-typelink-list (link-full link) typelink-lists) typelink-lists))]))
            
                   
-
 
 
 
@@ -164,7 +180,7 @@
 
 
 ;;merge environments : envs envs -> envs
-(define (merge-environments derived-env base-env)
+(define (merge-environments derived-env base-env current-typelink-list typelink-lists)
 
   ;;get-type : funt or eval -> type
   (define (get-type f env)
@@ -173,10 +189,12 @@
   (define (check-single-method method derived-methods)
     (cond 
       [(pair? (assoc (first method) derived-methods))
-       (let* ([type-1 (get-type method base-env)]
-              [type-2 (get-type method derived-env)])
+       (printf "~a~n"  (second (get-type (first method) base-env)))
+       (printf "~a~n" (second (get-type (first method) derived-env)))
+       (let* ([type-1 (second (get-type (first method) base-env))]
+              [type-2 (second (get-type (first method) derived-env))])
          (cond
-           [(type-equal? type-1 type-2 '()) empty]
+           [(type-equal? type-1 type-2 current-typelink-list typelink-lists) empty]
            [else (printf "Inherited method ~a has different return type from parent~n"
                            method)
                    (exit 42)]))]
