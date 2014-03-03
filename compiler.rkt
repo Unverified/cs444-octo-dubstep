@@ -151,6 +151,16 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
 (define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
 (define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
 
@@ -182,6 +192,7 @@
              [else (printf "Field ~a has different permission from its parent~n" (first field))
                    (exit 42)]))]
     [else empty]))
+
 
 (define (check-heirarchies asts all-links)
   (define (get-linked-ast l)
@@ -265,24 +276,39 @@
       [(is-interface ast) (print-heir (get-interface-heriarchy ast links empty))]))
 
   (map (lambda(ast links) (printf "====== CHECKING HEIRARCHY FOR AST, class/interface: ~a ======~n" (c-unit-name (second ast))) (check-heirarchy (second ast) (second links))) asts all-links))
+  
+(define (type-ast=? links t1 t2)
+  (match (list t1 t2)
+    [`(,(ptype _ ta) ,(ptype _ tb)) (equal? ta tb)]
+    [`(,(atype _ ta) ,(atype _ tb)) (type-ast=? links ta tb)]
+    [`(,(rtype _ ta) ,(rtype _ tb)) (type-ast=? links ta tb)]
+    [`((,ta ...) (,tb ...)) (equal? (get-full ta links) (get-full tb links))]
+    [_ #f]))
+
+(define (scope<? s1 s2)
+  (define (get-scope-val scope)
+    (define scope-order '(public protected private))
+    (length (takef-right scope-order (curry symbol=? scope))))
+  (< (get-scope-val s1) (get-scope-val s2)))
 
 (define (combine-ci-envs links ienv cenv)
-  (define (are-equal? a b)
-    (match (list a b)
-      [`(,(ptype _ _) ,(ptype _ _)) (equal? a b)]
-      [`(,(atype _ ta) ,(atype _ tb)) (are-equal? ta tb)]
-      [`(,(rtype _ ta) ,(rtype _ tb)) (equal? (get-full ta links) (get-full tb links))]
-      [_ #f]))
-
   (define cmethods (map first (envs-methods cenv)))
   (define imethods (map first (envs-methods ienv)))
-  (define mtch (map (lambda (x) (list (assoc x (envs-types cenv)) (assoc x (envs-types ienv)))) imethods))
+  (define imethod-types (map (lambda (x) (list (assoc x (envs-methods cenv)) (assoc x (envs-methods ienv)))) imethods))
+  (define (can-shadow? m1 m2)
+    (match-let ([(method _ s1 m1 t1 _ _) m1]
+                [(method _ s2 m2 t2 _ _) m2])
+      (cond
+        [(not (scope<? s1 s2)) (error "subclass can not lower scope")]
+        [(not (type-ast=? links t1 t2)) (error "return types not equal")]
+        [else #t])))
   
   (define (combine-step par env)
     (match par
-      [`(,#f ,x) (env-append-nocons env (envs (list x) empty (list (assoc (first x) (envs-methods ienv))) empty))]
-      [`(,x ,y)  (if (are-equal? (second x) (second y)) env (error "return types not equal"))]))
-  (foldr combine-step cenv mtch))
+      [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types ienv))) empty (list x) empty))]
+      [`(,x ,y)  (if (can-shadow? (second x) (second y)) env (error))]))
+  (foldr combine-step cenv imethod-types))
+
   
 
 
@@ -295,4 +321,4 @@
 
 ;(printf "~n============== Heirarchy Checker ==========~n")
 ;(check-heirarchy all-links)
-(compiled)
+;(compiled)
