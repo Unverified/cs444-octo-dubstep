@@ -350,7 +350,7 @@
          (tree (node 'LITERAL) `(,x))
          (tree (node 'EXPRESSION_OPT) `(,x))) (parse->ast x)]
     
-    [(tree (node 'ARGUMENT_LIST) `(,args ,_ ,arg)) (append (parse->ast args) (parse->ast arg))]
+    [(tree (node 'ARGUMENT_LIST) `(,args ,_ ,arg)) (append (parse->ast args) (list (parse->ast arg)))]
     [(tree (node 'ARGUMENT_LIST) `(,arg)) (list (parse->ast arg))]
     
     [(tree (node 'SCOPE) `(,x)) (parse->ast x)]
