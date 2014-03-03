@@ -232,7 +232,7 @@
 
     ; "DO STUFF HERE"
 
-    (env-append-1 cur-class-env extends-env))
+    (env-append-nocons cur-class-env extends-env))
 
 
   (define (get-interface-heriarchy ast links impls)

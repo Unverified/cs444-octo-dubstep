@@ -7,10 +7,11 @@
 (provide envs-print)
 (provide gen-root-env)
 (provide gen-class-envs)
-(provide va)
+
+(provide env-append-nocons)
 (provide env-append)
-(provide env-append-1)
-(provide env-append-list)
+
+(provide va)
 (provide env-empty)
 
 (provide (struct-out envs))
@@ -90,13 +91,13 @@
            (classcreate _ _ _)) lenv]
       
       [(iff _ test tru fls) (begin0 (_va block-id lenv test)
-                                  (_va block-id lenv tru)
-                                  (_va block-id lenv fls))]
+                                    (_va block-id lenv tru)
+                                    (_va block-id lenv fls))]
       
       [(for _ init clause update (block _ id bdy)) (let ([for-envt (_va id lenv init)])
-                                                 (hash-set! block-hash id (env-append for-envt cenv))
-                                                 (_va id for-envt clause)
-                                                 (_va-list id for-envt bdy))]
+                                                     (hash-set! block-hash id (env-append for-envt cenv))
+                                                     (_va id for-envt clause)
+                                                     (_va-list id for-envt bdy))]
       
       [(block _ id bdy) (hash-set! block-hash id (env-append lenv cenv))
                         (_va-list id lenv bdy)
@@ -111,36 +112,37 @@
     (match ast
       [(or (method _ _ _ _ decl (block _ id bdy))
            (constructor _ _ decl (block _ id bdy))) (let ([lenv (mdecl->envs id decl)])
-                                                  (hash-set! block-hash id (env-append lenv cenv))
+                                                      (hash-set! block-hash id (env-append lenv cenv))
                                                   (_va-list id lenv bdy))]
       [(var _ _ _ t (varassign _ _ ex))  (_va id env-empty ex)]
       [_ env-empty]))
-    (match ast
-      [(or (cunit _ _ bdy)
-           (class _ _ _ _ _ _ bdy)) (va tenv cenv bdy)]
-      [(interface _ _ _ _ _ _) block-hash]
-      [(block _ id bdy) (hash-set! block-hash id cenv)
+  (match ast
+    [(or (cunit _ _ bdy)
+         (class _ _ _ _ _ _ bdy)) (va tenv cenv bdy)]
+    [(interface _ _ _ _ _ _) block-hash]
+    [(block _ id bdy) (hash-set! block-hash id cenv)
                       (map (curry _top_va id) bdy)
                       block-hash]))
 
 ;======================================================================================
 ;==== Environment Transformation
 ;======================================================================================
-;(: env-append-1 : envs envs -> envs )
-(define (env-append-1 le re)
-  (envs (append (envs-types le) (envs-types re))
-        (append (envs-vars le) (envs-vars re))
-        (append (envs-methods le) (envs-methods re))
-        (append (envs-constructors le) (envs-constructors re))))
 
 ;(: env-append : envs envs... -> envs )
 (define (env-append le . r)
+  ;(: env-append-1 : envs envs -> envs )
+  (define (env-append-1 le re)
+    (envs (append (envs-types le) (envs-types re))
+          (append (envs-vars le) (envs-vars re))
+          (append (envs-methods le) (envs-methods re))
+          (append (envs-constructors le) (envs-constructors re))))
   (foldr env-append-1 env-empty (cons le r)))
 
-(define (env-append-list envs)
-  (cond
-    [(empty? envs) env-empty]
-    [else (env-append-1 (first envs) (env-append-list (rest envs)))]))
+
+;(: env-append-nocons : envs envs... -> envs )
+;; like env-append but will only carry though the constructors of the leftmost environment
+(define (env-append-nocons le . r)
+  (apply env-append (cons le (map (lambda (x) (envs (envs-types x) (envs-vars x) (envs-methods x) empty)) r))))
 
 ;(: add-env-const : envs methoddeclaration symbol ast -> envs )
 (define (add-env-const envt mdecl scope ast)
