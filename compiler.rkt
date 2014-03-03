@@ -195,11 +195,11 @@
 
 (define (compare-method-modifier-lists base-list derived-list)
   (cond
-    [(and (member 'static base-list) (not (member 'static derived-list))) 
+    [(and (list? (member 'static base-list)) (not (list? (member 'static derived-list)))) 
      (printf "Cannot replace a static method with a non-static method")
      (exit 42)]
     
-    [(member 'final base-list)
+    [(list? (member 'final base-list))
      (printf "Cannot replace a final method")
      (exit 42)]
     
