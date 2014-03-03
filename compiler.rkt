@@ -156,7 +156,7 @@
 
 (define (check-for-duplication l parents)
   (cond 
-    [(list? (member (link-full (second l)) parents)) (printf "Either a class extends looped or you are implement 2 of the same interface.~n") (error)]
+    [(list? (member (link-full (second l)) parents)) (printf "Either a class extends looped or you are implementing an interface twice.~n") (error)]
     [else l]))
 
 (define (get-ast-extends ast)
@@ -171,7 +171,17 @@
 
 (define (get-full typename links)
   (link-full (second (assoc typename links))))
-  
+
+(define (check-single-field field derived-fields base-env derived-env)
+  (cond
+    [(pair? (assoc (first field) derived-fields))
+     (let* ([val (second (assoc (first field) (envs-vars derived-env)))]
+            [scope-1 (var-scope (eval-ast val))]
+            [scope-2 (var-scope (eval-ast (second (assoc (first field) (envs-vars base-env)))))])
+       (cond [(equal? scope-1 scope-2) empty]
+             [else (printf "Field ~a has different permission from its parent~n" (first field))
+                   (exit 42)]))]
+    [else empty]))
 
 (define (check-heirarchies asts all-links)
   (define (get-linked-ast l)
@@ -231,6 +241,13 @@
     (define cur-class-env (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
 
     ; "DO STUFF HERE"
+
+
+
+      
+    
+    (map (lambda (x) (check-single-field x (envs-vars cur-class-env) cur-class-env extends-env)) (envs-vars extends-env))
+    
 
     (env-append-nocons cur-class-env extends-env))
 

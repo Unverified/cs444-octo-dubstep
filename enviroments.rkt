@@ -14,6 +14,7 @@
 (provide va)
 (provide env-empty)
 
+(provide (struct-out eval))
 (provide (struct-out envs))
 (provide (struct-out roote))
 
