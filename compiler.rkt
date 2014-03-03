@@ -24,8 +24,8 @@
 ;==============================================================================================
 
 ;Call this when the compiler found an error in the joos1w program. This will print "Error" and then exit
-(define (error)
-  (printf "Error~n")
+(define (error . x)
+  (printf "Error: ~a~n" x)
   (exit 42))
 
 ;Call this when the compiler successfully compiled the program. This will print "Compiled" and exit
@@ -80,7 +80,10 @@
 (define (run-weeder filename parse-tree)
   (printf "RUNNING WEEDER~n")
   (cond
-    [(weeder filename parse-tree) (clean-ast (parse->ast (find-tree 'S parse-tree)))]
+    [(weeder filename parse-tree) (define ast (parse->ast (find-tree 'S parse-tree)))
+                                  (printf "============= AST ==============~n")
+                                  (print-ast ast "")
+                                  (clean-ast ast)]
     [else (error)]))
 
 ;==============================================================================================
@@ -110,10 +113,11 @@
 
 (define (do-import-stuff ast)
   (define (same-imports x y)
-    (cond
-      [(and (cimport? x) (cimport? y)) (equal? (cimport-path x) (cimport-path y))]
-      [(and (pimport? x) (pimport? y)) (equal? (pimport-path x) (pimport-path y))]
+    (match (list x y)
+      [(or `(,(cimport x) ,(cimport y))
+           `(,(pimport x) ,(pimport y))) (equal? x y)]
       [else #f]))
+  (printf "DOING IMPORT STUFF~n")
   (cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
 
 (define (parse-file file)
@@ -123,23 +127,25 @@
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
 (define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
+
+(printf "~n============== PRINTING ASTS ==============~n")
+
 (print-asts asts files-to-compile)
 
 (printf "~n============== Environments ==============~n")
 
-(define root (with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
+(define rootenvs (with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
                                                              (error)))])
                (gen-root-env asts)))
 
 (for-each (lambda (x) 
             (printf "~a~n============================~n" (first x))
-            (envs-print (second x))) root)
-
+            (envs-print (second x))) rootenvs)
 
 (printf "~n============== Type Linker ==============~n")
-(define links (gen-typelink-lists asts root))
-(print-all-links links root)
+(define all-links (gen-typelink-lists asts rootenvs))
+(print-all-links all-links rootenvs)
 
 (printf "~n============== Heirarchy Checker ==========~n")
-(check-heirarchy links)
-;(compiled)
+(check-heirarchy all-links)
+(compiled)

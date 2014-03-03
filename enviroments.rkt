@@ -8,8 +8,10 @@
 (provide gen-root-env)
 (provide gen-class-envs)
 (provide va)
+(provide env-append)
 
 (provide (struct-out envs))
+(provide (struct-out eval))
 
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)

@@ -184,6 +184,7 @@
            
       
   
+<<<<<<< HEAD
   (define (check-single-field field derived-fields)
     (cond
       [(pair? (assoc (first field) derived-fields))
@@ -200,6 +201,13 @@
   (define (check-each-method)
     (map (lambda (x) (check-single-method x (envs-methods derived-env))) (envs-methods base-env)))
  
+=======
+  (define (insert-methods methods ret)
+    '())
+    
+  (define (insert-types types)
+    (append (envs-types derived-env) types))
+>>>>>>> 9847a1772174e30623cd8947d54565c413bce97b
   
   (define (check-each-field)
     (map (lambda (x) (check-single-field x (envs-vars derived-env))) (envs-vars base-env)))
