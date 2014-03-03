@@ -10,8 +10,10 @@
  * B implements A
  */
 
-public class Main implements D {
+public abstract class Main implements D {
     
+    public abstract int a1();
+
     public Main() {}
     
     public static int test() {

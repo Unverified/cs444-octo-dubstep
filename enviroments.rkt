@@ -8,12 +8,18 @@
 (provide gen-root-env)
 (provide gen-class-envs)
 (provide va)
+(provide env-append)
+(provide env-append-1)
+(provide env-append-list)
+(provide env-empty)
 
 (provide (struct-out envs))
+(provide (struct-out roote))
 
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)
 (struct envs (types vars methods constructors))
+(struct roote (id env) #:prefab)
 
 ;======================================================================================
 ;==== Environment Generation
@@ -26,7 +32,7 @@
     [_ (error "mdecl->funt: mdecl that is not a method declaration passed int")]))
 
 (define (gen-root-env asts)
-  (map (lambda (x) (list (c-unit-name x) (gen-class-envs x))) asts))
+  (map (lambda (x) (list (c-unit-name x) (roote (gensym) (gen-class-envs x)))) asts))
 
 (define (gen-class-envs ast)
   (define (_gen-class-env scope asts envt)
@@ -130,6 +136,11 @@
 ;(: env-append : envs envs... -> envs )
 (define (env-append le . r)
   (foldr env-append-1 env-empty (cons le r)))
+
+(define (env-append-list envs)
+  (cond
+    [(empty? envs) env-empty]
+    [else (env-append-1 (first envs) (env-append-list (rest envs)))]))
 
 ;(: add-env-const : envs methoddeclaration symbol ast -> envs )
 (define (add-env-const envt mdecl scope ast)

@@ -9,7 +9,7 @@
 (require "parse-tree.rkt")
 (require "enviroments.rkt")
 (require "type-linker.rkt")
-(require "heirarchy.rkt")
+;(require "heirarchy.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -118,7 +118,8 @@
            `(,(pimport x) ,(pimport y))) (equal? x y)]
       [else #f]))
   (printf "DOING IMPORT STUFF~n")
-  (cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
+  (cunit (cunit-package ast) (remove-duplicates (cunit-imports ast) (lambda(x y) (same-imports x y))) (cunit-body ast)))
+  ;(cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
 
 (define (parse-file file)
   (printf "GETTING AST FOR ~a~n" file)
@@ -126,7 +127,7 @@
   (define parse-tree (run-parser (run-scanner clist)))
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
-(define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
+(define asts (append (map parse-file files-to-compile))) ;(all-stdlib-asts)))
 
 (printf "~n============== PRINTING ASTS ==============~n")
 
@@ -140,12 +141,147 @@
 
 (for-each (lambda (x) 
             (printf "~a~n============================~n" (first x))
-            (envs-print (second x))) rootenvs)
+            (envs-print (roote-env (second x)))) rootenvs)
 
 (printf "~n============== Type Linker ==============~n")
 (define all-links (gen-typelink-lists asts rootenvs))
 (print-all-links all-links rootenvs)
 
-(printf "~n============== Heirarchy Checker ==========~n")
-(check-heirarchy all-links)
+
+
+
+
+(define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
+(define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
+
+(define (check-for-duplication l parents)
+  (cond 
+    [(list? (member (link-full (second l)) parents)) (printf "Either a class extends looped or you are implement 2 of the same interface.~n") (error)]
+    [else l]))
+
+(define (get-ast-extends ast)
+  (define extends (get-extends ast))
+  (define java-lang-Object (list "java" "lang" "Object")) 
+  (cond
+;    [(and (empty? extends) (not (equal? (c-unit-name ast) java-lang-Object))) java-lang-Object]
+    [else extends]))
+
+(define (get-env p)
+  (roote-env (link-env (second p))))
+
+(define (get-full typename links)
+  (link-full (second (assoc typename links))))
+  
+
+(define (check-heirarchies asts all-links)
+  (define (get-linked-ast l)
+    (define rootenv (link-env (second l)))
+    (define id (roote-id rootenv))
+    (second (assoc id asts)))
+  
+  (define (get-linked-links l)
+    (define rootenv (link-env (second l)))
+    (define id (roote-id rootenv))
+    (second (assoc id all-links)))
+
+  (define (check-class-link l parent-extds)
+    (cond
+      [(false? l) l]
+      [(not (is-class (get-linked-ast l))) (error "Must extend a class.")]
+      [else (check-for-duplication l parent-extds)]))
+
+  (define (check-interface-links ls seen-so-far)
+    (define (check-interface-link l)
+      (cond
+        [(false? l) l]
+        [(not (is-interface (get-linked-ast l))) (error "Must implement an interface.")]
+        [else (check-for-duplication l seen-so-far)]))
+    (cond
+      [(empty? ls) empty]
+      [else (cons (check-interface-link (first ls)) (check-interface-links (rest ls) (cons (link-full (second (first ls))) seen-so-far)))]))
+
+  (define (get-class-stuff class-link parent-extds)
+    (printf "--- Getting class stuff for: ~a~n" class-link)
+    (cond
+      [(false? class-link) env-empty]
+      [else (get-class-heriarchy (get-linked-ast class-link) (get-linked-links class-link) parent-extds)]))
+
+  (define (get-interface-stuff interface-link parent-impls)
+    (printf "--- Getting interface stuff for: ~a~n" interface-link)
+    (cond
+     [(false? interface-link) env-empty]
+      [else (get-interface-heriarchy (get-linked-ast interface-link) (get-linked-links interface-link) parent-impls)]))
+
+  (define (get-class-heriarchy ast links extds)
+    (printf "CHECKING CLASS HEIR FOR: ~a~n" (c-unit-name ast))
+    (define parent-extds (cons (c-unit-name ast) extds))
+
+    (define extends (get-ast-extends ast))
+    (define implements (get-implements ast))
+
+    (printf "--- EXTENDS: ~a~n" extends)
+    (printf "--- IMPLEMENTS: ~a~n" implements)
+
+    (define class-link (check-class-link (assoc extends links) parent-extds))
+    (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) implements) empty))
+    
+    (define extends-env (get-class-stuff class-link parent-extds))
+    (define interface-envs (map (lambda(x) (get-interface-stuff x empty)) interface-links))
+
+    (define cur-class-env (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
+
+    ; "DO STUFF HERE"
+
+    (env-append-1 cur-class-env extends-env))
+
+
+  (define (get-interface-heriarchy ast links impls)
+    (printf "CHECKING INTERFACE HEIR FOR: ~a~n" (c-unit-name ast))
+    (define parent-impls (cons (c-unit-name ast) impls))
+
+    (define extends (get-extends ast))
+    (printf "--- EXTENDS: ~a~n" extends)
+
+    (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls))
+    (define interface-envs (map (lambda(x) (get-interface-stuff x parent-impls)) interface-links))
+
+    (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
+
+  (define (check-heirarchy ast links)
+    (cond
+      [(is-class ast) (print-heir (get-class-heriarchy ast links empty))]
+      [(is-interface ast) (print-heir (get-interface-heriarchy ast links empty))]))
+
+  (map (lambda(ast links) (printf "====== CHECKING HEIRARCHY FOR AST, class/interface: ~a ======~n" (c-unit-name (second ast))) (check-heirarchy (second ast) (second links))) asts all-links))
+
+(define (combine-ci-envs links ienv cenv)
+  (define (are-equal? a b)
+    (match (list a b)
+      [`(,(ptype _ _) ,(ptype _ _)) (equal? a b)]
+      [`(,(atype _ ta) ,(atype _ tb)) (are-equal? ta tb)]
+      [`(,(rtype _ ta) ,(rtype _ tb)) (are-equal? ta tb)]
+      [`((,ta ...) (,tb ...)) (equal? (get-full ta links) (get-full tb links))]
+      [_ #f]))
+
+  (define cmethods (map first (envs-methods cenv)))
+  (define imethods (map first (envs-methods ienv)))
+  (define mtch (map (lambda (x) (list (assoc x (envs-types cenv)) (assoc x (envs-types ienv)))) imethods))
+  
+  (define (combine-step par env)
+    (match par
+      [`(,#f ,x) (env-append env (envs (list x) empty (list (assoc (first x) (envs-methods ienv))) empty))]
+      [`(,x ,y)  (if (are-equal? (second x) (second y)) env (error "return types not equal"))]))
+  (foldr combine-step cenv mtch))
+  
+
+
+(define (print-heir e)
+  (printf "CLASS ENV:~n")
+  (envs-print e))
+
+(printf "~n============== BLAH ==============~n")
+(check-heirarchies ref-asts ref-all-links)
+
+;(printf "~n============== Heirarchy Checker ==========~n")
+;(check-heirarchy all-links)
 (compiled)
