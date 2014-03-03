@@ -182,6 +182,19 @@
 (define (get-full typename links)
   (link-full (second (assoc typename links))))
 
+
+(define (compare-method-modifier-lists base-list derived-list)
+  (cond
+    [(and (list? (member 'static base-list)) (not (list? (member 'static derived-list)))) 
+     (printf "Cannot replace a static method with a non-static method")
+     (exit 42)]
+    
+    [(list? (member 'final base-list))
+     (printf "Cannot replace a final method")
+     (exit 42)]
+    
+    [else #t]))
+
 (define (check-heirarchies asts all-links)
   (define (get-linked-ast l)
     (define rootenv (link-env (second l)))
@@ -284,7 +297,7 @@
     (match-let ([(method _ s1 m1 t1 _ _) m1]
                 [(method _ s2 m2 t2 _ _) m2])
       (cond
-        [(not (scope<? s1 s2)) (error "subclass can not lower" s1 s2)]
+        [(not (scope<=? s1 s2)) (error "subclass can not lower" s1 s2)]
         [(not (type-ast=? links t1 t2)) (error "return types not equal")]
         [else #t])))
   
