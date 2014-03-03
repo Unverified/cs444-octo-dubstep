@@ -9,6 +9,7 @@
 (require "parse-tree.rkt")
 (require "enviroments.rkt")
 (require "type-linker.rkt")
+(require "heirarchy.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -112,9 +113,9 @@
 
 (define (do-import-stuff ast)
   (define (same-imports x y)
-    (cond
-      [(and (cimport? x) (cimport? y)) (equal? (cimport-path x) (cimport-path y))]
-      [(and (pimport? x) (pimport? y)) (equal? (pimport-path x) (pimport-path y))]
+    (match (list x y)
+      [(or `(,(cimport x) ,(cimport y))
+           `(,(pimport x) ,(pimport y))) (equal? x y)]
       [else #f]))
   (printf "DOING IMPORT STUFF~n")
   (cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
@@ -141,9 +142,10 @@
             (printf "~a~n============================~n" (first x))
             (envs-print (second x))) rootenvs)
 
-
-
 (printf "~n============== Type Linker ==============~n")
 (define all-links (gen-typelink-lists asts rootenvs))
+(print-all-links all-links rootenvs)
 
+(printf "~n============== Heirarchy Checker ==========~n")
+(check-heirarchy all-links)
 (compiled)
