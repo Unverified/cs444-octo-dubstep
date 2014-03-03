@@ -6,12 +6,26 @@
 
 (provide check-heirarchy)
 
-(define universal-base-class "Object")
+(define universal-base-class '("java" "lang" "Object"))
 
-
+(define typelink-lists '())
 
 (define (fully-qualified-name-equal? fqn uqn)
   '())
+
+(define (fqn->uqn name)
+  (list (last name)))
+
+(define (uqn? name)
+  (empty? (rest name)))
+
+(define fqn?
+  (lambda (name) (not (uqn? name))))
+
+(define (fqn-qualifier fqn)
+  (reverse (rest (reverse fqn))))
+
+
 
 (define (type-equal? t1 t2 L)
   (match (list t1 t2)
@@ -39,7 +53,31 @@
   (let* ([types (envs-types env)]
         [ast (second (assoc name types))])
     ast))
+
+
+(define (get-all-parents name env)
+  (let ([ast (get-class-ast name env)])
+    (match ast
+      [(interface _ _ _ extends _) extends]
+      [(class _ _ _ extends implements _) (append extends implements)])))
+
+(define (get-extends-interface-names name env)
+  (let ([ast (get-class-ast name env)])
+    (match ast
+      [(interface _ _ _ extends  _) extends])))
+
+
+(define (get-implements-class-names name env)
+  (let ([ast (get-class-ast name env)])
+    (match ast
+      [(class _ _ _ _ implements _) implements])))
+
     
+(define (get-extends-class-name name env)
+  (let ([ast (get-class-ast name env)])
+    (match ast
+      [(class _ _ _ extends _ _) extends]
+      [_ empty])))
 
 (define (get-base-class-names name env)
   (let ([ast (get-class-ast name env)])
@@ -47,38 +85,124 @@
       [(interface _ _ _ extends _) extends]
       [(class _ _ _ extends implements _) (append (list implements) extends)])))
 
-(define (check-for-cyclic-inheritance ast env-list L)
-  (match ast
-    [(interface _ _ id extends _) (if (member id L ) #t (andmap (lambda (i) (check-for-cyclic-inheritance (get-class-ast i) env-list (cons id L))) extends))]
-    [(class _ _ id extends implements _) (if (member id L) #t (andmap (lambda (i) (check-for-cyclic-inheritance (get-class-ast i) env-list (cons id L))) (append extends implements)))]))
+
+
+;(define (get-inherited-interface-methods link typelink-lists)
+;  (let ([interface-names 
+  
+        
 
 
 
-(define (get-all-fully-qualified-names env-list)
+(define (get-all-fully-qualified-names L)
+  (define (recurse env-list)
+    (cond
+      [(empty? env-list) empty]
+      [else (cons (link-full (second (first env-list))) (recurse (rest env-list)))]))
+      
   (cond
-    [(empty? env-list) empty]
+    [(empty? L) empty]
    ; [(false? (second (first (first env-list)))) 
-    [else (cons  (first (first env-list)) (get-all-fully-qualified-names (rest env-list)))]))
+    [else (append  (recurse (first L)) (get-all-fully-qualified-names (rest L)))]))
+
+
+;;Gets the link for a fully-qualified name
+(define (get-fqn-link fqn typelink-lists)
+  (let 
+      ([link (get-link (fqn->uqn fqn) (first typelink-lists))])
+    (if link (if (equal? (link-full link) fqn) link (get-fqn-link fqn (rest typelink-lists))) 
+        (get-fqn-link fqn (rest typelink-lists)))))
+
+(define (get-link uqn typelink-list)
+  (let ([ret (assoc uqn typelink-list)])
+    (if 
+     ret
+     (second (assoc uqn typelink-list))
+     #f)))
+
+(define (get-all-links L)
+  (foldr (lambda (x y) (append (foldr (lambda (x y) (cons (second x) y)) empty x) y)) empty L))
+
+
+;;gets the file-environment that a fully-qualified name belongs to
+;;Useful for preventing name conflicts
+(define (get-fqn-typelink-list fqn typelink-lists)
+  (let*
+      ([typelink-list (first typelink-lists)]
+       [link (get-link (fqn->uqn fqn) typelink-list)])
+    (if link
+        (if (equal? (link-full link) fqn) 
+            typelink-list 
+            (get-fqn-typelink-list fqn (rest typelink-lists)))
+        (get-fqn-typelink-list fqn (rest typelink-lists)))))
+                               
+
+
+;;my-typelink-list is the current file environment
+(define (augment-environment link typelink-lists previously-visited-classes)
+  (cond
+    [(not (is-class? link)) (printf "ERROR: Class ~a extends interface ~a. Try implements instead~n" (first (fqn->uqn (first previously-visited-classes))) (first (fqn->uqn (link-full link)))) (exit 42)]
+    ;[(false? link) (printf "~a~n" previously-visited-classes) (error "You dun goofed")]
+    [(member (link-full link) previously-visited-classes) (printf "~a~n" "Circularity in inheritance heirarchy!") (exit 42)]
+    [(equal? (link-full link) universal-base-class)  (link-env link)]
+    [else        
+     (let* ([parent-class (get-extends-class-name (first (fqn->uqn (link-full link))) (link-env link))]
+            [env (cond
+                  [(empty? parent-class) (augment-environment (get-fqn-link universal-base-class typelink-lists) '()  (cons (link-full link) previously-visited-classes))]
+                  [(uqn? parent-class) (augment-environment (get-fqn-link (append (fqn-qualifier (link-full link)) parent-class) typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))]
+                  [else (augment-environment (get-fqn-link parent-class typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))])])
+       (merge-environments (link-env link) env))]))
+           
+                  
+
+
+
 
 ;;augment-class-env : envs (listof (String ((listof String) env)))
 
-(define (augment-class-env current-class-env-pair L)
+
+;;merge environments : envs envs -> envs
+(define (merge-environments derived-env base-env)
+
+  (define (get-return-type method-name env)
+    (assoc method-name (envs-types env)))
   
-  ;;check that class implements all functions named in interfaces
-  (check-interfaces current-class-env-pair L))
-        
+  (define (method-equal? m1 m2)
+    '())
+    
+  ;;insert-method : funt->env
+  
+  (define (insert-methods methods ret)
+    '())
+    
+  (define 
+  
+  (define (insert-types types)
+    (append (envs-types derived-env) types))
+  
+  (define (insert-constructors constructors)
+    (envs-constructors derived-env))
+  (envs (insert-types (envs-types base-env)) (insert-fields (envs-vars base-env)) (insert-methods (envs-methods base-env) (envs-methods derived-env)) (insert-constructors (envs-constructors base-env))))
+
+   
          
+(define (is-class? link)
+  (let ([ast (get-class-ast (first (fqn->uqn (link-full link))) (link-env link))])
+    (match ast
+      [(class _ _ _ _ _ _) #t]
+      [_ #f])))
          
+(define (process-link link typelink-lists)
+  ;(get-link (fqn->uqn universal-base-class) (get-fqn-typelink-list universal-base-class typelink-lists)))
+  ;(list (link-full link) (if (is-class? link) (get-extends-class-name (first (fqn->uqn (link-full link))) (link-env link)) 'Interface)))
+  (if (is-class? link) (augment-environment link typelink-lists empty) 'Interface))
 
-
-       
-(define (check-heirarchy env-list)
-  ;(for-each (lambda (x) (if (empty? x) (display "") (display (first x)))) env-list)
-  
-  (map (lambda (b) (get-base-class-names "Object" b)) (map (lambda (a) (get-class-env '("java" "lang" "Object") a)) env-list)))
-  ;(get-all-fully-qualified-names env-list))
-  
-
+;; typelink-list : List of association lists matching fully qualified names to links
+;;these association-lists may be called the "file-environment" for a particular file
+;; A Link is pair of (fully-qualified-names, envs) (Also, the Hero of Time)
+(define (check-heirarchy typelink-lists)
+  (map (lambda (link) (process-link link typelink-lists)) (get-all-links typelink-lists)))
+  ;(get-all-links typelink-lists))
 (struct method-sig (ret-type args))
 
 
