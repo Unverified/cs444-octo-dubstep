@@ -230,8 +230,6 @@
 
     (define cur-class-env (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
 
-    ; "DO STUFF HERE"
-
     (env-append-nocons cur-class-env extends-env))
 
 
@@ -259,8 +257,7 @@
     (match (list a b)
       [`(,(ptype _ _) ,(ptype _ _)) (equal? a b)]
       [`(,(atype _ ta) ,(atype _ tb)) (are-equal? ta tb)]
-      [`(,(rtype _ ta) ,(rtype _ tb)) (are-equal? ta tb)]
-      [`((,ta ...) (,tb ...)) (equal? (get-full ta links) (get-full tb links))]
+      [`(,(rtype _ ta) ,(rtype _ tb)) (equal? (get-full ta links) (get-full tb links))]
       [_ #f]))
 
   (define cmethods (map first (envs-methods cenv)))
