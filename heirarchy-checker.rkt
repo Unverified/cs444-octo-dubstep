@@ -61,7 +61,7 @@
     (define interface-envs (map (lambda(x) (get-interface-env x empty)) interface-links))
     (define cur-class-env (foldr (curry combine-envs links) (get-env (c-unit-name ast) links) interface-envs))
 
-    (combine-envs links cur-class-env extends-env))
+    (combine-envs links (check-for-abstract ast cur-class-env) extends-env))
 
   ;check an interface for proper heirarchy
   (define (get-interface-heriarchy ast links impls)
@@ -72,7 +72,7 @@
     (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls))
     (define interface-envs (map (lambda(x) (get-interface-env x parent-impls)) interface-links))
 
-    (foldr (curry combine-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
+    (foldr (curry combine-envs links) (get-env (c-unit-name ast) links) interface-envs))
 
   ;get the heirarchacle environment for an extends class
   (define (get-extends-env class-link parent-extds)
@@ -91,6 +91,7 @@
     (cond
       [(false? l) l]
       [(not (is-class (get-linked-ast l asts))) (error "Must extend a class.")]
+      [(is-class-with-mod (get-linked-ast l asts) 'final) (error "Cannot extend a final class.")]
       [else (check-for-duplication l parent-extds)]))
 
   ;check that l links to an interface and that it does not exist in seen-so-far
@@ -119,6 +120,7 @@
       (cond
         [(not (scope<=? s1 s2)) (error "subclass can not lower" s1 s2)]
         [(not (type-ast=? links t1 t2)) (error "return types not equal")]
+        [(not (compare-method-modifier-lists m2 m1)) (error "shadowed methods mods are messed yo")]
         [else #t])))
   
   (define (combine-step par env)
@@ -136,19 +138,31 @@
 ;==== Error Checking Helpers 
 ;======================================================================================
 
+(define (check-for-abstract ast env)
+  (cond
+    [(is-class-with-mod ast 'abstract) env]
+    [(contains-abs-method env) (error "Can only decalre abstract methods in an abstract class.")]
+    [else env]))
+
+(define (contains-abs-method env)
+  (define (is-abs? m)
+    (match-let ([(method _ _ m _ _ _) m])
+      (cond
+        [(list? (member 'abstract m)) #t]
+        [else #f])))
+
+  (ormap (lambda(x) (is-abs? (eval-ast (second x)))) (envs-methods env)))
+
 (define (check-for-duplication l parents)
   (cond 
     [(list? (member (link-full (second l)) parents)) (printf "Loop in extends or duplicate implements detected.~n") (error)]
     [else l]))
 
 (define (compare-method-modifier-lists base-list derived-list)
+  (printf "compare-method-modifier-lists: ~a ~a~n" base-list derived-list)
   (cond
-    [(and (list? (member 'static base-list)) (not (list? (member 'static derived-list)))) 
-     (error "Cannot replace a static method with a non-static method")]
-    
-    [(list? (member 'final base-list))
-     (error "Cannot replace a final method")]
-
+    [(and (list? (member 'static base-list)) (not (list? (member 'static derived-list)))) #f]
+    [(list? (member 'final base-list)) #f]
     [else #t]))
 
 (define (type-ast=? links t1 t2)

@@ -47,6 +47,7 @@
 (provide get-implements)
 (provide is-class)
 (provide is-interface)
+(provide is-class-with-mod)
 
 ;==============================================================================================
 ;==== AST Structures
@@ -456,8 +457,12 @@
 (define (is-class ast)
   (match ast
     [(cunit package _ (class _ _ _ _ _ _ _)) #t]
-    [(cunit package _ (interface _ _ _ _ _ _)) #f]
-    [_ (error "Something went terribly wrong in is-class")]))
+    [_ #f]))
+
+(define (is-class-with-mod ast mod)
+  (match ast
+    [(cunit package _ (class _ _ m _ _ _ _)) (equal? m mod)]
+    [_ #f]))
 
 (define (is-interface ast)
   (not (is-class ast)))
