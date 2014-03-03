@@ -146,10 +146,8 @@
                                
 
 
-;;my-typelink-list is the current file environment
 (define (augment-environment link typelink-lists previously-visited-classes)
 
-  (printf "~a~n" (link-full link))
 
   (cond
     
@@ -159,17 +157,17 @@
     [(equal? (link-full link) universal-base-class)  (link-env link)]
     [else      
      (let* ([parent-class (get-extends-class-name (first (fqn->uqn (link-full link))) (link-env link))]
-            [nothing (printf "~a~n" parent-class)]
+            ;[nothing (printf "~a~n" parent-class)]
             [parent-class-fqn
              (cond
                [(empty? parent-class) empty]
                [(uqn? parent-class) (append (fqn-qualifier (link-full link)) parent-class)]
                [else parent-class])]
-            [nothing-2 (printf "~a~n" parent-class-fqn)]
+            ;[nothing-2 (printf "~a~n" parent-class-fqn)]
             [env (cond
                   [(empty? parent-class-fqn) (augment-environment (get-fqn-link universal-base-class typelink-lists) '()  (cons (link-full link) previously-visited-classes))]
                   ;[(uqn? parent-class) (augment-environment (get-fqn-link (append (fqn-qualifier (link-full link)) parent-class) typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))]
-                  [else (printf "~a~n" parent-class-fqn) (augment-environment (get-fqn-link parent-class-fqn typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))])])
+                  [else (augment-environment (get-fqn-link parent-class-fqn typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))])])
        (merge-environments (link-env link) env (get-fqn-typelink-list (link-full link) typelink-lists) typelink-lists))]))
            
                   
