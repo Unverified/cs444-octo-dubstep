@@ -306,12 +306,9 @@
   (define (combine-step par env)
     (match par
       [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types ienv))) empty (list x) empty))]
-      [`(,x ,y)  (if (can-shadow? (second x) (second y)) env (error))]))
+      [`(,x ,y)  (if (can-shadow? (eval-ast (second x)) (eval-ast (second y))) env (error))]))
   (foldr combine-step cenv imethod-types))
-
   
-
-
 (define (print-heir e)
   (printf "CLASS ENV:~n")
   (envs-print e))
