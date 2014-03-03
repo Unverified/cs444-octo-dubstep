@@ -5,6 +5,7 @@
 
 (provide gen-typelink-lists)
 (provide print-all-links)
+(provide print-links)
 (provide (struct-out link))
 (struct link (full env) )
 
@@ -74,7 +75,6 @@
 
 (define (gen-typelink-list ast possible-typename-links rootlinks)
   (define (resolve-type typename assoc-list)
-    ;(printf "getting link for typename: ~a~n" typename)
     (match (assoc typename assoc-list)
       [`(,key ,value) (value)]
       [_ (error "Could not resolve typename:" typename)]))
@@ -90,7 +90,7 @@
   (define (typelink ast)
     (match ast
 
-      [(interface _ _ _ id e b) (append (list (typelink-helper e)) (typelink b))]
+      [(interface _ _ _ id e b) (append (map (lambda(x) (typelink-helper x)) e) (typelink b))]
 
       [(class _ _ _ id e i b) (append  (list (typelink-helper e))
                                      (map (lambda(x) (typelink-helper x)) i)

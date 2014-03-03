@@ -38,10 +38,15 @@
 (provide clean-ast)
 (provide parse->ast)
 (provide print-asts)
+(provide print-ast)
 (provide ast-recurse)
 (provide get-class-name)
 (provide get-package-name)
 (provide c-unit-name)
+(provide get-extends)
+(provide get-implements)
+(provide is-class)
+(provide is-interface)
 
 ;==============================================================================================
 ;==== AST Structures
@@ -287,10 +292,13 @@
     [(tree (node 'CLASS_OR_INTERFACE_DECLARATION) `(,x)) (parse->ast x)]
     
     [(tree (node 'EXTENDS) `(,x ,y)) (parse->ast y)]
-    [(tree (node 'IMPLEMENTS) `(,x ,y)) (parse->ast y)]
+    [(or (tree (node 'IMPLEMENTS) `(,x ,y)) 
+         (tree (node 'INTERFACE_EXTENDS) `(,x ,y))) (parse->ast y)]
     
-    [(tree (node 'IMPLEMENTS_TYPE_LIST) `(,x ,_ ,y)) (append (parse->ast x) (list (parse->ast y)))]
-    [(tree (node 'IMPLEMENTS_TYPE_LIST) `(,x)) (list (parse->ast x))]
+    [(or (tree (node 'IMPLEMENTS_TYPE_LIST) `(,x ,_ ,y))
+         (tree (node 'IEXTENDS_TYPE_LIST) `(,x ,_ ,y))) (append (parse->ast x) (list (parse->ast y)))]
+    [(or (tree (node 'IMPLEMENTS_TYPE_LIST) `(,x))
+         (tree (node 'IEXTENDS_TYPE_LIST) `(,x))) (list (parse->ast x))]
     
     [(tree (node 'INTERFACE_BODY_DECLARATIONS_OPT) `(,x)) (parse->ast x)]
     [(tree (node 'INTERFACE_BODY_DECLARATIONS) `(,x ,y)) (append (parse->ast x) (parse->ast y))]
@@ -350,7 +358,7 @@
          (tree (node 'LITERAL) `(,x))
          (tree (node 'EXPRESSION_OPT) `(,x))) (parse->ast x)]
     
-    [(tree (node 'ARGUMENT_LIST) `(,args ,_ ,arg)) (append (parse->ast args) (parse->ast arg))]
+    [(tree (node 'ARGUMENT_LIST) `(,args ,_ ,arg)) (append (parse->ast args) (list (parse->ast arg)))]
     [(tree (node 'ARGUMENT_LIST) `(,arg)) (list (parse->ast arg))]
     
     [(tree (node 'SCOPE) `(,x)) (parse->ast x)]
@@ -434,13 +442,34 @@
   (match ast
     [(or (cunit package _ (class _ _ _ id _ _ _)) 
          (cunit package _ (interface _ _ _ id _ _))) package]
-    [_ (error "Something went terribly wrong in get-class-name")]))
+    [_ (error "Something went terribly wrong in get-package-name")]))
 
 (define (c-unit-name ast)
   (match ast
     [(or (cunit package _ (class _ _ _ id _ _ _)) 
          (cunit package _ (interface _ _ _ id _ _))) (append package (list id))]
-    [_ (error "c-unit->env requires a ")]))
+    [_ (error "Something went terribly wrong in c-unit-name")]))
+
+(define (is-class ast)
+  (match ast
+    [(cunit package _ (class _ _ _ _ _ _ _)) #t]
+    [(cunit package _ (interface _ _ _ _ _ _)) #f]
+    [_ (error "Something went terribly wrong in is-class")]))
+
+(define (is-interface ast)
+  (not (is-class ast)))
+
+(define (get-extends ast)
+  (match ast
+    [(or (cunit package _ (class _ _ _ _ e _ _)) 
+         (cunit package _ (interface _ _ _ _ e _))) e]
+    [_ (error "Something went terribly wrong in get-extends")]))
+
+(define (get-implements ast)
+  (match ast
+    [(cunit package _ (class _ _ _ _ _ i _)) i]
+    [(cunit package _ (interface _ _ _ _ _ _)) empty]
+    [_ (error "Something went terribly wrong in get-implements")]))
 
 ;==============================================================================================
 ;==== Print
