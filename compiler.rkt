@@ -9,6 +9,7 @@
 (require "parse-tree.rkt")
 (require "enviroments.rkt")
 (require "type-linker.rkt")
+(require "heirarchy.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -136,7 +137,9 @@
 
 
 (printf "~n============== Type Linker ==============~n")
-(print-all-links (gen-typelink-lists asts root) root)
+(define links (gen-typelink-lists asts root))
+(print-all-links links root)
 
-
+(printf "~n============== Heirarchy Checker ==========~n")
+(check-heirarchy links)
 ;(compiled)
