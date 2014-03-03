@@ -182,18 +182,6 @@
 (define (get-full typename links)
   (link-full (second (assoc typename links))))
 
-(define (check-single-field field derived-fields base-env derived-env)
-  (cond
-    [(pair? (assoc (first field) derived-fields))
-     (let* ([val (second (assoc (first field) (envs-vars derived-env)))]
-            [scope-1 (var-scope (eval-ast val))]
-            [scope-2 (var-scope (eval-ast (second (assoc (first field) (envs-vars base-env)))))])
-       (cond [(equal? scope-1 scope-2) empty]
-             [else (printf "Field ~a has different permission from its parent~n" (first field))
-                   (exit 42)]))]
-    [else empty]))
-
-
 (define (check-heirarchies asts all-links)
   (define (get-linked-ast l)
     (define rootenv (link-env (second l)))
@@ -249,13 +237,11 @@
     (define extends-env (get-class-stuff class-link parent-extds))
     (define interface-envs (map (lambda(x) (get-interface-stuff x empty)) interface-links))
 
-    (define cur-class-env (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
+    (define cur-class-env (foldr (curry combine-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
 
     ; "DO STUFF HERE"    
-    (map (lambda (x) (check-single-field x (envs-vars cur-class-env) cur-class-env extends-env)) (envs-vars extends-env))
-    
 
-    (combine-ci-envs links cur-class-env extends-env))
+    (combine-envs links cur-class-env extends-env))
 
 
   (define (get-interface-heriarchy ast links impls)
@@ -268,7 +254,7 @@
     (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls))
     (define interface-envs (map (lambda(x) (get-interface-stuff x parent-impls)) interface-links))
 
-    (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
+    (foldr (curry combine-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
 
   (define (check-heirarchy ast links)
     (cond
@@ -285,30 +271,34 @@
     [`((,ta ...) (,tb ...)) (equal? (get-full ta links) (get-full tb links))]
     [_ #f]))
 
-(define (scope<? s1 s2)
+(define (scope<=? s1 s2)
   (define (get-scope-val scope)
     (define scope-order '(public protected private))
     (length (takef-right scope-order (curry symbol=? scope))))
-  (< (get-scope-val s1) (get-scope-val s2)))
+  (<= (get-scope-val s1) (get-scope-val s2)))
 
-(define (combine-ci-envs links ienv cenv)
-  (define cmethods (map first (envs-methods cenv)))
-  (define imethods (map first (envs-methods ienv)))
-  (define imethod-types (map (lambda (x) (list (assoc x (envs-methods cenv)) (assoc x (envs-methods ienv)))) imethods))
+(define (combine-envs links take-from combine-in)
+  (define methods (map first (envs-methods take-from)))
+  (define method-pairs (map (lambda (x) (list (assoc x (envs-methods combine-in)) (assoc x (envs-methods take-from)))) methods))
   (define (can-shadow? m1 m2)
     (match-let ([(method _ s1 m1 t1 _ _) m1]
                 [(method _ s2 m2 t2 _ _) m2])
       (cond
-        [(not (scope<? s1 s2)) (error "subclass can not lower scope")]
+        [(not (scope<? s1 s2)) (error "subclass can not lower" s1 s2)]
         [(not (type-ast=? links t1 t2)) (error "return types not equal")]
         [else #t])))
   
   (define (combine-step par env)
     (match par
-      [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types ienv))) empty (list x) empty))]
+      [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
       [`(,x ,y)  (if (can-shadow? (eval-ast (second x)) (eval-ast (second y))) env (error))]))
-  (foldr combine-step cenv imethod-types))
+
+  (define (combine-fields par env)
+    (match par
+      [`(,key ,value) (env-append env (envs (list (assoc key (envs-types take-from))) (list par) empty empty))]))
   
+  (foldr combine-fields (foldr combine-step combine-in method-pairs) (envs-vars take-from)))
+
 (define (print-heir e)
   (printf "CLASS ENV:~n")
   (envs-print e))
