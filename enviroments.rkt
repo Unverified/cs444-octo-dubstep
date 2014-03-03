@@ -12,12 +12,15 @@
 (provide env-append)
 
 (provide va)
+(provide env-empty)
 
 (provide (struct-out envs))
+(provide (struct-out roote))
 
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)
 (struct envs (types vars methods constructors))
+(struct roote (id env) #:prefab)
 
 ;======================================================================================
 ;==== Environment Generation
@@ -30,7 +33,7 @@
     [_ (error "mdecl->funt: mdecl that is not a method declaration passed int")]))
 
 (define (gen-root-env asts)
-  (map (lambda (x) (list (c-unit-name x) (gen-class-envs x))) asts))
+  (map (lambda (x) (list (c-unit-name x) (roote (gensym) (gen-class-envs x)))) asts))
 
 (define (gen-class-envs ast)
   (define (_gen-class-env scope asts envt)
@@ -134,6 +137,7 @@
           (append (envs-methods le) (envs-methods re))
           (append (envs-constructors le) (envs-constructors re))))
   (foldr env-append-1 env-empty (cons le r)))
+
 
 ;(: env-append-nocons : envs envs... -> envs )
 ;; like env-append but will only carry though the constructors of the leftmost environment
