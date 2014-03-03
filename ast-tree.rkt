@@ -174,7 +174,9 @@
     [(return _ expr) (return (clean-ast expr))]
     [(ptype _ type) t]
     [(rtype _ type) t]
+    [(atype _ (list t ...)) (rtype t)] 
     [(atype _ type) t]
+    
     [(block _ id statements) (block id (map clean-ast statements))]
     [_ t]
     ))

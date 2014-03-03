@@ -135,6 +135,7 @@
 ;;gets the file-environment that a fully-qualified name belongs to
 ;;Useful for preventing name conflicts
 (define (get-fqn-typelink-list fqn typelink-lists)
+  (printf "~a~n" fqn)
   (let*
       ([typelink-list (first typelink-lists)]
        [link (get-link (fqn->uqn fqn) typelink-list)])
@@ -168,7 +169,7 @@
                   [(empty? parent-class-fqn) (augment-environment (get-fqn-link universal-base-class typelink-lists) '()  (cons (link-full link) previously-visited-classes))]
                   ;[(uqn? parent-class) (augment-environment (get-fqn-link (append (fqn-qualifier (link-full link)) parent-class) typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))]
                   [else (augment-environment (get-fqn-link parent-class-fqn typelink-lists) typelink-lists (cons (link-full link) previously-visited-classes))])])
-       (merge-environments (link-env link) env (get-fqn-typelink-list (link-full link) typelink-lists) typelink-lists))]))
+       (merge-environments (link-env link) env '() typelink-lists))]))
            
                   
 
