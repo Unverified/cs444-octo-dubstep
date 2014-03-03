@@ -172,9 +172,9 @@
 (define (get-full typename links)
   (link-full (second (assoc typename links))))
 
-(define (check-single-field field derived-fields base-env derived-env)
+(define (check-single-field field base-env derived-env)
   (cond
-    [(pair? (assoc (first field) derived-fields))
+    [(pair? (assoc (first field) (envs-vars derived-env)))
      (let* ([val (second (assoc (first field) (envs-vars derived-env)))]
             [scope-1 (var-scope (eval-ast val))]
             [scope-2 (var-scope (eval-ast (second (assoc (first field) (envs-vars base-env)))))])
@@ -241,7 +241,7 @@
     (define cur-class-env (foldr (curry combine-ci-envs links) (get-env (assoc (c-unit-name ast) links)) interface-envs))
 
     ; "DO STUFF HERE"    
-    (map (lambda (x) (check-single-field x (envs-vars cur-class-env) cur-class-env extends-env)) (envs-vars extends-env))
+    (map (lambda (x) (check-single-field x cur-class-env extends-env)) (envs-vars extends-env))
     
 
     (combine-ci-envs links cur-class-env extends-env))
