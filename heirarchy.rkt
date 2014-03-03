@@ -28,11 +28,12 @@
 
 
 (define (type-equal? t1 t2 L)
-  (match (list t1 t2)
-    [(list (ptype typ1) (ptype typ2)) (symbol=? typ1 typ2)]
-     [(list (atype typ1) (atype typ2)) (type-equal? typ1 typ2 L)]
-     [(list (rtype l1) (rtype l2)) (equal? (link-full (second (assoc l1 L))) (link-full (second (assoc l2 L))))]
-     [_ #f]))
+  true)
+;  '(match (list t1 t2)
+;    [(list (ptype _ typ1) (ptype _ typ2)) (symbol=? typ1 typ2)]
+;     [(list (atype _ typ1) (atype _ typ2)) (type-equal? typ1 typ2 L)]
+;     [(list (rtype _ l1) (rtype _ l2)) (equal? (link-full ) (link-full (second (assoc l2 L))))]
+;     [_ #f]))
 
 
 (define (check-interfaces current-env-pair L)
@@ -58,32 +59,32 @@
 (define (get-all-parents name env)
   (let ([ast (get-class-ast name env)])
     (match ast
-      [(interface _ _ _ extends _) extends]
-      [(class _ _ _ extends implements _) (append extends implements)])))
+      [(interface _ _ _ _ extends _) extends]
+      [(class _ _ _ _ extends implements _) (append extends implements)])))
 
 (define (get-extends-interface-names name env)
   (let ([ast (get-class-ast name env)])
     (match ast
-      [(interface _ _ _ extends  _) extends])))
+      [(interface _ _ _ _ extends  _) extends])))
 
 
 (define (get-implements-class-names name env)
   (let ([ast (get-class-ast name env)])
     (match ast
-      [(class _ _ _ _ implements _) implements])))
+      [(class _ _ _ _ _ implements _) implements])))
 
     
 (define (get-extends-class-name name env)
   (let ([ast (get-class-ast name env)])
     (match ast
-      [(class _ _ _ extends _ _) extends]
+      [(class _ _ _ _ extends _ _) extends]
       [_ empty])))
 
 (define (get-base-class-names name env)
   (let ([ast (get-class-ast name env)])
     (match ast
-      [(interface _ _ _ extends _) extends]
-      [(class _ _ _ extends implements _) (append (list implements) extends)])))
+      [(interface _ _ _ _ extends _) extends]
+      [(class _ _ _ _ extends implements _) (append (list implements) extends)])))
 
 
 
@@ -141,6 +142,7 @@
 ;;my-typelink-list is the current file environment
 (define (augment-environment link typelink-lists previously-visited-classes)
   (cond
+    
     [(not (is-class? link)) (printf "ERROR: Class ~a extends interface ~a. Try implements instead~n" (first (fqn->uqn (first previously-visited-classes))) (first (fqn->uqn (link-full link)))) (exit 42)]
     ;[(false? link) (printf "~a~n" previously-visited-classes) (error "You dun goofed")]
     [(member (link-full link) previously-visited-classes) (printf "~a~n" "Circularity in inheritance heirarchy!") (exit 42)]
@@ -164,32 +166,59 @@
 ;;merge environments : envs envs -> envs
 (define (merge-environments derived-env base-env)
 
-  (define (get-return-type method-name env)
-    (assoc method-name (envs-types env)))
+  ;;get-type : funt or eval -> type
+  (define (get-type f env)
+    (assoc f (envs-types env)))
   
-  (define (method-equal? m1 m2)
-    '())
-    
-  ;;insert-method : funt->env
+  (define (check-single-method method derived-methods)
+    (cond 
+      [(pair? (assoc (first method) derived-methods))
+       (let* ([type-1 (get-type method base-env)]
+              [type-2 (get-type method derived-env)])
+         (cond
+           [(type-equal? type-1 type-2 '()) empty]
+           [else (printf "Inherited method ~a has different return type from parent~n"
+                           method)
+                   (exit 42)]))]
+      [else empty]))
+           
+      
   
-  (define (insert-methods methods ret)
-    '())
-    
-  (define 
+  (define (check-single-field field derived-fields)
+    (cond
+      [(pair? (assoc (first field) derived-fields))
+       (let* ([val (second (assoc (first field) (envs-vars derived-env)))]
+              [scope-1 (var-scope (eval-ast val))]
+              [scope-2 (var-scope (eval-ast (second (assoc (first field) (envs-vars base-env)))))])
+         (cond [(equal? scope-1 scope-2) empty]
+               [else (printf "Field ~a has different permission from its parent~n" (first field))
+                     (exit 42)]))]
+      [else empty]))
+             
+        
   
-  (define (insert-types types)
-    (append (envs-types derived-env) types))
+  (define (check-each-method)
+    (map (lambda (x) (check-single-method x (envs-methods derived-env))) (envs-methods base-env)))
+ 
   
-  (define (insert-constructors constructors)
-    (envs-constructors derived-env))
-  (envs (insert-types (envs-types base-env)) (insert-fields (envs-vars base-env)) (insert-methods (envs-methods base-env) (envs-methods derived-env)) (insert-constructors (envs-constructors base-env))))
+  (define (check-each-field)
+    (map (lambda (x) (check-single-field x (envs-vars derived-env))) (envs-vars base-env)))
+  
 
+
+  
+  
+  
+  (check-each-method)
+  (check-each-field)
+  
+  (env-append derived-env base-env))
    
          
 (define (is-class? link)
   (let ([ast (get-class-ast (first (fqn->uqn (link-full link))) (link-env link))])
     (match ast
-      [(class _ _ _ _ _ _) #t]
+      [(class _ _ _ _ _ _ _) #t]
       [_ #f])))
          
 (define (process-link link typelink-lists)
