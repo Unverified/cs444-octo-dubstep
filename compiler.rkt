@@ -15,8 +15,8 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-(define files-to-compile (vector->list (current-command-line-arguments)))
-;(define files-to-compile (list "tests/test1.java"))
+;(define files-to-compile (vector->list (current-command-line-arguments)))
+(define files-to-compile (list "tests/test1.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -79,7 +79,7 @@
 (define (run-weeder filename parse-tree)
   (printf "RUNNING WEEDER~n")
   (cond
-    [(weeder filename parse-tree) (parse->ast (find-tree 'S parse-tree))]
+    [(weeder filename parse-tree) (clean-ast (parse->ast (find-tree 'S parse-tree)))]
     [else (error)]))
 
 ;==============================================================================================
@@ -91,7 +91,7 @@
 (define (all-stdlib-asts) 
   (if (file-exists? stdlib-file)
       (call-with-input-file stdlib-file read)
-      (let ([stdlib (parse-files stdlib-files)]
+      (let ([stdlib (map parse-file stdlib-files)]
             [out (open-output-file stdlib-file)])
         (write stdlib out)
         (close-output-port out)
@@ -121,22 +121,22 @@
   (define parse-tree (run-parser (run-scanner clist)))
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
-(define (parse-files files)
-  (cond
-    [(empty? files) empty]
-    [else (cons (parse-file (first files)) (parse-files (rest files)))]))
-
-(define asts (append (parse-files files-to-compile) (all-stdlib-asts)))
-
+(define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
 (print-asts asts files-to-compile)
 
 (printf "~n============== Environments ==============~n")
-(define root (gen-root-env asts))
+
+(define root (with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
+                                                             (error)))])
+               (gen-root-env asts)))
+
 (for-each (lambda (x) 
             (printf "~a~n============================~n" (first x))
             (envs-print (second x))) root)
 
+
 (printf "~n============== Type Linker ==============~n")
 (print-all-links (gen-typelink-lists asts root) root)
 
-(compiled)
+
+;(compiled)

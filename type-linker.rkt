@@ -90,31 +90,31 @@
   (define (typelink ast)
     (match ast
 
-      [(interface _ _ id e b) (append (list (typelink-helper e)) (typelink b))]
+      [(interface _ _ _ id e b) (append (list (typelink-helper e)) (typelink b))]
 
-      [(class _ _ id e i b) (append  (list (typelink-helper e))
+      [(class _ _ _ id e i b) (append  (list (typelink-helper e))
                                      (map (lambda(x) (typelink-helper x)) i)
                                      (typelink b))]
 
-      [(rtype t) (cond
+      [(rtype _ t) (cond
                    [(list? t) (cons (typelink-helper t) empty)]
                    [else (typelink t)])]
 
-      [(atype t) (cond
+      [(atype _ t) (cond
                    [(list? t) (cons (typelink-helper t) empty)]
                    [else (typelink t)])]
 
-      [(cast c expr) (cond
+      [(cast _ c expr) (cond
                    [(not (ptype? c)) (cons (typelink-helper c) (typelink expr))]
                    [else (typelink expr)])]
 
-      [(arraycreate t expr) (cond
+      [(arraycreate _ t expr) (cond
                    [(not (ptype? t)) (cons (typelink-helper t) (typelink expr))]
                    [else (typelink expr)])]
 
-      [(classcreate t args) (cons (typelink-helper t) (typelink args))]
+      [(classcreate _ t args) (cons (typelink-helper t) (typelink args))]
 
-      [_ (ast-recurse ast typelink)]))
+      [_ (ast-recurse ast typelink append)]))
 
   (typelink ast))
 

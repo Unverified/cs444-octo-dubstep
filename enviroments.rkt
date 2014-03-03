@@ -3,6 +3,7 @@
 
 (require "ast-tree.rkt")
 
+(provide env-empty)
 (provide envs-print)
 (provide gen-root-env)
 (provide gen-class-envs)
@@ -10,10 +11,9 @@
 
 (provide (struct-out envs))
 
-(struct funt (id argt)   #:transparent )
-(struct eval (scope ast) #:transparent )
-
-(struct envs (types vars methods constructors) #:prefab)
+(struct funt (id argt)   #:prefab)
+(struct eval (scope ast) #:prefab)
+(struct envs (types vars methods constructors))
 
 ;======================================================================================
 ;==== Environment Generation
@@ -21,7 +21,7 @@
 
 (define (mdecl->funt mdecl)
   (match mdecl
-    [(methoddecl id params) (funt id (map parameter-type params))]
+    [(methoddecl _ id params) (funt id (map parameter-type params))]
     ;[(methodcall id params) (funt id (map (lambda (x) x) params))]
     [_ (error "mdecl->funt: mdecl that is not a method declaration passed int")]))
 
@@ -32,26 +32,22 @@
   (define (_gen-class-env scope asts envt)
     (match asts
       [`() envt]     
-      [`(,(constructor scop mdecl _) ,rst ...)     (_gen-class-env scope rst (add-env-const envt mdecl scope (first asts)))]
-      [`(,(method scop mod type mdecl _) ,rst ...) (_gen-class-env scope rst (add-env-method envt mdecl scope type (first asts)))]
-      [`(,(or (var _ _ type (varassign id _))
-              (var _ _ type id)) ,rst ...)         (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
+      [`(,(constructor _ scop mdecl _) ,rst ...)     (_gen-class-env scope rst (add-env-const envt mdecl scope (first asts)))]
+      [`(,(method _ scop mod type mdecl _) ,rst ...) (_gen-class-env scope rst (add-env-method envt mdecl scope type (first asts)))]
+      [`(,(or (var _ _ _ type (varassign _ id _))
+              (var _ _ _ type id)) ,rst ...)         (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
-  
-  (with-handlers ([exn:fail? (lambda (exn) 
-                               (printf "~a" (exn-message exn))
-                               (exit 42))])
     (match ast
       [(cunit _ _ b) (gen-class-envs b)]
-      [(or (class _ _ id _ _ b)
-           (interface _ _ id _ b)) (let ([e (gen-class-envs b)])
+      [(or (class _ _ _ id _ _ b)
+           (interface _ _ _ id _ b)) (let ([e (gen-class-envs b)])
                                      (envs (cons (list id ast) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
-      [(block id bdy) (_gen-class-env id bdy env-empty)])))
+      [(block _ id bdy) (_gen-class-env id bdy env-empty)]))
 
 (define (mdecl->envs scope decl)
   (define (params->envs envt params)
     (cond [(empty? params) envt]
-          [else (match-let ([(parameter type id) (first params)])
+          [else (match-let ([(parameter _ type id) (first params)])
                   (params->envs (add-env-variable envt id scope type (first params)) (rest params)))]))
   (params->envs env-empty (methoddecl-parameters decl)))
 
@@ -61,45 +57,44 @@
     (match ast
       [`(,var) (if (false? (assoc var (envs-vars lenv)))
                    (error (string-append "declaraition made to " var " which doesn't exist!"))
-                   lenv)]
+                   lenv)]  
+      [(var _ _ _ type (varassign _ id bdy)) (_va block-id lenv bdy)
+                                             (add-env-variable lenv id block-id type ast)]
       
-      [(var _ _ type (varassign id bdy)) (_va block-id lenv bdy)
-                                         (add-env-variable lenv id block-id type ast)]
+      [(varassign _ id bdy) (_va block-id lenv id)
+                            (_va block-id lenv bdy)]
       
-      [(varassign id bdy) (_va block-id lenv id)
-                          (_va block-id lenv bdy)]
+      [(while _ test body) (_va block-id lenv test)
+                           (_va block-id lenv body)]
       
-      [(while test body) (_va block-id lenv test)
-                         (_va block-id lenv body)]
+      [(return _ expr) (_va block-id lenv expr)]
+      [(binop _ _ left right) (_va block-id lenv left)
+                              (_va block-id lenv right)]
+      [(unop _ _ right) (_va block-id lenv right)]
+      [(cast _ c expr) (_va block-id lenv expr)]
       
-      [(return expr) (_va block-id lenv expr)]
-      [(binop _ left right) (_va block-id lenv left)
-                            (_va block-id lenv right)]
-      [(unop _ right) (_va block-id lenv right)]
-      [(cast c expr) (_va block-id lenv expr)]
+      [(or (ptype _ _)
+           (rtype _ _)
+           (atype _ _)
+           (literal _ _ _)
+           (methodcall _ _ _)
+           (arraycreate _ _ _)
+           (fieldaccess _ _ _)
+           (arrayaccess _ _ _)
+           (classcreate _ _ _)) lenv]
       
-      [(or (ptype _)
-           (rtype _)
-           (atype _)
-           (literal _ _)
-           (methodcall _ _)
-           (arraycreate _ _)
-           (fieldaccess _ _)
-           (arrayaccess _ _)
-           (classcreate _ _)) lenv]
-      
-      [(iff test tru fls) (begin0 (_va block-id lenv test)
+      [(iff _ test tru fls) (begin0 (_va block-id lenv test)
                                   (_va block-id lenv tru)
                                   (_va block-id lenv fls))]
       
-      [(for init clause update (block id bdy)) (let ([for-envt (_va id lenv init)])
+      [(for _ init clause update (block _ id bdy)) (let ([for-envt (_va id lenv init)])
                                                  (hash-set! block-hash id (env-append for-envt cenv))
                                                  (_va id for-envt clause)
                                                  (_va-list id for-envt bdy))]
       
-      [(block id bdy) (hash-set! block-hash id (env-append lenv cenv))
-                      (_va-list id lenv bdy)
-                      lenv]))
+      [(block _ id bdy) (hash-set! block-hash id (env-append lenv cenv))
+                        (_va-list id lenv bdy)
+                        lenv]))
   
   (define (_va-list block-id lenv asts)
     (cond
@@ -108,23 +103,19 @@
   
   (define (_top_va id ast)
     (match ast
-      [(or (method _ _ _ decl (block id bdy))
-           (constructor _ decl (block id bdy))) (let ([lenv (mdecl->envs id decl)])
+      [(or (method _ _ _ _ decl (block _ id bdy))
+           (constructor _ _ decl (block _ id bdy))) (let ([lenv (mdecl->envs id decl)])
                                                   (hash-set! block-hash id (env-append lenv cenv))
                                                   (_va-list id lenv bdy))]
-      [(var _ _ t (varassign _ ex))  (_va id env-empty ex)]
+      [(var _ _ _ t (varassign _ _ ex))  (_va id env-empty ex)]
       [_ env-empty]))
-  
-  (with-handlers ([exn:fail? (lambda (exn) 
-                               (printf "~a" (exn-message exn))
-                               (exit 42))])
     (match ast
       [(or (cunit _ _ bdy)
-           (class _ _ _ _ _ bdy)) (va tenv cenv bdy)]
-      [(interface _ _ _ _ _) block-hash]
-      [(block id bdy) (hash-set! block-hash id cenv)
+           (class _ _ _ _ _ _ bdy)) (va tenv cenv bdy)]
+      [(interface _ _ _ _ _ _) block-hash]
+      [(block _ id bdy) (hash-set! block-hash id cenv)
                       (map (curry _top_va id) bdy)
-                      block-hash])))
+                      block-hash]))
 
 ;======================================================================================
 ;==== Environment Transformation
@@ -179,8 +170,8 @@
           [else (printf "~a ~a" mod type)]))
   
   (match ast
-    [(class _ mod _ _ _ _)   (print-type "class" mod)]
-    [(interface _ mod _ _ _) (print-type "interface" mod)]
+    [(class _ _ mod _ _ _ _)   (print-type "class" mod)]
+    [(interface _ _ mod _ _ _) (print-type "interface" mod)]
     [_ (printf "~a" ast)]))
 
 (define (funt-print f)
@@ -213,38 +204,44 @@
 ;==============================================================================================
 ;==== Testing Function
 ;==============================================================================================
+
 (define test1
-  (cunit '() '(#s(pimport ("java" "lang")))
-         (class 'public '() "test1" '() '()
-           (block 'g187796
-                  (list
-                   '#s(constructor public #s(methoddecl "test1" ()) #s(block g187797 ()))
-                   '#s(var public () #s(ptype int) "x")
-                   (var 'public '() '#s(ptype int) (varassign "y" (literal '#s(ptype int) 2)))
-                   (method 'public '() '#s(ptype int) '#s(methoddecl "test1" ())
-                           (block 'g187798
-                                  (list
-                                   (var '() '() '#s(ptype int) (varassign "x" (literal '#s(ptype int) 12)))
-                                   (block 'g187800
-                                          (list
-                                           (var '() '() '#s(ptype char) (varassign "y" (literal '#s(ptype char) "'a'")))
-                                           (block 'g187801
-                                                  (list
-                                                   (for
-                                                       (var '() '() '#s(ptype int) (varassign "i" (literal '#s(ptype int) 0)))
-                                                        '#s(binop lt ("i") ("x"))
-                                                        (varassign '("i") (binop 'plus '("i") (literal '#s(ptype int) 1)))
-                                                     '#s(block g187799 (#s(varassign ("x") ("i")))))
-                                                   (varassign '("y") (literal '#s(ptype char) "'b'"))
-                                                   '#s(return ("x")))))))))
-                   (method 'public '() '#s(ptype int) '#s(methoddecl "cocks" (#s(parameter #s(ptype int) "number") #s(parameter #s(ptype char) "type")))
-                    (block 'g187802 
-                           (list (return (binop 'plus '("number") (literal '#s(rtype ("java" "lang" "String")) "\" cocks\n\"")))))))))))
+'#s(cunit () (#s(pimport ("java" "lang")))
+    #s((class ast 0 (1 ())) () public () "test1" () ()
+       #s((block ast 0 (1 ())) () g248547
+          (#s((constructor ast 0 (1 ())) () public #s((methoddecl ast 0 (1 ())) () "test1" ()) #s((block ast 0 (1 ())) () g248548 ()))
+           #s((var ast 0 (1 ())) () public () #s((ptype ast 0 (1 ())) () int) "x")
+           #s((var ast 0 (1 ())) () public () #s((ptype ast 0 (1 ())) () int) #s((varassign ast 0 (1 ())) () "y" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 2)))
+           #s((method ast 0 (1 ())) () public () #s((ptype ast 0 (1 ())) () int)
+              #s((methoddecl ast 0 (1 ())) () "test1" ())
+              #s((block ast 0 (1 ())) () g248549
+                 (#s((var ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () int)
+                                        #s((varassign ast 0 (1 ())) () "x" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 12)))
+                  #s((block ast 0 (1 ())) () g248551
+                     (#s((var ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () char)
+                         #s((varassign ast 0 (1 ())) () "y" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () char) "'a'")))
+                      #s((block ast 0 (1 ())) () g248552
+                         (#s((for ast 0 (1 ())) ()
+                             #s((var ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () int)
+                                #s((varassign ast 0 (1 ())) () "i" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 0)))
+                             #s((binop ast 0 (1 ())) () lt ("i") ("x"))
+                             #s((varassign ast 0 (1 ())) () ("i") #s((binop ast 0 (1 ())) () plus ("i") #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 1)))
+                             #s((block ast 0 (1 ())) () g248550 (#s((varassign ast 0 (1 ())) () ("x") ("i")))))
+                          #s((varassign ast 0 (1 ())) () ("y") #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () char) "'b'"))
+                          #s((return ast 0 (1 ())) () ("x")))))))))
+           #s((method ast 0 (1 ())) () public ()
+              #s((ptype ast 0 (1 ())) () int)
+              #s((methoddecl ast 0 (1 ())) () "cocks"
+                 (#s((parameter ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) "number") #s((parameter ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () char) "type")))
+              #s((block ast 0 (1 ())) () g248553
+                 (#s((return ast 0 (1 ())) ()
+                     #s((binop ast 0 (1 ())) () plus ("number") #s((literal ast 0 (1 ())) () #s((rtype ast 0 (1 ())) () ("java" "lang" "String")) "\" cocks\n\"")))))))))))
 
-(define (gen-test1) (gen-class-envs test1))
-(envs-print (gen-test1))
+(define (t1-classenv)(gen-class-envs test1))
+(define (t1-locals) (va empty (t1-classenv) test1))
+(define (do-test1) (hash-for-each (t1-locals) (lambda (k v)
+                              (printf "~n~a~n==================~n" k)
+                              (envs-print v))))
 
-(define (do-test1) (va env-empty (gen-test1) test1))
-(hash-for-each (do-test1) (lambda (k v)
-                           (printf "~n~a~n==================~n" k)
-                          (envs-print v)))
+
+
