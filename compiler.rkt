@@ -193,6 +193,18 @@
                    (exit 42)]))]
     [else empty]))
 
+(define (compare-method-modifier-lists base-list derived-list)
+  (cond
+    [(and (member 'static base-list) (not (member 'static derived-list))) 
+     (printf "Cannot replace a static method with a non-static method")
+     (exit 42)]
+    
+    [(member 'final base-list)
+     (printf "Cannot replace a final method")
+     (exit 42)]
+    
+    [else #t]))
+
 
 (define (check-heirarchies asts all-links)
   (define (get-linked-ast l)
