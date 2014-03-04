@@ -18,7 +18,7 @@
   (define extends (get-extends ast))
   (define java-lang-Object (list "java" "lang" "Object")) 
   (cond
-;    [(and (empty? extends) (not (equal? (c-unit-name ast) java-lang-Object))) java-lang-Object]
+    [(and (empty? extends) (not (equal? (c-unit-name ast) java-lang-Object))) java-lang-Object]
     [else extends]))
 
 (define (get-env typename links)
@@ -123,8 +123,7 @@
 (define (check-empty-interface-envs links cenv interface-envs)
   (printf "HERE NICK~n")
   (cond
-    [(not (empty? interface-envs)) interface-envs]
-    [(envs? (combine-envs links cenv (get-env (list "java" "lang" "Object") links))) interface-envs]
+    [(envs? (combine-envs links (get-env (list "java" "lang" "Object") links) cenv)) interface-envs]
     [else interface-envs]))
 
 ;combines two environments by merging in methods and fields. Checks that methods are shadowed properly
@@ -133,11 +132,12 @@
   (define methods (map first (envs-methods take-from)))
   (define method-pairs (map (lambda (x) (list (assoc x (envs-methods combine-in)) (assoc x (envs-methods take-from)))) methods))
   (define (can-shadow? m1 m2)
+    (printf "HEEEERRRRREEERRRRR:~n~a~n~a~n" m1 m2)
     (match-let ([(method _ s1 m1 t1 _ _) m1]
                 [(method _ s2 m2 t2 _ _) m2])
       (printf "can-shadow? ~a ~a~n" s1 s2)
       (cond
-        [(scope<? s1 s2) (error "subclass can not lower" s1 s2)]
+        [(and (equal? s1 'protected) (equal? s2 'public)) (error "subclass can not lower" s1 s2)]
         [(not (type-ast=? links t1 t2)) (error "return types not equal" t1 t2)]
         [(not (compare-method-modifier-lists m2 m1)) (error "shadowed methods mods are messed yo")]
         [else #t])))
@@ -181,6 +181,7 @@
   (printf "compare-method-modifier-lists: ~a ~a~n" base-list derived-list)
   (cond
     [(and (list? (member 'static base-list)) (not (list? (member 'static derived-list)))) #f]
+    [(and (list? (member 'static derived-list)) (not (list? (member 'static base-list)))) #f]
     [(list? (member 'final base-list)) #f]
     [else #t]))
 
@@ -194,11 +195,11 @@
     [`((,ta ...) (,tb ...)) (printf "type-ast2=? ~a ~a~n" ta tb) (printf "~a : ~a~n" (get-full ta links) (get-full tb links)) (equal? (get-full ta links) (get-full tb links))]
     [_ #f]))
 
-(define (scope<? s1 s2)
+(define (scope>? s1 s2)
   (define (get-scope-val scope)
     (define scope-order (list 'public 'protected 'private))
     (length (takef-right scope-order (curry symbol=? scope))))
-  (< (get-scope-val s1) (get-scope-val s2)))
+  (> (get-scope-val s1) (get-scope-val s2)))
 
 ;======================================================================================
 ;==== Print Functions 
