@@ -37,7 +37,7 @@
 ;==== Heirarchy Checking
 ;======================================================================================
 
-(define (check-heirarchies asts all-links)
+(define (check-heirarchies asts all-links obji-env)
 
   ;check an ast for proper heirarchy
   (define (check-heirarchy ast links)
@@ -70,7 +70,7 @@
     (define parent-impls (cons (c-unit-name ast) impls))
     (define extends (get-extends ast))
     (printf "--- EXTENDS: ~a~n" extends)
-    (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls))
+    (define interface-links (if (empty? extends) (list obji-env) (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls)))
     (define interface-envs (map (lambda(x) (get-interface-env x parent-impls)) interface-links))
 
     (foldr (curry combine-envs links) (get-env (c-unit-name ast) links) interface-envs))
