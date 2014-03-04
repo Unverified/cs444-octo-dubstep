@@ -7,7 +7,7 @@
 (provide print-all-links)
 (provide print-links)
 (provide (struct-out link))
-(struct link (full env) )
+(struct link (full env))
 
 ;======================================================================================
 ;==== Helper Functions
@@ -40,38 +40,41 @@
 ;======================================================================================
 
 (define (gen-typelink-lists asts rootenvs)
-  (map (lambda (ast r) (printf "############ LINKING NAMES IN FILE: ~a ############~n" (first r))
-         (define enclosing-class-links (list (pair (list (get-class-name ast)) (find-fully-qualified-link (c-unit-name ast) rootenvs))))
-	 (define enclosing-package-links (find-package-links (get-package-name ast) rootenvs))
-         (define single-import-links (check-for-clashes (link-single-imports (filter cimport? (cunit-imports ast)) rootenvs) (c-unit-name ast) empty))
-         (define on-demand-import-links (reverse (check-for-ondemand-clashes (link-on-demand-imports (filter pimport? (cunit-imports ast)) rootenvs) empty)))
-
-         ;(printf "======== enclosing-class-links ========")
-         ;(print-links enclosing-class-links)
-
-         ;(printf "~n======== enclosing-package-links ========")
-         ;(print-links enclosing-package-links)
-
-         ;(printf "~n======== single-import-links ========")
-         ;(print-links single-import-links)
-
-         ;(printf "~n======== on-demand-import-links ========")
-         ;(print-links on-demand-import-links)
-
-         (define possible-typename-links (append enclosing-class-links single-import-links enclosing-package-links on-demand-import-links))
-         (define rootlinks (check-and-get-rootlinks ast rootenvs))
-        
-         (define package-prefixes 
-           (remove-duplicates (append (get-all-prefixes (get-package-name ast)) 
-                                      (append-map (lambda(ci) (get-all-prefixes (remove-last (cimport-path ci)))) (filter cimport? (cunit-imports ast)))
-                                      (append-map (lambda(pi) (get-all-prefixes (pimport-path pi))) (filter pimport? (cunit-imports ast))))))
-
-         (define class-type-links (filter-not empty? (gen-typelink-list ast possible-typename-links rootlinks)))
-
-         ;(printf "~n======== class-type-links ========~n~a~n"class-type-links)
-
-	 (remove-duplicates (append class-type-links (map (lambda(x) (list (first x) ((second x))) ) rootlinks))))
-       asts rootenvs))
+  (let ([env-names (map first rootenvs)])
+    (cond
+      [(not (equal? (length env-names) (length (remove-duplicates env-names))))  (error "duplicate environments have been defined")]
+      [else (map (lambda (ast r) (printf "############ LINKING NAMES IN FILE: ~a ############~n" (first r))
+                   (define enclosing-class-links (list (pair (list (get-class-name ast)) (find-fully-qualified-link (c-unit-name ast) rootenvs))))
+                   (define enclosing-package-links (find-package-links (get-package-name ast) rootenvs))
+                   (define single-import-links (check-for-clashes (link-single-imports (filter cimport? (cunit-imports ast)) rootenvs) (c-unit-name ast) empty))
+                   (define on-demand-import-links (reverse (check-for-ondemand-clashes (link-on-demand-imports (filter pimport? (cunit-imports ast)) rootenvs) empty)))
+                   
+                   ;(printf "======== enclosing-class-links ========")
+                   ;(print-links enclosing-class-links)
+                   
+                   ;(printf "~n======== enclosing-package-links ========")
+                   ;(print-links enclosing-package-links)
+                   
+                   ;(printf "~n======== single-import-links ========")
+                   ;(print-links single-import-links)
+                   
+                   ;(printf "~n======== on-demand-import-links ========")
+                   ;(print-links on-demand-import-links)
+                   
+                   (define possible-typename-links (append enclosing-class-links single-import-links enclosing-package-links on-demand-import-links))
+                   (define rootlinks (check-and-get-rootlinks ast rootenvs))
+                   
+                   (define package-prefixes 
+                     (remove-duplicates (append (get-all-prefixes (get-package-name ast)) 
+                                                (append-map (lambda(ci) (get-all-prefixes (remove-last (cimport-path ci)))) (filter cimport? (cunit-imports ast)))
+                                                (append-map (lambda(pi) (get-all-prefixes (pimport-path pi))) (filter pimport? (cunit-imports ast))))))
+                   
+                   (define class-type-links (filter-not empty? (gen-typelink-list ast possible-typename-links rootlinks)))
+                   
+                   ;(printf "~n======== class-type-links ========~n~a~n"class-type-links)
+                   
+                   (remove-duplicates (append class-type-links (map (lambda(x) (list (first x) ((second x))) ) rootlinks))))
+                 asts rootenvs)])))
 
 (define (gen-typelink-list ast possible-typename-links rootlinks)
   (define (resolve-type typename assoc-list)
@@ -89,7 +92,6 @@
 
   (define (typelink ast)
     (match ast
-
       [(interface _ _ _ id e b) (append (map (lambda(x) (typelink-helper x)) e) (typelink b))]
 
       [(class _ _ _ id e i b) (append  (list (typelink-helper e))
