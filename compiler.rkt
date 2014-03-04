@@ -137,7 +137,7 @@
 
 (define rootenvs (with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
                                                              (error)))])
-               (gen-root-env asts)))
+                   (gen-root-env asts)))
 
 (for-each (lambda (x) 
             (printf "~a~n============================~n" (first x))
@@ -153,5 +153,8 @@
 (define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
 (define full-envs (check-heirarchies ref-asts ref-all-links))
 
-(for-each (lambda (x y) (envs-print x) (print-ast y "") (va x y)) full-envs asts)
+(with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
+                                                             (error)))])
+  (for-each (lambda (x y) (envs-print x) (print-ast y "") (va x y)) full-envs asts))
+
 (compiled)
