@@ -59,9 +59,10 @@
     ; "DO STUFF HERE"    
     (define extends-env (get-extends-env class-link parent-extds))
     (define interface-envs (map (lambda(x) (get-interface-env x empty)) interface-links))
-    (define cur-class-env (foldr (curry combine-envs links) (get-env (c-unit-name ast) links) interface-envs))
 
-    (combine-envs links (check-for-abstract ast cur-class-env) extends-env))
+    (define cur-class-env (combine-envs links extends-env (get-env (c-unit-name ast) links)))
+    (define return-env (foldr (curry combine-envs links) cur-class-env interface-envs))
+    (check-for-abstract ast return-env))
 
   ;check an interface for proper heirarchy
   (define (get-interface-heriarchy ast links impls)
@@ -119,7 +120,7 @@
                 [(method _ s2 m2 t2 _ _) m2])
       (cond
         [(not (scope<=? s1 s2)) (error "subclass can not lower" s1 s2)]
-        [(not (type-ast=? links t1 t2)) (error "return types not equal")]
+        [(not (type-ast=? links t1 t2)) (error "return types not equal" t1 t2)]
         [(not (compare-method-modifier-lists m2 m1)) (error "shadowed methods mods are messed yo")]
         [else #t])))
   
@@ -141,14 +142,14 @@
 (define (check-for-abstract ast env)
   (cond
     [(is-class-with-mod ast 'abstract) env]
-    [(contains-abs-method env) (error "Can only decalre abstract methods in an abstract class.")]
+    [(contains-abs-method env) (printf "PROBLEM ENV~n") (envs-print env) (error "Can only decalre abstract methods in an abstract class.")]
     [else env]))
 
 (define (contains-abs-method env)
   (define (is-abs? m)
-    (match-let ([(method _ _ m _ _ _) m])
+    (match-let ([(method _ _ m s b _) m])
       (cond
-        [(list? (member 'abstract m)) #t]
+        [(list? (member 'abstract m)) (printf "HERHRHRHRHRHRH: ~a~n"b) #t]
         [else #f])))
 
   (ormap (lambda(x) (is-abs? (eval-ast (second x)))) (envs-methods env)))
@@ -167,6 +168,7 @@
 
 (define (type-ast=? links t1 t2)
   (match (list t1 t2)
+    [`(void void) #t]	;hack this bitch out
     [`(,(ptype _ ta) ,(ptype _ tb)) (equal? ta tb)]
     [`(,(atype _ ta) ,(atype _ tb)) (type-ast=? links ta tb)]
     [`(,(rtype _ ta) ,(rtype _ tb)) (type-ast=? links ta tb)]

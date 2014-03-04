@@ -472,6 +472,7 @@
     [_ #f]))
 
 (define (is-class-with-mod ast mod)
+  (printf "@@@ Checking if C/I ~a has mod ~a~n" (c-unit-name ast) mod)
   (match ast
     [(cunit package _ (class _ _ m _ _ _ _)) (equal? m mod)]
     [_ #f]))
