@@ -118,8 +118,8 @@
            `(,(pimport x) ,(pimport y))) (equal? x y)]
       [else #f]))
   (printf "DOING IMPORT STUFF~n")
-  ;(cunit (cunit-package ast) (remove-duplicates (cunit-imports ast) (lambda(x y) (same-imports x y))) (cunit-body ast)))
-  (cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
+  (cunit (cunit-package ast) (remove-duplicates (cunit-imports ast) (lambda(x y) (same-imports x y))) (cunit-body ast)))
+  ;(cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
 
 (define (parse-file file)
   (printf "GETTING AST FOR ~a~n" file)
@@ -127,7 +127,7 @@
   (define parse-tree (run-parser (run-scanner clist)))
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
-(define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
+(define asts (append (map parse-file files-to-compile))); (all-stdlib-asts)))
 
 (printf "~n============== PRINTING ASTS ==============~n")
 
