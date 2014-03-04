@@ -105,7 +105,7 @@
                    [else (typelink t)])]
 
       [(cast _ c expr) (cond
-                   [(list? t) (cons (typelink-helper c) (typelink expr))]
+                   [(list? c) (cons (typelink-helper c) (typelink expr))]
                    [else (typelink expr)])]
 
       [(arraycreate _ t expr) (cond
