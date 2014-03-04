@@ -151,9 +151,8 @@
 (printf "~n============== Heirarchy Checker ==========~n")
 (define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
 (define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
-(define obji-env (gen-class-envs (parse-file "ObjectInterface.java")))
 
-(define full-envs (check-heirarchies ref-asts ref-all-links obji-env))
+(define full-envs (check-heirarchies ref-asts ref-all-links))
 
 (with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
                                                              (error)))])

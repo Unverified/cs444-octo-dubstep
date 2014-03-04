@@ -10,6 +10,10 @@
 ;==== Getter Helpers
 ;======================================================================================
 
+(define (debug-second message x)
+  (printf "~a~n" message)
+  (second x))
+
 (define (get-ast-extends ast)
   (define extends (get-extends ast))
   (define java-lang-Object (list "java" "lang" "Object")) 
@@ -18,26 +22,29 @@
     [else extends]))
 
 (define (get-env typename links)
-  (roote-env (link-env (second (assoc typename links)))))
+  (roote-env (link-env (debug-second "&&&&&& Here 1" (assoc typename links)))))
 
 (define (get-full typename links)
-  (link-full (second (assoc typename links))))
+  (define l (assoc typename links))
+  (cond
+    [(false? l) (list "java" "lang" (first typename))]	;SUPER hacky, need to change this mister Nick
+    [else (link-full (debug-second "&&&&&& Here 2" (assoc typename links)))]))
 
 (define (get-linked-ast l asts)
-  (define rootenv (link-env (second l)))
+  (define rootenv (link-env (debug-second "&&&&&& Here 3" l)))
   (define id (roote-id rootenv))
-  (second (assoc id asts)))
+  (debug-second "&&&&&& Here 4" (assoc id asts)))
   
 (define (get-linked-links l all-links)
-  (define rootenv (link-env (second l)))
+  (define rootenv (link-env (debug-second "&&&&&& Here 5" l)))
   (define id (roote-id rootenv))
-  (second (assoc id all-links)))
+  (debug-second "&&&&&& Here 6" (assoc id all-links)))
 
 ;======================================================================================
 ;==== Heirarchy Checking
 ;======================================================================================
 
-(define (check-heirarchies asts all-links obji-env)
+(define (check-heirarchies asts all-links)
 
   ;check an ast for proper heirarchy
   (define (check-heirarchy ast links)
@@ -70,10 +77,12 @@
     (define parent-impls (cons (c-unit-name ast) impls))
     (define extends (get-extends ast))
     (printf "--- EXTENDS: ~a~n" extends)
-    (define interface-links (if (empty? extends) (list obji-env) (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls)))
+    (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls))
     (define interface-envs (map (lambda(x) (get-interface-env x parent-impls)) interface-links))
 
-    (foldr (curry combine-envs links) (get-env (c-unit-name ast) links) interface-envs))
+    (define cenv (get-env (c-unit-name ast) links))
+
+    (foldr (curry combine-envs links) cenv (check-empty-interface-envs links cenv interface-envs)))
 
   ;get the heirarchacle environment for an extends class
   (define (get-extends-env class-link parent-extds)
@@ -100,26 +109,35 @@
     (define (check-interface-link l)
       (cond
         [(false? l) l]
-        [(not (is-interface (get-linked-ast l all-links))) (error "Must implement an interface.")]
+        [(not (is-interface (get-linked-ast l asts))) (error "Must implement an interface.")]
         [else (check-for-duplication l seen-so-far)]))
     (cond
       [(empty? ls) empty]
-      [else (cons (check-interface-link (first ls)) (check-interface-links (rest ls) (cons (link-full (second (first ls))) seen-so-far)))]))
+      [else (cons (check-interface-link (first ls)) (check-interface-links (rest ls) (cons (link-full (debug-second "&&&&&& Here 7" (first ls))) seen-so-far)))]))
 
   ;loop through each ast and check the heirarchy for it
   (map (lambda(ast links) (printf "====== CHECKING HEIRARCHY FOR AST, class/interface: ~a ======~n" 
-                          (c-unit-name (second ast))) (check-heirarchy (second ast) (second links))) asts all-links))
+                          (c-unit-name (debug-second "&&&&&& Here 8" ast))) (check-heirarchy (debug-second "&&&&&& Here 9" ast) (debug-second "&&&&&& Here 10" links))) asts all-links))
 
+
+(define (check-empty-interface-envs links cenv interface-envs)
+  (printf "HERE NICK~n")
+  (cond
+    [(not (empty? interface-envs)) interface-envs]
+    [(envs? (combine-envs links cenv (get-env (list "java" "lang" "Object") links))) interface-envs]
+    [else interface-envs]))
 
 ;combines two environments by merging in methods and fields. Checks that methods are shadowed properly
 (define (combine-envs links take-from combine-in)
+  (envs-print take-from)
   (define methods (map first (envs-methods take-from)))
   (define method-pairs (map (lambda (x) (list (assoc x (envs-methods combine-in)) (assoc x (envs-methods take-from)))) methods))
   (define (can-shadow? m1 m2)
     (match-let ([(method _ s1 m1 t1 _ _) m1]
                 [(method _ s2 m2 t2 _ _) m2])
+      (printf "can-shadow? ~a ~a~n" s1 s2)
       (cond
-        [(not (scope<=? s1 s2)) (error "subclass can not lower" s1 s2)]
+        [(scope<? s1 s2) (error "subclass can not lower" s1 s2)]
         [(not (type-ast=? links t1 t2)) (error "return types not equal" t1 t2)]
         [(not (compare-method-modifier-lists m2 m1)) (error "shadowed methods mods are messed yo")]
         [else #t])))
@@ -127,7 +145,7 @@
   (define (combine-step par env)
     (match par
       [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
-      [`(,x ,y)  (if (can-shadow? (eval-ast (second x)) (eval-ast (second y))) env (error))]))
+      [`(,x ,y)  (if (can-shadow? (eval-ast (debug-second "&&&&&& Here 12" x)) (eval-ast (debug-second "&&&&&& Here 13" y))) env (error))]))
 
   (define (combine-fields par env)
     (match par
@@ -152,11 +170,11 @@
         [(list? (member 'abstract m)) (printf "HERHRHRHRHRHRH: ~a~n"b) #t]
         [else #f])))
 
-  (ormap (lambda(x) (is-abs? (eval-ast (second x)))) (envs-methods env)))
+  (ormap (lambda(x) (is-abs? (eval-ast (debug-second "&&&&&& Here 14" x)))) (envs-methods env)))
 
 (define (check-for-duplication l parents)
   (cond 
-    [(list? (member (link-full (second l)) parents)) (printf "Loop in extends or duplicate implements detected.~n") (error)]
+    [(list? (member (link-full (debug-second "&&&&&& Here 15" l)) parents)) (printf "Loop in extends or duplicate implements detected.~n") (error)]
     [else l]))
 
 (define (compare-method-modifier-lists base-list derived-list)
@@ -167,19 +185,20 @@
     [else #t]))
 
 (define (type-ast=? links t1 t2)
+  (printf "type-ast=? ~a ~a~n" t1 t2)
   (match (list t1 t2)
     [`(void void) #t]	;hack this bitch out
     [`(,(ptype _ ta) ,(ptype _ tb)) (equal? ta tb)]
     [`(,(atype _ ta) ,(atype _ tb)) (type-ast=? links ta tb)]
     [`(,(rtype _ ta) ,(rtype _ tb)) (type-ast=? links ta tb)]
-    [`((,ta ...) (,tb ...)) (equal? (get-full ta links) (get-full tb links))]
+    [`((,ta ...) (,tb ...)) (printf "type-ast2=? ~a ~a~n" ta tb) (printf "~a : ~a~n" (get-full ta links) (get-full tb links)) (equal? (get-full ta links) (get-full tb links))]
     [_ #f]))
 
-(define (scope<=? s1 s2)
+(define (scope<? s1 s2)
   (define (get-scope-val scope)
-    (define scope-order '(public protected private))
+    (define scope-order (list 'public 'protected 'private))
     (length (takef-right scope-order (curry symbol=? scope))))
-  (<= (get-scope-val s1) (get-scope-val s2)))
+  (< (get-scope-val s1) (get-scope-val s2)))
 
 ;======================================================================================
 ;==== Print Functions 
