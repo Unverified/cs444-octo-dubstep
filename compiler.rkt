@@ -30,7 +30,7 @@
 
 ;Call this when the compiler successfully compiled the program. This will print "Compiled" and exit
 (define (compiled)
-  (printf "Compiled~n")
+  (printf "Compiled!~n")
   (exit 0))
 
 ;==============================================================================================
@@ -80,10 +80,10 @@
 (define (run-weeder filename parse-tree)
   (printf "RUNNING WEEDER~n")
   (cond
-    [(weeder filename parse-tree) (define ast (parse->ast (find-tree 'S parse-tree)))
+    [(weeder filename parse-tree) (define ast (clean-ast (parse->ast (find-tree 'S parse-tree))))
                                   (printf "============= AST ==============~n")
                                   (print-ast ast "")
-                                  (clean-ast ast)]
+                                  ast]
     [else (error)]))
 
 ;==============================================================================================
@@ -151,6 +151,7 @@
 (printf "~n============== Heirarchy Checker ==========~n")
 (define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
 (define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
-(check-heirarchies ref-asts ref-all-links)
+(define full-envs (check-heirarchies ref-asts ref-all-links))
 
+(for-each (lambda (x y) (envs-print x) (print-ast y "") (va x y)) full-envs asts)
 (compiled)
