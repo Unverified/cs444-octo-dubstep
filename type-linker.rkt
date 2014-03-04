@@ -105,11 +105,11 @@
                    [else (typelink t)])]
 
       [(cast _ c expr) (cond
-                   [(not (ptype? c)) (cons (typelink-helper c) (typelink expr))]
+                   [(list? t) (cons (typelink-helper c) (typelink expr))]
                    [else (typelink expr)])]
 
       [(arraycreate _ t expr) (cond
-                   [(not (ptype? t)) (cons (typelink-helper t) (typelink expr))]
+                   [(list? t) (cons (typelink-helper t) (typelink expr))]
                    [else (typelink expr)])]
 
       [(classcreate _ t args) (cons (typelink-helper t) (typelink args))]
