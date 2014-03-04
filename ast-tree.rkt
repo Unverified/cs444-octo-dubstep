@@ -166,6 +166,7 @@
     [(class _ sp md id ex im bd) (class sp md id ex im (clean-ast bd))]  
     [(interface _ sp md id ex bd) (interface sp md id ex (clean-ast bd))]
     [(constructor _ sp decl bd) (constructor sp decl (clean-ast bd))]
+    [(method _ sp md ty decl '()) (method sp md ty decl (block (gensym) '()))]
     [(method _ sp md ty decl bd) (method sp md ty decl (clean-ast bd))]
     [(var _ sp md ty (varassign _ id ex)) (var sp md ty (varassign id (clean-ast ex)))]
     [(var _ sp md ty va) (var sp md ty va)]
