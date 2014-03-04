@@ -59,13 +59,11 @@
                   (params->envs (add-env-variable envt id scope type (first params)) (rest params)))]))
   (params->envs env-empty (methoddecl-parameters decl)))
 
-(define (va tenv cenv ast)
+(define (va cenv ast)
   (define block-hash (make-hash))
   (define (_va block-id lenv ast)
     (match ast
-      [`(,var) (if (false? (assoc var (envs-vars lenv)))
-                   (error (string-append "declaraition made to " var " which doesn't exist!"))
-                   lenv)]  
+      [(varuse _ v) lenv]
       [(var _ _ _ type (varassign _ id bdy)) (_va block-id lenv bdy)
                                              (add-env-variable lenv id block-id type ast)]
       
@@ -78,8 +76,10 @@
       [(return _ expr) (_va block-id lenv expr)]
       [(binop _ _ left right) (_va block-id lenv left)
                               (_va block-id lenv right)]
+      
       [(unop _ _ right) (_va block-id lenv right)]
-      [(cast _ c expr) (_va block-id lenv expr)]
+      
+      [(cast _ c expr)  (_va block-id lenv expr)]
       
       [(or (ptype _ _)
            (rtype _ _)
@@ -92,8 +92,9 @@
            (classcreate _ _ _)) lenv]
       
       [(iff _ test tru fls) (begin0 (_va block-id lenv test)
-                                    (_va block-id lenv tru)
-                                    (_va block-id lenv fls))]
+                                    (if (empty? tru) (void) (_va block-id lenv tru))
+                                    (if (empty? fls) (void) (_va block-id lenv fls))
+                                    lenv)]
       
       [(for _ init clause update (block _ id bdy)) (let ([for-envt (_va id lenv init)])
                                                      (hash-set! block-hash id (env-append for-envt cenv))
@@ -102,7 +103,10 @@
       
       [(block _ id bdy) (hash-set! block-hash id (env-append lenv cenv))
                         (_va-list id lenv bdy)
-                        lenv]))
+                        lenv]
+      [(keyword _ _) lenv]
+      
+      [_ (error ast block-id)]))
   
   (define (_va-list block-id lenv asts)
     (cond
@@ -119,7 +123,7 @@
       [_ env-empty]))
   (match ast
     [(or (cunit _ _ bdy)
-         (class _ _ _ _ _ _ bdy)) (va tenv cenv bdy)]
+         (class _ _ _ _ _ _ bdy)) (va cenv bdy)]
     [(interface _ _ _ _ _ _) block-hash]
     [(block _ id bdy) (hash-set! block-hash id cenv)
                       (map (curry _top_va id) bdy)
@@ -252,7 +256,7 @@
                      #s((binop ast 0 (1 ())) () plus ("number") #s((literal ast 0 (1 ())) () #s((rtype ast 0 (1 ())) () ("java" "lang" "String")) "\" cocks\n\"")))))))))))
 
 (define (t1-classenv)(gen-class-envs test1))
-(define (t1-locals) (va empty (t1-classenv) test1))
+(define (t1-locals) (va (t1-classenv) test1))
 (define (do-test1) (hash-for-each (t1-locals) (lambda (k v)
                               (printf "~n~a~n==================~n" k)
                               (envs-print v))))

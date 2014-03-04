@@ -42,8 +42,8 @@
   ;check an ast for proper heirarchy
   (define (check-heirarchy ast links)
     (cond
-      [(is-class ast) (print-heir (get-class-heriarchy ast links empty))]
-      [(is-interface ast) (print-heir (get-interface-heriarchy ast links empty))]))
+      [(is-class ast) (get-class-heriarchy ast links empty)]
+      [(is-interface ast) (get-interface-heriarchy ast links empty)]))
 
   ;check a class for proper heirarchy
   (define (get-class-heriarchy ast links extds)

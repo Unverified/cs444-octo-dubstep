@@ -34,6 +34,8 @@
 (provide (struct-out rtype))
 (provide (struct-out atype))
 (provide (struct-out block))
+(provide (struct-out varuse))
+(provide (struct-out keyword))
 
 (provide clean-ast)
 (provide parse->ast)
@@ -141,6 +143,9 @@
 ;(struct varuse ([id : String]))
 (struct varuse ast (id) #:prefab)
 
+;(struct keyword ())
+(struct keyword ast (key) #:prefab)
+
 ;==============================================================================================
 ;==== AST Generation
 ;==============================================================================================
@@ -153,18 +158,25 @@
 
 (define (clean-ast t)
   (match t
+    [`() `()]
+    [`(,var) (varuse var)]
+    [`(,vars ...) (let ([srav (reverse vars)]) (foldl fieldaccess (first srav) (rest srav)))]
+    
     [(cunit package imports body) (cunit package imports (clean-ast body))]
-    [`(var) (varuse var)]
     [(class _ sp md id ex im bd) (class sp md id ex im (clean-ast bd))]  
     [(interface _ sp md id ex bd) (interface sp md id ex (clean-ast bd))]
     [(constructor _ sp decl bd) (constructor sp decl (clean-ast bd))]
-    [(method _ sp md ty decl bd) (method sp md ty decl (clean-ast bd))] 
-    [(var _ sp md ty va) (var sp md ty (clean-ast va))]
-    [(varassign _ id ex) (varassign id (clean-ast ex))]
+    [(method _ sp md ty decl bd) (method sp md ty decl (clean-ast bd))]
+    [(var _ sp md ty (varassign _ id ex)) (var sp md ty (varassign id (clean-ast ex)))]
+    [(var _ sp md ty va) (var sp md ty va)]
+    [(varassign _ id ex) (varassign (clean-ast id) (clean-ast ex))]
     [(binop _ op ls rs) (binop op (clean-ast ls) (clean-ast rs))]
     [(unop _ op rs) (unop op (clean-ast rs))]
     [(cast _ c ex) (cast c (clean-ast ex))]    
+    
+    [(arraycreate _ `(,ty ...) sz) (arraycreate (rtype ty) (clean-ast sz))]
     [(arraycreate _ ty sz) (arraycreate (clean-ast ty) (clean-ast sz))]
+    
     [(classcreate _ cls params) (classcreate cls (clean-ast params))]
     [(fieldaccess _ left field) (fieldaccess (clean-ast left) (clean-ast field))]
     [(methodcall _ left args) (methodcall left (map clean-ast args))] 
@@ -177,8 +189,8 @@
     [(rtype _ type) t]
     [(atype _ (list t ...)) (rtype t)] 
     [(atype _ type) t]
-    
     [(block _ id statements) (block id (map clean-ast statements))]
+    ['this (keyword 'this)]
     [_ t]
     ))
 
@@ -245,7 +257,7 @@
     
     ;unop
     [(or (tree (node 'UNARY_MINUS) `(,x ,y))
-         (tree (node 'UNARY_NOT) `(,x ,y))) (unop (parse->ast y) (parse->ast x))]
+         (tree (node 'UNARY_NOT) `  (,x ,y))) (unop (parse->ast x) (parse->ast y))]
     
     ;block
     [(tree (node 'BLOCK) `(,_ ,x ,_)) (block (gensym) (create-new-blocks (parse->ast x)))]
