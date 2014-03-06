@@ -15,7 +15,7 @@
 (provide (struct-out method))
 (provide (struct-out methoddecl))
 (provide (struct-out parameter))
-(provide (struct-out var))
+(provide (struct-out vdecl))
 (provide (struct-out varassign))
 (provide (struct-out binop))
 (provide (struct-out unop))
@@ -84,7 +84,7 @@
 (struct parameter ast (type id) #:prefab)
 
 ;(struct var ([scope : Symbol] [mod : Symbol] [type : (ptype, rtype, atype)] [var-assign : varassign]))
-(struct var ast (scope mod type var-assign) #:prefab)
+(struct vdecl ast (scope mod type id) #:prefab)
 
 ;(struct varassign ([id : String] [expr : "alot of things"]))
 (struct varassign ast (id expr) #:prefab)
@@ -153,7 +153,7 @@
 (define (create-new-blocks s)
   (cond
     [(empty? s) empty]
-    [(var? (first s)) (list (first s) (block (gensym) (create-new-blocks (rest s))))]
+    [(vdecl? (first s)) (list (first s) (block (gensym) (create-new-blocks (rest s))))]
     [else (cons (first s) (create-new-blocks (rest s)))]))
 
 (define (clean-ast t)
@@ -161,40 +161,58 @@
     [`() `()]
     [`(,var) (varuse var)]
     [`(,vars ...) (let ([srav (reverse vars)]) (foldl fieldaccess (first srav) (rest srav)))]
+    [(method _ sp md ty decl '()) (method sp md (clean-ast ty) decl (block (gensym) '()))]
     
-    [(cunit package imports body) (cunit package imports (clean-ast body))]
-    [(class _ sp md id ex im bd) (class sp md id ex im (clean-ast bd))]  
-    [(interface _ sp md id ex bd) (interface sp md id ex (clean-ast bd))]
-    [(constructor _ sp decl bd) (constructor sp decl (clean-ast bd))]
-    [(method _ sp md ty decl '()) (method sp md ty decl (block (gensym) '()))]
-    [(method _ sp md ty decl bd) (method sp md ty decl (clean-ast bd))]
-    [(var _ sp md ty (varassign _ id ex)) (var sp md ty (varassign id (clean-ast ex)))]
-    [(var _ sp md ty va) (var sp md ty va)]
-    [(varassign _ id ex) (varassign (clean-ast id) (clean-ast ex))]
-    [(binop _ op ls rs) (binop op (clean-ast ls) (clean-ast rs))]
-    [(unop _ op rs) (unop op (clean-ast rs))]
-    [(cast _ c ex) (cast c (clean-ast ex))]    
+    [(vdecl _ sp md ty (varassign _ id ex)) (varassign (vdecl sp md (clean-ast ty) id) (clean-ast ex))]
+    [(vdecl _ sp md ty id) (vdecl sp md (clean-ast ty) id)]
     
     [(arraycreate _ `(,ty ...) sz) (arraycreate (rtype ty) (clean-ast sz))]
-    [(arraycreate _ ty sz) (arraycreate (clean-ast ty) (clean-ast sz))]
-    
     [(classcreate _ cls params) (classcreate cls (clean-ast params))]
-    [(fieldaccess _ left field) (fieldaccess (clean-ast left) (clean-ast field))]
-    [(methodcall _ left args) (methodcall left (map clean-ast args))] 
-    [(arrayaccess _ left index) (arrayaccess (clean-ast left) (clean-ast index))]
-    [(iff _ test tru fls) (iff (clean-ast test) (clean-ast tru) (clean-ast fls))]
-    [(while _ test body) (while (clean-ast test) (clean-ast body))]
-    [(for _ init clause update body) (for (clean-ast init) (clean-ast clause) (clean-ast update) (clean-ast body))]
-    [(return _ expr) (return (clean-ast expr))]
-    [(ptype _ type) t]
-    [(rtype _ type) t]
-    [(atype _ (list t ...)) (rtype t)] 
-    [(atype _ type) t]
-    [(block _ id statements) (block id (map clean-ast statements))]
-    ['this (keyword 'this)]
-    [_ t]
-    ))
+    [(atype _ (list type ...)) (atype (rtype type))]
 
+    [(rtype _ (list type ...)) (rtype type)]
+    [(rtype _ (atype _ type))  (atype type)]    
+    [(rtype _ _) (error "rtype with invalid inside: " t)]
+    
+    
+    ['this (keyword 'this)]
+    ['void (ptype 'void)]
+    
+    [_ (ast-transform clean-ast t)]))
+
+(define (ast-transform F ast)
+  (match ast
+    [(cunit package imports body) (cunit package imports (F body))]
+    [(class _ sp md id ex im bd) (class sp md id ex im (F bd))]  
+    [(interface _ sp md id ex bd) (interface sp md id ex (F bd))]
+    [(constructor _ sp decl bd) (constructor sp (F decl) (F bd))]
+    [(method _ sp md ty decl bd) (method sp md (F ty) (F decl) (F bd))]
+    [(methoddecl _ id params) (methoddecl id (map F params))]
+    [(parameter _ type id) (parameter (F type) id)]
+    [(vdecl _ sp md ty id) (vdecl sp md (F ty) id)]
+    [(varassign _ id ex) (varassign (F id) (F ex))]
+    [(binop _ op ls rs) (binop op (F ls) (F rs))]
+    [(unop _ op rs) (unop op (F rs))]
+    [(cast _ c ex) (cast (F c) (F ex))]
+    [(arraycreate _ ty sz) (arraycreate (F ty) (F sz))]
+    [(classcreate _ cls params) (classcreate cls (F params))]
+    [(fieldaccess _ left field) (fieldaccess (F left) field)]
+    [(methodcall _ left args) (methodcall (F left) (map F args))] 
+    [(arrayaccess _ left index) (arrayaccess (F left) (F index))]
+    [(iff _ test tru fls) (iff (F test) (F tru) (F fls))]
+    [(while _ test body) (while (F test) (F body))]
+    [(for _ init clause update body) (for (F init) (F clause) (F update) (F body))]
+    [(return _ expr) (return (F expr))]
+    [(ptype _ _) ast]
+    [(rtype _ _) ast] 
+    [(atype _ type) (F type)]
+    
+    [(literal _ type val) (literal (F type) val)]
+    [(varuse _ _) ast]
+    [(keyword _ _) ast]
+    [(block _ id statements) (block id (map F statements))]
+    ))
+  
 (define (parse->ast t)
   (match t
     [(tree (node _) '()) empty]
@@ -238,9 +256,9 @@
     [(tree (node 'ARRAY_TYPE) x) (atype (parse->ast (first x)))]
     
     ;var
-    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v)) (var empty empty (parse->ast type) (parse->ast v))]
-    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,v ,_ )) (var (parse->ast x) empty (parse->ast type) (parse->ast v))]
-    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,v ,_ )) (var (parse->ast x) 'static (parse->ast type) (parse->ast v))]
+    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v)) (vdecl empty empty (parse->ast type) (parse->ast v))]
+    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,v ,_ )) (vdecl (parse->ast x) empty (parse->ast type) (parse->ast v))]
+    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,v ,_ )) (vdecl (parse->ast x) 'static (parse->ast type) (parse->ast v))]
     
     ;varassign
     [(tree (node 'VARIABLE_DECLARATOR) `( ,id ,_ ,expr )) (varassign (parse->ast id) (parse->ast expr)) ]
@@ -429,7 +447,7 @@
             [(method _ scope mod type methoddecl body) (comb (proc scope) (proc mod) (proc type) (proc methoddecl) (proc body))]
             [(methoddecl _ id parameters) (comb (proc id) (proc parameters))]
             [(parameter _ type id) (comb (proc type) (proc id))]
-            [(var _ scope mod type var-assign) (comb (proc scope) (proc mod) (proc type) (proc var-assign))]
+            [(vdecl _ scope mod type id) (comb (proc scope) (proc mod) (proc type) (proc id))]
             [(varassign _ id expr) (comb (proc id) (proc expr))]
             [(binop _ op left right) (comb (proc op) (proc left) (proc right))]
             [(unop _ op right) (comb (proc op) (proc right))]
@@ -528,6 +546,25 @@
     
     [(block _ id statements) (printf "~aBLOCK ~a~n" indent id) 
                              (for-each (lambda (x) (print-ast x (string-append indent "|  "))) statements)]
+    [(binop _ op lhs rhs) (printf "(~a " op)
+                          (print-ast lhs "") 
+                          (printf " ")
+                          (print-ast rhs "")
+                          (printf ")")]
+    [(unop _ op arg) (printf "~a(~a " indent op) 
+                     (print-ast arg "")
+                     (printf ")")]
+    [(varassign _ lhs rhs) (printf "~a(VA " indent) 
+                           (print-ast lhs "") 
+                           (printf " ")
+                           (print-ast rhs "")
+                           (printf ")")]
+    [(ptype _ t) (printf "~a ~a" indent t)]
+    [(rtype _ t) (printf "~a ~a" indent (string-join t "."))]
+    [(atype _ t) (printf "~a" indent) 
+                 (print-ast t "")
+                 (printf "[] ")]
+    
     [_ (printf "~a~a~n" indent ast-node)]))
 
 (define (print-asts asts files)

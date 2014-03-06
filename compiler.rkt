@@ -126,7 +126,7 @@
   (define parse-tree (run-parser (run-scanner clist)))
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
-(define asts (append (map parse-file files-to-compile))); (all-stdlib-asts)))
+(define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
 
 (printf "~n============== PRINTING ASTS ==============~n")
 

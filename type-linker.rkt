@@ -13,27 +13,23 @@
 ;==== Helper Functions
 ;======================================================================================
 
-(define (pair key value)
-  (list key value))
-
 (define (pair-key p) (first p))
-(define (pair-value p) ((second p)))
+(define (pair-value p) ((second p))) ;Elements are stored as constant functions, ambiguity creates errors
+(define (pair key value) (list key value))
 
 ;removes the last element of a list
 (define (remove-last l)
   (reverse (rest (reverse l))))
 
-; is "a" a prefix of "b"
-(define (is-prefix a b) 
-  (cond
-    [(empty? b) #f]
-    [(equal? a b) #t]
-    [else (is-prefix a (remove-last b))]))
+(define (prefix? l1 l2)
+  (cond 
+    [(empty? l1) #t]
+    [(empty? l2) #f]
+    [(equal? (first l1) (first l2)) (prefix? (rest l1) (rest l2))]
+    [else #f]))
 
-(define (get-all-prefixes a)
-  (cond
-    [(empty? a) empty]
-    [else (cons a (get-all-prefixes (remove-last a)))]))
+(define (get-all-prefixes lst)
+  (foldr (lambda (ele lst) (cons (list ele) (map (curry cons ele) lst))) empty lst))
 
 ;======================================================================================
 ;==== Linker Generation
@@ -81,7 +77,7 @@
     (match (assoc typename assoc-list)
       [`(,key ,value) (value)]
       [_ (error "Could not resolve typename:" typename)]))
-
+  
   (define (typelink-helper typename)
     (cond
       [(empty? typename) empty]
@@ -89,35 +85,34 @@
                                     (pair (check-typename-prefix-not-type typename possible-typename-links) typelink)]
       [else (define typelink (resolve-type typename rootlinks))
             (pair (check-typename-prefix-not-type typename possible-typename-links) typelink)]))
-
+  
   (define (typelink ast)
     (match ast
       [(interface _ _ _ id e b) (append (map (lambda(x) (typelink-helper x)) e) (typelink b))]
-
-      [(class _ _ _ id e i b) (append  (list (typelink-helper e))
-                                     (map (lambda(x) (typelink-helper x)) i)
-                                     (typelink b))]
-
+      
+      [(class _ _ _ id e i b) (append (list (typelink-helper e))
+                                      (map (lambda(x) (typelink-helper x)) i)
+                                      (typelink b))]
+      
       [(rtype _ t) (cond
-                   [(list? t) (cons (typelink-helper t) empty)]
-                   [else (typelink t)])]
-
+                     [(list? t) (cons (typelink-helper t) empty)]
+                     [else (typelink t)])]
+      
       [(atype _ t) (cond
-                   [(list? t) (cons (typelink-helper t) empty)]
-                   [else (typelink t)])]
-
+                     [(list? t) (cons (typelink-helper t) empty)]
+                     [else (typelink t)])]
+      
       [(cast _ c expr) (cond
-                   [(list? c) (cons (typelink-helper c) (typelink expr))]
-                   [else (typelink expr)])]
-
+                         [(list? c) (cons (typelink-helper c) (typelink expr))]
+                         [else (typelink expr)])]
+      
       [(arraycreate _ t expr) (cond
-                   [(list? t) (cons (typelink-helper t) (typelink expr))]
-                   [else (typelink expr)])]
-
+                                [(list? t) (cons (typelink-helper t) (typelink expr))]
+                                [else (typelink expr)])]
+      
       [(classcreate _ t args) (cons (typelink-helper t) (typelink args))]
-
+      
       [_ (ast-recurse ast typelink append)]))
-
   (typelink ast))
 
 ;======================================================================================
@@ -144,7 +139,6 @@
     (cond
       [(and (empty? links) (not (is-package-prefix-decl package rootenvs))) (error "Could not find a package declaration for an import on demand.")]
       [else links]))
-
   (append-map (lambda(x) (get-plinks (pimport-path x) rootenvs)) imports))
 
 (define (link-single-imports imports rootenvs)
@@ -180,7 +174,7 @@
         [else typename]))
 
 (define (is-package-prefix-decl package rootenvs)
-  (list? (findf (lambda(x) (is-prefix package (remove-last (first x)))) rootenvs)))
+  (list? (findf (lambda(x) (prefix? package (remove-last (first x)))) rootenvs)))
 
 (define (check-for-clashes links enclosing-type seen-so-far)
   (cond
@@ -223,7 +217,7 @@
 (define (error message . args)
   (printf (string-append message " ~a") args)
   (exit 42))
-    
+
 
 
 

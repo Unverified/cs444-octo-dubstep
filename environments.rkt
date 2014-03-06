@@ -42,8 +42,8 @@
       [`() envt]     
       [`(,(constructor _ scop mdecl _) ,rst ...)     (_gen-class-env scope rst (add-env-const envt mdecl scope (first asts)))]
       [`(,(method _ scop mod type mdecl _) ,rst ...) (_gen-class-env scope rst (add-env-method envt mdecl scope type (first asts)))]
-      [`(,(or (var _ _ _ type (varassign _ id _))
-              (var _ _ _ type id)) ,rst ...)         (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
+      [`(,(or (varassign _ (vdecl _ _ _ type id) _)
+              (vdecl _ _ _ type id)) ,rst ...)       (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
     (match ast
       [(cunit _ _ b) (gen-class-envs b)]
@@ -64,11 +64,10 @@
   (define (_va block-id lenv ast)
     (match ast
       [(varuse _ v) lenv]
-      [(var _ _ _ type (varassign _ id bdy)) (_va block-id lenv bdy)
-                                             (add-env-variable lenv id block-id type ast)]
+      [(vdecl _ _ _ type id) (add-env-variable lenv id block-id type ast)]
       
-      [(varassign _ id bdy) (_va block-id lenv id)
-                            (_va block-id lenv bdy)]
+      [(varassign _ id bdy) (_va block-id lenv bdy)
+                            (_va block-id lenv id)]
       
       [(while _ test body) (_va block-id lenv test)
                            (_va block-id lenv body)]
@@ -119,12 +118,13 @@
            (constructor _ _ decl (block _ id bdy))) (let ([lenv (mdecl->envs id decl)])
                                                       (hash-set! block-hash id (env-append lenv cenv))
                                                   (_va-list id lenv bdy))]
-      [(var _ _ _ t (varassign _ _ ex))  (_va id env-empty ex)]
+      [(vdecl _ _ _ _ _) cenv]
+      [(varassign _ _ ex)  (_va id env-empty ex)]
       [_ env-empty]))
   (match ast
     [(or (cunit _ _ bdy)
-         (class _ _ _ _ _ _ bdy)) (va cenv bdy)]
-    [(interface _ _ _ _ _ _) block-hash]
+         (class _ _ _ _ _ _ bdy)
+         (interface _ _ _ _ _ bdy)) (va cenv bdy)]
     [(block _ id bdy) (hash-set! block-hash id cenv)
                       (map (curry _top_va id) bdy)
                       block-hash]))
