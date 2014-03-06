@@ -1,4 +1,3 @@
-
 #lang racket
 
 (require "ast-tree.rkt")
@@ -18,10 +17,11 @@
 (provide (struct-out envs))
 (provide (struct-out roote))
 
+(struct roote (id env) #:prefab)
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)
+
 (struct envs (types vars methods constructors))
-(struct roote (id env) #:prefab)
 
 ;======================================================================================
 ;==== Environment Generation
@@ -108,9 +108,8 @@
       [_ (error ast block-id)]))
   
   (define (_va-list block-id lenv asts)
-    (cond
-      [(empty? asts) lenv]
-      [else  (_va-list block-id (_va block-id lenv (first asts)) (rest asts))]))
+    (for-each (curry _va block-id lenv) asts)
+    lenv)
   
   (define (_top_va id ast)
     (match ast
@@ -142,7 +141,6 @@
           (append (envs-methods le) (envs-methods re))
           (append (envs-constructors le) (envs-constructors re))))
   (foldr env-append-1 env-empty (cons le r)))
-
 
 ;(: env-append-nocons : envs envs... -> envs )
 ;; like env-append but will only carry though the constructors of the leftmost environment

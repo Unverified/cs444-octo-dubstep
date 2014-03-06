@@ -546,24 +546,6 @@
     
     [(block _ id statements) (printf "~aBLOCK ~a~n" indent id) 
                              (for-each (lambda (x) (print-ast x (string-append indent "|  "))) statements)]
-    [(binop _ op lhs rhs) (printf "(~a " op)
-                          (print-ast lhs "") 
-                          (printf " ")
-                          (print-ast rhs "")
-                          (printf ")")]
-    [(unop _ op arg) (printf "~a(~a " indent op) 
-                     (print-ast arg "")
-                     (printf ")")]
-    [(varassign _ lhs rhs) (printf "~a(VA " indent) 
-                           (print-ast lhs "") 
-                           (printf " ")
-                           (print-ast rhs "")
-                           (printf ")")]
-    [(ptype _ t) (printf "~a ~a" indent t)]
-    [(rtype _ t) (printf "~a ~a" indent (string-join t "."))]
-    [(atype _ t) (printf "~a" indent) 
-                 (print-ast t "")
-                 (printf "[] ")]
     
     [_ (printf "~a~a~n" indent ast-node)]))
 
