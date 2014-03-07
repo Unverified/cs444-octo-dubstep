@@ -1,3 +1,4 @@
+
 #lang racket
 
 (require "parser.rkt")			;needed for parser
@@ -17,7 +18,7 @@
 
 ;Get all the files from the command line
 (define files-to-compile (vector->list (current-command-line-arguments)))
-;(define files-to-compile (list "tests/test1.java"))
+;(define files-to-compile (list "tests/in/Je_2_Locals_Overlapping_DeeplyNested.java"))
 
 ;==============================================================================================
 ;==== Compiler Results

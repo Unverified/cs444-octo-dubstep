@@ -45,12 +45,12 @@
       [`(,(or (varassign _ (vdecl _ _ _ type id) _)
               (vdecl _ _ _ type id)) ,rst ...)       (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
-    (match ast
-      [(cunit _ _ b) (gen-class-envs b)]
-      [(or (class _ _ _ id _ _ b)
-           (interface _ _ _ id _ b)) (let ([e (gen-class-envs b)])
+  (match ast
+    [(cunit _ _ b) (gen-class-envs b)]
+    [(or (class _ _ _ id _ _ b)
+         (interface _ _ _ id _ b)) (let ([e (gen-class-envs b)])
                                      (envs (cons (list id ast) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
-      [(block _ id bdy) (_gen-class-env id bdy env-empty)]))
+    [(block _ id bdy) (_gen-class-env id bdy env-empty)]))
 
 (define (mdecl->envs scope decl)
   (define (params->envs envt params)
@@ -108,15 +108,15 @@
       [_ (error ast block-id)]))
   
   (define (_va-list block-id lenv asts)
-    (for-each (curry _va block-id lenv) asts)
-    lenv)
+    (cond [(empty? asts) lenv]
+          [else  (_va-list block-id (_va block-id lenv (first asts)) (rest asts))]))
   
   (define (_top_va id ast)
     (match ast
       [(or (method _ _ _ _ decl (block _ id bdy))
            (constructor _ _ decl (block _ id bdy))) (let ([lenv (mdecl->envs id decl)])
                                                       (hash-set! block-hash id (env-append lenv cenv))
-                                                  (_va-list id lenv bdy))]
+                                                      (_va-list id lenv bdy))]
       [(vdecl _ _ _ _ _) cenv]
       [(varassign _ _ ex)  (_va id env-empty ex)]
       [_ env-empty]))
@@ -222,42 +222,67 @@
 ;==============================================================================================
 
 (define test1
-'#s(cunit () (#s(pimport ("java" "lang")))
-    #s((class ast 0 (1 ())) () public () "test1" () ()
-       #s((block ast 0 (1 ())) () g248547
-          (#s((constructor ast 0 (1 ())) () public #s((methoddecl ast 0 (1 ())) () "test1" ()) #s((block ast 0 (1 ())) () g248548 ()))
-           #s((var ast 0 (1 ())) () public () #s((ptype ast 0 (1 ())) () int) "x")
-           #s((var ast 0 (1 ())) () public () #s((ptype ast 0 (1 ())) () int) #s((varassign ast 0 (1 ())) () "y" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 2)))
-           #s((method ast 0 (1 ())) () public () #s((ptype ast 0 (1 ())) () int)
-              #s((methoddecl ast 0 (1 ())) () "test1" ())
-              #s((block ast 0 (1 ())) () g248549
-                 (#s((var ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () int)
-                                        #s((varassign ast 0 (1 ())) () "x" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 12)))
-                  #s((block ast 0 (1 ())) () g248551
-                     (#s((var ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () char)
-                         #s((varassign ast 0 (1 ())) () "y" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () char) "'a'")))
-                      #s((block ast 0 (1 ())) () g248552
-                         (#s((for ast 0 (1 ())) ()
-                             #s((var ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () int)
-                                #s((varassign ast 0 (1 ())) () "i" #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 0)))
-                             #s((binop ast 0 (1 ())) () lt ("i") ("x"))
-                             #s((varassign ast 0 (1 ())) () ("i") #s((binop ast 0 (1 ())) () plus ("i") #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 1)))
-                             #s((block ast 0 (1 ())) () g248550 (#s((varassign ast 0 (1 ())) () ("x") ("i")))))
-                          #s((varassign ast 0 (1 ())) () ("y") #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () char) "'b'"))
-                          #s((return ast 0 (1 ())) () ("x")))))))))
-           #s((method ast 0 (1 ())) () public ()
-              #s((ptype ast 0 (1 ())) () int)
-              #s((methoddecl ast 0 (1 ())) () "cocks"
-                 (#s((parameter ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) "number") #s((parameter ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () char) "type")))
-              #s((block ast 0 (1 ())) () g248553
-                 (#s((return ast 0 (1 ())) ()
-                     #s((binop ast 0 (1 ())) () plus ("number") #s((literal ast 0 (1 ())) () #s((rtype ast 0 (1 ())) () ("java" "lang" "String")) "\" cocks\n\"")))))))))))
+  '#s(cunit
+      ()
+      (#s(pimport ("java" "lang")))
+      #s((class ast 0 (1 ())) () public () "Je_2_Locals_Overlapping_DeeplyNested" () ()
+                              #s((block ast 0 (1 ())) () g68509
+                                                      (#s((constructor ast 0 (1 ())) () public #s((methoddecl ast 0 (1 ())) () "Je_2_Locals_Overlapping_DeeplyNested" ())
+                                                                                     #s((block ast 0 (1 ())) () g68510 ()))
+                                                       #s((method ast 0 (1 ())) () public (static)
+                                                          #s((ptype ast 0 (1 ())) () int)
+                                                          #s((methoddecl ast 0 (1 ())) () "test" ())
+                                                          #s((block ast 0 (1 ())) ()  g68511
+                                                             (#s((varassign ast 0 (1 ())) ()
+                                                                                          #s((vdecl ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () int) "a")
+                                                                                          #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 123))
+                                                              #s((block ast 0 (1 ())) () g68514
+                                                                 (#s((varassign ast 0 (1 ())) () 
+                                                                                              #s((vdecl ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () boolean) "b")
+                                                                                              #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () bool) "true"))
+                                                                  #s((block ast 0 (1 ())) ()  g68515
+                                                                     (#s((varassign ast 0 (1 ())) ()
+                                                                                                  #s((vdecl ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () boolean) "c")
+                                                                                                  #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () bool) "true"))
+                                                                      #s((block ast 0 (1 ())) () g68516
+                                                                         (#s((varassign ast 0 (1 ())) ()
+                                                                                                      #s((vdecl ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () boolean) "d")
+                                                                                                      #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () bool) "true"))
+                                                                          #s((block ast 0 (1 ())) () g68517
+                                                                                                  (#s((varassign ast 0 (1 ())) ()
+                                                                                                                               #s((vdecl ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () boolean) "e")
+                                                                                                                               #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () bool) "true"))
+                                                                              #s((block ast 0 (1 ())) () g68518
+                                                                                 (#s((varassign ast 0 (1 ())) ()
+                                                                                                              #s((vdecl ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () boolean) "f")
+                                                                                                              #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () bool) "true"))
+                                                                                  #s((block ast 0 (1 ())) () g68519
+                                                                                     (#s((iff ast 0 (1 ())) ()
+                                                                                         #s((varuse ast 0 (1 ())) () "b")
+                                                                                         #s((iff ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () "c")
+                                                                                            #s((iff ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () "d")
+                                                                                               #s((iff ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () "e")
+                                                                                                  #s((iff ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () "f")
+                                                                                                     #s((block ast 0 (1 ())) () g68512
+                                                                                                        (#s((varassign ast 0 (1 ())) ()
+                                                                                                                                     #s((vdecl ast 0 (1 ())) () () () #s((ptype ast 0 (1 ())) () int) "a")
+                                                                                                                                     #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 43))
+                                                                                                         #s((block ast 0 (1 ())) ()  g68513
+                                                                                                            (#s((return ast 0 (1 ())) ()
+                                                                                                                #s((binop ast 0 (1 ())) () plus  #s((varuse ast 0 (1 ())) () "a")
+                                                                                                                   #s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) 80)))))))
+                                                                                                     ())
+                                                                                                  ())
+                                                                                               ())
+                                                                                            ())
+                                                                                         ())
+                                                                                      #s((return ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () "a"))))))))))))))))))))))
 
 (define (t1-classenv)(gen-class-envs test1))
 (define (t1-locals) (va (t1-classenv) test1))
 (define (do-test1) (hash-for-each (t1-locals) (lambda (k v)
-                              (printf "~n~a~n==================~n" k)
-                              (envs-print v))))
+                                                (printf "~n~a~n==================~n" k)
+                                                (envs-print v))))
 
 
 
