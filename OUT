@@ -1,0 +1,741 @@
+raco make compiler.rkt
+echo '#!/bin/bash\nracket compiler.rkt "$@"' > joosc
+
+Using input files located in: "tests/in/"
+Using output files located in "tests/out/"
+Running tests on: tests/tlinker_tests/
+
+Running compiler with files:
+tests/tlinker_tests/ClassA.java
+tests/tlinker_tests/InterfaceA.java
+stdlib/java/io/OutputStream.java
+stdlib/java/io/PrintStream.java
+stdlib/java/io/Serializable.java
+stdlib/java/lang/Boolean.java
+stdlib/java/lang/Byte.java
+stdlib/java/lang/Character.java
+stdlib/java/lang/Class.java
+stdlib/java/lang/Cloneable.java
+stdlib/java/lang/Integer.java
+stdlib/java/lang/Number.java
+stdlib/java/lang/Object.java
+stdlib/java/lang/Short.java
+stdlib/java/lang/String.java
+stdlib/java/lang/System.java
+stdlib/java/util/Arrays.java
+GETTING AST FOR tests/tlinker_tests/ClassA.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform ptype
+ast-transform methodcall
+ast-transform methodcall empty left
+ast-transform block
+clean-ast classcreate (Object) ()
+ast-transform block
+ast-transform literal
+ast-transform ptype
+ast-transform block
+ast-transform block
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+============= AST ==============
+c-unit
+  (foo)
+  (cimport (foo bar InterfaceA))
+  class public empty ClassA (Object) ((InterfaceA))
+  block g97
+    (vdecl empty (rtype (Object)) x)
+    method public empty (rtype (Object)) (methoddecl m1)
+      block g98
+        (varassign (vdecl empty (ptype int) a) (methodcall (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id m2)) ())empty) #(struct:tree #(struct:leafnode #(struct:token id m3)) ())empty)
+        block g99
+          (varassign (vdecl empty (rtype (Object)) obj) (classcreate (rtype (Object)))
+          block g100
+            (varassign (vdecl empty (atype (rtype (Object))) objs) (arraycreate (rtype (Object)) (literal (ptype int) 3))
+            block g101
+              (varassign (vdecl empty (rtype (Object)) obj2) (cast (rtype (Object)) (varuse obj))
+              block g102
+    constructor public (methoddecl ClassA)
+      block g103DOING IMPORT STUFF
+GETTING AST FOR tests/tlinker_tests/InterfaceA.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform interface
+ast-transform block
+============= AST ==============
+c-unit
+  (foo bar)
+  interface public empty InterfaceA empty
+  block g104DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/io/OutputStream.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform cast
+ast-transform ptype
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall
+ast-transform ptype
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+============= AST ==============
+c-unit
+  (java io)
+  class public empty OutputStream empty empty
+  block g105
+    constructor public (methoddecl OutputStream)
+      block g106
+    method public empty (ptype void) (methoddecl write (parameter (ptype char) c))
+      block g107
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id write)) ())(#s((cast ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () int) #s((varuse ast 0 (1 ())) () c))))
+    method public empty (ptype void) (methoddecl write (parameter (ptype int) b))
+      block g108
+        (methodcall (varuse PrintStream) #(struct:tree #(struct:leafnode #(struct:token id nativeWrite)) ())(#s((varuse ast 0 (1 ())) () b)))
+    method protected (static static) (ptype int) (methoddecl nativeWrite (parameter int b))
+      block g110
+    method public empty (ptype void) (methoddecl flush)
+      block g109DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/io/PrintStream.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform block
+ast-transform for
+ast-transform ptype
+ast-transform literal
+ast-transform ptype
+ast-transform binop
+ast-transform methodcall
+ast-transform varassign
+ast-transform binop
+ast-transform literal
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform methodcall empty left
+ast-transform literal
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall empty left
+ast-transform literal
+ast-transform ptype
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+ast-transform method
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform methodcall empty left
+ast-transform methodcall
+============= AST ==============
+c-unit
+  (java io)
+  class public empty PrintStream (OutputStream) empty
+  block g111
+    constructor public (methoddecl PrintStream)
+      block g112
+    method public empty (ptype void) (methoddecl print (parameter (rtype (String)) s))
+      block g113
+        for (varassign (vdecl empty (ptype int) i) (literal (ptype int) 0) (binop lt (varuse i) (methodcall (varuse s) #(struct:tree #(struct:leafnode #(struct:token id length)) ())empty)) (varassign (varuse i) (binop plus (varuse i) (literal (ptype int) 1))
+          block g114
+            (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id write)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () s) #(struct:tree #(struct:leafnode #(struct:token id charAt)) ()) (#s((varuse ast 0 (1 ())) () i)))))
+    method public empty (ptype void) (methoddecl println)
+      block g115
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id println)) ())(#s((literal ast 0 (1 ())) () #s((rtype ast 0 (1 ())) () (java lang String)) "")))
+    method public empty (ptype void) (methoddecl println (parameter (rtype (String)) s))
+      block g116
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id print)) ())(#s((varuse ast 0 (1 ())) () s)))
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id write)) ())(#s((literal ast 0 (1 ())) () #s((ptype ast 0 (1 ())) () char) '
+')))
+    method public empty (ptype void) (methoddecl println (parameter (rtype (Object)) b))
+      block g117
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id println)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl println (parameter (ptype boolean) b))
+      block g118
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id println)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl println (parameter (ptype byte) b))
+      block g119
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id println)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl println (parameter (ptype char) b))
+      block g120
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id println)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl println (parameter (ptype short) b))
+      block g121
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id println)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl println (parameter (ptype int) b))
+      block g122
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id println)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl print (parameter (rtype (Object)) b))
+      block g123
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id print)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl print (parameter (ptype boolean) b))
+      block g124
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id print)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl print (parameter (ptype byte) b))
+      block g125
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id print)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl print (parameter (ptype char) b))
+      block g126
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id print)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl print (parameter (ptype short) b))
+      block g127
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id print)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))
+    method public empty (ptype void) (methoddecl print (parameter (ptype int) b))
+      block g128
+        (methodcall empty #(struct:tree #(struct:leafnode #(struct:token id print)) ())(#s((methodcall ast 0 (1 ())) () #s((varuse ast 0 (1 ())) () String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ()) (#s((varuse ast 0 (1 ())) () b)))))DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/io/Serializable.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform interface
+ast-transform block
+============= AST ==============
+c-unit
+  (java io)
+  interface public empty Serializable empty
+  block g129DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Boolean.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform ptype
+ast-transform constructor
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform varassign
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform methodcall
+ast-transform ptype
+ast-transform cast
+ast-transform ptype
+ast-transform literal
+ast-transform ptype
+============= AST ==============
+c-unit
+  (java lang)
+  class public final Boolean empty empty
+  block g130
+    (vdecl empty (ptype boolean) value)
+    constructor public (methoddecl Boolean (parameter (ptype boolean) i))
+      block g131
+        (varassign (varuse value) (varuse i)
+    constructor public (methoddecl Boolean)
+      block g132
+    method public empty (rtype (String)) (methoddecl toString)
+      block g133
+        (return (methodcall (varuse String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ())(#s((varuse ast 0 (1 ())) () value))))
+    (varassign (vdecl static (ptype byte) MAX_VALUE) (cast (ptype byte) (literal (ptype int) 127))DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Byte.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform ptype
+ast-transform constructor
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform varassign
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform methodcall
+ast-transform ptype
+ast-transform cast
+ast-transform ptype
+ast-transform literal
+ast-transform ptype
+============= AST ==============
+c-unit
+  (java lang)
+  class public final Byte empty empty
+  block g134
+    (vdecl empty (ptype byte) value)
+    constructor public (methoddecl Byte (parameter (ptype byte) i))
+      block g135
+        (varassign (varuse value) (varuse i)
+    constructor public (methoddecl Byte)
+      block g136
+    method public empty (rtype (String)) (methoddecl toString)
+      block g137
+        (return (methodcall (varuse String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ())(#s((varuse ast 0 (1 ())) () value))))
+    (varassign (vdecl static (ptype byte) MAX_VALUE) (cast (ptype byte) (literal (ptype int) 127))DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Character.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform ptype
+ast-transform constructor
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform varassign
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform methodcall
+============= AST ==============
+c-unit
+  (java lang)
+  class public final Character empty empty
+  block g138
+    (vdecl empty (ptype char) value)
+    constructor public (methoddecl Character (parameter (ptype char) i))
+      block g139
+        (varassign (varuse value) (varuse i)
+    constructor public (methoddecl Character)
+      block g140
+    method public empty (rtype (String)) (methoddecl toString)
+      block g141
+        (return (methodcall (varuse String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ())(#s((varuse ast 0 (1 ())) () value))))DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Class.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+============= AST ==============
+c-unit
+  (java lang)
+  class public empty Class empty empty
+  block g142
+    constructor public (methoddecl Class)
+      block g143DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Cloneable.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform interface
+ast-transform block
+============= AST ==============
+c-unit
+  (java lang)
+  interface public empty Cloneable empty
+  block g144DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Integer.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform ptype
+ast-transform constructor
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform varassign
+ast-transform method
+ast-transform ptype
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform method
+ast-transform ptype
+ast-transform methoddecl
+ast-transform parameter
+ast-transform block
+ast-transform ptype
+ast-transform literal
+ast-transform ptype
+ast-transform block
+ast-transform ptype
+ast-transform literal
+ast-transform ptype
+ast-transform block
+ast-transform ptype
+ast-transform literal
+ast-transform ptype
+ast-transform block
+ast-transform while
+ast-transform binop
+ast-transform binop
+ast-transform methodcall
+ast-transform binop
+ast-transform binop
+ast-transform methodcall
+ast-transform literal
+ast-transform ptype
+ast-transform binop
+ast-transform binop
+ast-transform methodcall
+ast-transform literal
+ast-transform ptype
+ast-transform binop
+ast-transform methodcall
+ast-transform literal
+ast-transform ptype
+ast-transform block
+ast-transform iff
+ast-transform binop
+ast-transform methodcall
+ast-transform literal
+ast-transform ptype
+ast-transform varassign
+ast-transform unop
+ast-transform block
+ast-transform varassign
+ast-transform binop
+ast-transform binop
+ast-transform binop
+ast-transform literal
+ast-transform ptype
+ast-transform methodcall
+ast-transform literal
+ast-transform ptype
+ast-transform varassign
+ast-transform binop
+ast-transform literal
+ast-transform ptype
+ast-transform iff fls empty
+ast-transform varassign
+ast-transform unop
+ast-transform return
+ast-transform constructor
+ast-transform methoddecl
+ast-transform parameter
+ast-transform block
+ast-transform varassign
+ast-transform methodcall
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform varassign
+ast-transform literal
+ast-transform ptype
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform methodcall
+ast-transform ptype
+ast-transform literal
+ast-transform ptype
+============= AST ==============
+c-unit
+  (java lang)
+  class public final Integer (Number) empty
+  block g145
+    (vdecl empty (ptype int) value)
+    constructor public (methoddecl Integer (parameter (ptype int) i))
+      block g146
+        (varassign (varuse value) (varuse i)
+    method public empty (ptype int) (methoddecl intValue)
+      block g147
+        (return (varuse value))
+    method public (static) (ptype int) (methoddecl parseInt (parameter (rtype (String)) s))
+      block g148
+        (varassign (vdecl empty (ptype int) ret) (literal (ptype int) 0)
+        block g151
+          (varassign (vdecl empty (ptype boolean) neg) (literal (ptype bool) false)
+          block g152
+            (varassign (vdecl empty (ptype int) i) (literal (ptype int) 0)
+            block g153
+              while (binop ampamp (binop lt (varuse i) (methodcall (varuse s) #(struct:tree #(struct:leafnode #(struct:token id length)) ())empty)) (binop barbar (binop eqeq (methodcall (varuse s) #(struct:tree #(struct:leafnode #(struct:token id charAt)) ())(#s((varuse ast 0 (1 ())) () i))) (literal (ptype char) '-')) (binop ampamp (binop gteq (methodcall (varuse s) #(struct:tree #(struct:leafnode #(struct:token id charAt)) ())(#s((varuse ast 0 (1 ())) () i))) (literal (ptype char) '0')) (binop lteq (methodcall (varuse s) #(struct:tree #(struct:leafnode #(struct:token id charAt)) ())(#s((varuse ast 0 (1 ())) () i))) (literal (ptype char) '9')))))
+                block g149
+                  iff (binop eqeq (methodcall (varuse s) #(struct:tree #(struct:leafnode #(struct:token id charAt)) ())(#s((varuse ast 0 (1 ())) () i))) (literal (ptype char) '-')) (varassign (varuse neg) (unop not (varuse neg))block g150
+                      (varassign (varuse ret) (binop minus (binop plus (binop star (varuse ret) (literal (ptype int) 10)) (methodcall (varuse s) #(struct:tree #(struct:leafnode #(struct:token id charAt)) ())(#s((varuse ast 0 (1 ())) () i)))) (literal (ptype char) '0'))
+                  (varassign (varuse i) (binop plus (varuse i) (literal (ptype int) 1))
+              iff (varuse neg) (varassign (varuse ret) (unop minus (varuse ret))empty
+              (return (varuse ret))
+    constructor public (methoddecl Integer (parameter (rtype (String)) s))
+      block g154
+        (varassign (varuse value) (methodcall (varuse Integer) #(struct:tree #(struct:leafnode #(struct:token id parseInt)) ())(#s((varuse ast 0 (1 ())) () s)))
+    constructor public (methoddecl Integer)
+      block g155
+        (varassign (varuse value) (literal (ptype int) 0)
+    method public empty (rtype (String)) (methoddecl toString)
+      block g156
+        (return (methodcall (varuse String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ())(#s((varuse ast 0 (1 ())) () value))))
+    (varassign (vdecl static (ptype int) MAX_VALUE) (literal (ptype int) 2147483647)DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Number.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform ptype
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+============= AST ==============
+c-unit
+  (java lang)
+  class public abstract Number empty empty
+  block g157
+    method public (abstract) (ptype int) (methoddecl intValue)
+      block g159
+    constructor public (methoddecl Number)
+      block g158DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Object.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform method
+ast-transform ptype
+ast-transform methoddecl
+ast-transform parameter
+ast-transform block
+ast-transform return
+ast-transform binop
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform literal
+ast-transform method
+ast-transform ptype
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform literal
+ast-transform ptype
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform literal
+ast-transform ptype
+============= AST ==============
+c-unit
+  (java lang)
+  class public empty Object empty empty
+  block g160
+    constructor public (methoddecl Object)
+      block g161
+    method public empty (ptype boolean) (methoddecl equals (parameter (rtype (Object)) other))
+      block g162
+        (return (binop eqeq (keyword this) (varuse other)))
+    method public empty (rtype (String)) (methoddecl toString)
+      block g163
+        (return (literal (rtype (java lang String)) "Some random object"))
+    method public empty (ptype int) (methoddecl hashCode)
+      block g164
+        (return (literal (ptype int) 42))
+    method protected empty (rtype (Object)) (methoddecl clone)
+      block g165
+        (return (keyword this))
+    method public (final) (rtype (Class)) (methoddecl getClass)
+      block g166
+        (return (literal (ptype null) null))DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/Short.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform ptype
+ast-transform constructor
+ast-transform methoddecl
+ast-transform parameter
+ast-transform ptype
+ast-transform block
+ast-transform varassign
+ast-transform method
+ast-transform ptype
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform cast
+ast-transform ptype
+ast-transform constructor
+ast-transform methoddecl
+ast-transform block
+ast-transform method
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+ast-transform methodcall
+============= AST ==============
+c-unit
+  (java lang)
+  class public final Short (Number) empty
+  block g167
+    (vdecl empty (ptype short) value)
+    constructor public (methoddecl Short (parameter (ptype short) i))
+      block g168
+        (varassign (varuse value) (varuse i)
+    method public empty (ptype int) (methoddecl intValue)
+      block g169
+        (return (cast (ptype int) (varuse value)))
+    constructor public (methoddecl Short)
+      block g170
+    method public empty (rtype (String)) (methoddecl toString)
+      block g171
+        (return (methodcall (varuse String) #(struct:tree #(struct:leafnode #(struct:token id valueOf)) ())(#s((varuse ast 0 (1 ())) () value))))DOING IMPORT STUFF
+GETTING AST FOR stdlib/java/lang/String.java
+RUNNING SCANNER
+RUNNING PARSER
+RUNNING WEEDER
+ast-transform cunit
+ast-transform class
+ast-transform block
+ast-transform method
+ast-transform ptype
+ast-transform methoddecl
+ast-transform block
+ast-transform return
+Test Failed! Compiler returned: 1, Expected: 
+Output in file: tests/failed_out/.out

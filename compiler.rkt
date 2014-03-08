@@ -10,7 +10,7 @@
 (require "parse-tree.rkt")
 (require "environments.rkt")
 (require "type-linker.rkt")
-(require "heirarchy-checker.rkt")
+;(require "heirarchy-checker.rkt")
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -146,27 +146,28 @@
             (envs-print (roote-env (second x)))) rootenvs)
 
 (printf "~n============== Type Linker ==============~n")
-(define all-links (gen-typelink-lists asts rootenvs))
-(print-all-links all-links rootenvs)
+(define new-asts (gen-typelink-lists asts rootenvs))
+
+(print-asts new-asts files-to-compile)
+;(print-all-links all-links rootenvs)
 
 
-(printf "~n============== Heirarchy Checker ==========~n")
-(define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
-(define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
+;(printf "~n============== Heirarchy Checker ==========~n")
+;(define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
+;(define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
 
-(define full-envs (check-heirarchies ref-asts ref-all-links))
+;(define full-envs (check-heirarchies ref-asts ref-all-links))
 
-
-(printf "~n=====================Local Environment Generation=========================~n")
-(with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
-                                                             (error)))])
-  (for-each (lambda (x y) 
-              (envs-print x) 
-              (printf "~n")
-              (print-ast y "")
-              (printf "~n")
-              (va x y)
-              (print-ast y "")) full-envs asts))
+;(printf "~n=====================Local Environment Generation=========================~n")
+;(with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
+;                                                             (error)))])
+;  (for-each (lambda (x y) 
+;              (envs-print x) 
+;              (printf "~n")
+;              (print-ast y "")
+;              (printf "~n")
+;              (va x y)
+;              (print-ast y "")) full-envs asts))
 
 (compiled)
 
