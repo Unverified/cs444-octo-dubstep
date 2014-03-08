@@ -12,9 +12,17 @@
 (define (parent-of? T S env)
   (error "parent-of not implemented"))
 
-;;implicit-cast? : (union ptype rtype atype) (union ptype rtype atype) -> Boolean
-(define (implicit-cast? t1 t2)
-  (error "implicit-cast? not implemented"))
+
+
+;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
+(define (can-assign? T S)
+  (match (list T S)
+    [(list (rtype _ _) (ptype _ _)) (error "Assignment of primitive types to reference type variables not allowed")]
+    
+    
+
+    
+  (error "can-assign? not implemented"))
 
 ;;cast-ptypes : Symbol Symbol -> Boolean
 (define (cast-ptypes T S)
@@ -66,7 +74,7 @@
     
     [(varassign _ id expr)
      (let ([var-type (type-expr id)])
-       (if (implicit-cast? var-type (type-expr expr))
+       (if (can-assign? var-type (type-expr expr))
            var-type
            (error "Type Mismatch in Assignment")))]
     
