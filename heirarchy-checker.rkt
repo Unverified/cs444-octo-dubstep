@@ -6,6 +6,18 @@
 	
 (provide check-heirarchies)
 
+(provide type-ast=?)
+
+(define (type-ast=? links t1 t2)
+  (printf "type-ast=? ~a ~a~n" t1 t2)
+  (match (list t1 t2)
+    [`(void void) #t]	;hack this bitch out
+    [`(,(ptype _ ta) ,(ptype _ tb)) (equal? ta tb)]
+    [`(,(atype _ ta) ,(atype _ tb)) (type-ast=? links ta tb)]
+    [`(,(rtype _ ta) ,(rtype _ tb)) (type-ast=? links ta tb)]
+    [`((,ta ...) (,tb ...)) (printf "type-ast2=? ~a ~a~n" ta tb) (printf "~a : ~a~n" (get-full ta links) (get-full tb links)) (equal? (get-full ta links) (get-full tb links))]
+    [_ #f]))
+
 ;======================================================================================
 ;==== Getter Helpers
 ;======================================================================================
@@ -185,15 +197,6 @@
     [(list? (member 'final base-list)) #f]
     [else #t]))
 
-(define (type-ast=? links t1 t2)
-  (printf "type-ast=? ~a ~a~n" t1 t2)
-  (match (list t1 t2)
-    [`(void void) #t]	;hack this bitch out
-    [`(,(ptype _ ta) ,(ptype _ tb)) (equal? ta tb)]
-    [`(,(atype _ ta) ,(atype _ tb)) (type-ast=? links ta tb)]
-    [`(,(rtype _ ta) ,(rtype _ tb)) (type-ast=? links ta tb)]
-    [`((,ta ...) (,tb ...)) (printf "type-ast2=? ~a ~a~n" ta tb) (printf "~a : ~a~n" (get-full ta links) (get-full tb links)) (equal? (get-full ta links) (get-full tb links))]
-    [_ #f]))
 
 (define (scope>? s1 s2)
   (define (get-scope-val scope)
