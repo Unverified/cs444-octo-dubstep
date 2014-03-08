@@ -314,8 +314,9 @@
 ;==== Method Call 
 ;==============================================================================================
   
-    (rule 'METHOD_CALL (list 'IDS 'oparen 'ARGUMENT_LIST 'cparen))
-    (rule 'METHOD_CALL (list 'FIELD_ACCESS 'oparen 'ARGUMENT_LIST 'cparen))
+    (rule 'METHOD_CALL (list 'id 'oparen 'ARGUMENT_LIST 'cparen))
+    (rule 'METHOD_CALL (list 'IDS 'dot 'id 'oparen 'ARGUMENT_LIST 'cparen))
+    (rule 'METHOD_CALL (list 'PRIMARY 'dot 'id 'oparen 'ARGUMENT_LIST 'cparen))
 
 ;==============================================================================================
 ;==== Argument List

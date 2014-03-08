@@ -34,6 +34,7 @@
 (provide (struct-out block))
 (provide (struct-out varuse))
 (provide (struct-out keyword))
+(provide (struct-out ambiguous))
 
 (provide clean-ast)
 (provide parse->ast)
@@ -48,6 +49,7 @@
 (provide is-class)
 (provide is-interface)
 (provide is-class-with-mod)
+(provide ast-transform)
 
 (provide set-ast-envt!)
 (provide ast-envt)
@@ -109,7 +111,7 @@
 (struct fieldaccess ast (left field) #:prefab)
 
 ;(struct methodcall ([left : (Listof String) | fieldaccess] [args: (Listof "expression")]))
-(struct methodcall ast (left args) #:prefab)
+(struct methodcall ast (left id args) #:prefab)
 
 ;(struct arrayaccess ([left : (Listof String) | "primary, no new arrays"] [index: "expression"]))
 (struct arrayaccess ast (left index) #:prefab)
@@ -147,6 +149,9 @@
 ;(struct keyword ())
 (struct keyword ast (key) #:prefab)
 
+(struct ambiguous ast (ids) #:prefab)
+
+
 ;==============================================================================================
 ;==== AST Generation
 ;==============================================================================================
@@ -159,20 +164,22 @@
 
 (define (clean-ast t)
   (match t
-    [`() `()]
     [`(,var) (varuse var)]
-    [`(,vars ...) (let ([srav (reverse vars)]) (foldl fieldaccess (first srav) (rest srav)))]
+    [`(,vars ...) (ambiguous vars)]
     [(method _ sp md ty decl '()) (method sp md (clean-ast ty) decl (block (gensym) '()))]
     
     [(vdecl _ sp md ty (varassign _ id ex)) (varassign (vdecl sp md (clean-ast ty) id) (clean-ast ex))]
     [(vdecl _ sp md ty id) (vdecl sp md (clean-ast ty) id)]
     
-    [(arraycreate _ `(,ty ...) sz) (arraycreate (rtype ty) (clean-ast sz))]
-    [(classcreate _ cls params) (classcreate cls (clean-ast params))]
-    [(atype _ (list type ...)) (atype (rtype type))]
+    [(methodcall _ `(,ids ...) id args) (methodcall (ambiguous ids) id (map clean-ast args))]
 
-    [(rtype _ (list type ...)) (rtype type)]
-    [(rtype _ (atype _ type))  (atype type)]    
+    [(arraycreate _ `(,ty ...) sz) (arraycreate (rtype ty) (clean-ast sz))]
+    [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate (rtype cls) (map clean-ast params))]
+    [(atype _ `(,ty ...)) (atype (rtype ty))]
+
+    [(cast _ `(,ty ...) expr) (cast (rtype ty) (clean-ast expr))]
+    [(rtype _ `(,ty ...)) (rtype ty)]
+    [(rtype _ (atype _ type)) (clean-ast (atype type))]    
     [(rtype _ _) (error "rtype with invalid inside: " t)]
     
     
@@ -196,11 +203,17 @@
     [(unop _ op rs) (unop op (F rs))]
     [(cast _ c ex) (cast (F c) (F ex))]
     [(arraycreate _ ty sz) (arraycreate (F ty) (F sz))]
-    [(classcreate _ cls params) (classcreate cls (F params))]
+    [(classcreate _ cls params) (classcreate (F cls) (map F params))]
     [(fieldaccess _ left field) (fieldaccess (F left) field)]
-    [(methodcall _ left args) (methodcall (F left) (map F args))] 
+    [(methodcall _ `() id args) (methodcall empty id (map F args))] 
+    [(methodcall _ left id args) (methodcall (F left) id (map F args))] 
     [(arrayaccess _ left index) (arrayaccess (F left) (F index))]
+    [(iff _ test '() '()) (iff (F test) empty empty)]
+    [(iff _ test '() fls) (iff (F test) empty (F fls))]
+    [(iff _ test tru '()) (iff (F test) (F tru) empty)]
     [(iff _ test tru fls) (iff (F test) (F tru) (F fls))]
+    
+
     [(while _ test body) (while (F test) (F body))]
     [(for _ init clause update body) (for (F init) (F clause) (F update) (F body))]
     [(return _ expr) (return (F expr))]
@@ -212,6 +225,7 @@
     [(varuse _ _) ast]
     [(keyword _ _) ast]
     [(block _ id statements) (block id (map F statements))]
+    [(ambiguous _ ids) (ambiguous ids)]
     ))
   
 (define (parse->ast t)
@@ -249,7 +263,7 @@
     
     ;methoddecl
     [(tree (node 'METHOD_DECLARATOR) `(,id ,_ ,params ,_)) (methoddecl (parse->ast id) (parse->ast params))]
-    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (methoddecl (parse->ast id) (list (parameter (parse->ast int) (parse->ast p-id))))]
+    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (methoddecl (parse->ast id) (list (parameter (ptype 'int) (parse->ast p-id))))]
     
     ;ptype/rtype/atype
     [(tree (node 'PRIMITIVE_TYPE) `(,x)) (ptype (parse->ast x))]
@@ -295,7 +309,8 @@
     [(tree (node 'FIELD_ACCESS) `(,left ,_ ,field)) (fieldaccess (parse->ast left) (parse->ast field))]
     
     ;methodcall
-    [(tree (node 'METHOD_CALL) `(,left ,_ ,args ,_)) (methodcall (parse->ast left) (parse->ast args))]
+    [(tree (node 'METHOD_CALL) `(,id ,_ ,args ,_)) (methodcall empty (parse->ast id) (parse->ast args))]
+    [(tree (node 'METHOD_CALL) `(,left ,_ ,id ,_ ,args ,_)) (methodcall (parse->ast left) (parse->ast id) (parse->ast args))]
     
     ;arrayaccess
     [(tree (node 'ARRAY_ACCESS) `(,left ,_ ,index ,_)) (arrayaccess (parse->ast left) (parse->ast index))]
@@ -456,7 +471,7 @@
             [(arraycreate _ type size) (comb (proc type) (proc size))]
             [(classcreate _ class params) (comb (proc class) (proc params))]
             [(fieldaccess _ left field) (comb (proc left) (proc field))]
-            [(methodcall _ left args) (comb (proc left) (proc args))]
+            [(methodcall _ left id args) (comb (proc left) (proc id) (proc args))]
             [(arrayaccess _ left index) (comb (proc left) (proc index))]
             [(iff _ test tru fls) (comb (proc test) (proc tru) (proc fls))]
             [(while _ test body) (comb (proc test) (proc body))]
@@ -522,33 +537,76 @@
                                   (for-each (lambda (x) (print-ast x (string-append indent "  "))) imports)
                                   (print-ast body (string-append indent "  "))]
     
-    [(interface _ scope mod id extends body) (printf "~ainterface ~a ~a ~a ~a~n" indent scope mod id extends)
+    [(interface _ scope mod id extends body) (printf "~ainterface " indent)
+                                             (print-ast scope indent) (printf " ")
+                                             (print-ast mod indent) (printf " ")
+                                             (print-ast id indent) (printf " ")
+                                             (print-ast extends indent) (printf "~n~a"indent)
                                              (print-ast body (string-append indent "  "))]
     
-    [(class _ scope mod id extends implements body) (printf "~aclass ~a ~a ~a ~a ~a~n" indent scope mod id extends implements)
+    [(class _ scope mod id extends implements body) (printf "~aclass " indent)
+                                                    (print-ast scope indent) (printf " ")
+                                                    (print-ast mod indent) (printf " ")
+                                                    (print-ast id indent) (printf " ")
+                                                    (print-ast extends indent) (printf " ")
+                                                    (print-ast implements indent) (printf "~n~a"indent)
                                                     (print-ast body (string-append indent "  "))]
     
     
-    [(constructor _ scope methoddecl body) (printf "~aconstructor ~a ~a~n" indent scope methoddecl)
+    [(constructor _ scope methoddecl body) (printf "constructor ")
+                                           (print-ast scope indent) (printf " ")
+                                           (print-ast methoddecl indent) (printf "~n~a"indent)
                                            (print-ast body (string-append indent "  "))]
     
-    [(method _ scope mod type methoddecl body) (printf "~amethod ~a ~a ~a ~a~n" indent scope mod type methoddecl)
+    [(method _ scope mod type methoddecl body) (printf "method ")
+                                               (print-ast scope indent) (printf " ")
+                                               (print-ast mod indent) (printf " ")
+                                               (print-ast type indent) (printf " ")
+                                               (print-ast methoddecl indent) (printf "~n~a"indent)
                                                (print-ast body (string-append indent "  "))]
     
-    [(iff _ test tru fls) (printf "~aiff ~a~n" indent test)
+    [(iff _ test tru fls) (printf "iff ")
+                          (print-ast test indent) (printf " ")
                           (print-ast tru (string-append indent "  "))
                           (print-ast fls (string-append indent "  "))]
     
-    [(while _ test body) (printf "~awhile ~a~n" indent test)
+    [(while _ test body) (printf "while ")
+                         (print-ast test indent) (printf "~n~a"indent)
                          (print-ast body (string-append indent "  "))]
     
-    [(for _ init clause update body) (printf "~afor ~a ~a ~a~n" indent init clause update)
+    [(for _ init clause update body) (printf "for ") 
+                                     (print-ast init indent) (printf " ")
+                                     (print-ast clause indent) (printf " ")
+                                     (print-ast update indent) (printf "~n~a"indent)
                                      (print-ast body (string-append indent "  "))]
     
-    [(block _ id statements) (printf "~aBLOCK ~a~n" indent id) 
-                             (for-each (lambda (x) (print-ast x (string-append indent "|  "))) statements)]
-    
-    [_ (printf "~a~a~n" indent ast-node)]))
+    [(block _ id statements) (printf "block ~a" id) 
+                             (for-each (lambda (x) (printf "~n") (printf "~a" indent) (print-ast x (string-append indent "  "))) statements)]
+
+    [(cimport path) (printf "~a(cimport " indent) (print-ast path indent) (printf ")~n")]
+    [(pimport path) (printf "~a(pimport " indent) (print-ast path indent) (printf ")~n")]
+    [(methoddecl _ id parameters) (printf "(methoddecl ") (print-ast id indent) (for-each (lambda(x) (printf " ") (print-ast x indent)) parameters) (printf ")")]
+    [(parameter _ type id) (printf "(parameter ") (print-ast type indent) (printf " ") (print-ast id indent) (printf ")")]
+    [(varuse _ id) (printf "(varuse ") (print-ast id indent) (printf ")")]
+    [(literal _ type value) (printf "(literal ") (print-ast type indent) (printf " ") (print-ast value indent) (printf ")")]
+    [(vdecl _ scope mod type id) (printf "(vdecl ") (print-ast mod indent) (printf " ") (print-ast type indent) (printf " ") (print-ast id indent) (printf ")")]
+    [(varassign _ id expr) (printf "(varassign ") (print-ast id indent) (printf " ") (print-ast expr indent)]
+    [(binop _ op left right) (printf "(binop ") (print-ast op indent) (printf " ") (print-ast left indent) (printf " ") (print-ast right indent) (printf ")")]
+    [(unop _ op right) (printf "(unop ") (print-ast op indent) (printf " ") (print-ast right indent) (printf ")")]
+    [(cast _ c expr) (printf "(cast ") (print-ast c indent) (printf " ") (print-ast expr indent) (printf ")")]
+    [(arraycreate _ type size) (printf "(arraycreate ") (print-ast type indent) (printf " ") (print-ast size indent) (printf ")")]
+    [(classcreate _ class params) (printf "(classcreate ") (print-ast class indent) (for-each (lambda(x) (printf " ") (print-ast x indent)) params) (printf ")")]
+    [(fieldaccess _ left field) (printf "(fieldaccess ") (print-ast left indent) (printf " ") (print-ast field indent) (printf ")")]
+    [(methodcall _ left id args) (printf "(methodcall ") (print-ast left indent) (printf " ") (print-ast id indent) (print-ast args indent) (printf ")")]
+    [(arrayaccess _ left index) (printf "(arrayaccess ") (print-ast left indent) (printf " ") (print-ast index indent) (printf ")")]
+    [(return _ expr) (printf "(return ") (print-ast expr indent) (printf ")")]
+    [(ptype _ type) (printf "(ptype ") (print-ast type indent) (printf ")")]
+    [(rtype _ type) (printf "(rtype ") (print-ast type indent) (printf ")")]
+    [(atype _ type) (printf "(atype ") (print-ast type indent) (printf ")")]
+    [(keyword _ key) (printf "(keyword this)" )]
+    [(ambiguous _ ids) (printf "(ambiguous ") (print-ast ids indent) (printf ")")]
+    [`() (printf "empty")]
+    [_ (printf "~a" ast-node)]))
 
 (define (print-asts asts files)
   (for-each (lambda(ast) (printf "~n================ AST ================~n") (print-ast ast "")) asts))
