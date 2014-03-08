@@ -85,7 +85,7 @@
     [(binop _ _ _ _) (error "BinOp not implemented")]
     [(parameter e type id) (error "parameter not implemented")]
     
-    ;[`(,binop _ + ,left ,right) '()]
+    
     [(block _ _ statements) (begin (map type-expr statements) (ptype empty 'void))]
     [(arrayaccess _ left index) (if (whole-number? (type-expr index)) 
                                     (if (atype? (type-expr left)) 
