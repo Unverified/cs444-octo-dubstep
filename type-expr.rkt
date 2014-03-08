@@ -17,6 +17,8 @@
 ;;type-expr : ast -> (union ptype rtype atype)
 (define (type-expr ast)
 
+  (define (test-specific-bin-op type left right err-string)
+    (if (and (type-ast=? type (type-expr left)) (type-ast=? type (type-expr right))) type (error err-string)))
 
   (define (test-un-op op right)
     (cond
@@ -46,6 +48,8 @@
                                          (ptype empty 'void)
                                          (error "For test not Boolean!"))]
     
-    [(unop _ op right) (test-un-op op right)]))
+    [(unop _ op right) (test-un-op op right)]
+    [`(,binop _ + ,left ,right) '()]))
+     
                                                 
     
