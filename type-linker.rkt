@@ -21,12 +21,14 @@
 (define (remove-last l)
   (reverse (rest (reverse l))))
 
-(define (prefix? l1 l2)
-  (cond 
-    [(empty? l1) #t]
-    [(empty? l2) #f]
-    [(equal? (first l1) (first l2)) (prefix? (rest l1) (rest l2))]
-    [else #f]))
+(define (prefix? pre lst)
+  (list? (remove-prefix pre lst)))
+
+(define (remove-prefix pre lst)
+  (cond [(empty? pre) lst]
+        [(empty? lst) #f]
+        [(equal? (first pre) (first lst)) (remove-prefix (rest pre) (rest lst))]
+        [else #f]))
 
 (define (get-all-prefixes lst)
   (foldr (lambda (ele lst) (cons (list ele) (map (curry cons ele) lst))) empty lst))

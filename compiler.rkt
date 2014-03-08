@@ -128,10 +128,11 @@
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
 (define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
+;(define asts (map parse-file files-to-compile))
 
 (printf "~n============== PRINTING ASTS ==============~n")
-
 (print-asts asts files-to-compile)
+(define names (map c-unit-name asts))
 
 (printf "~n============== Environments ==============~n")
 
