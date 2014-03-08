@@ -10,7 +10,11 @@
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S env)
-  '())
+  (error "parent-of not implemented"))
+
+;;implicit-cast? : (union ptype rtype atype) (union ptype rtype atype) -> Boolean
+(define (implicit-cast? t1 t2)
+  (error "implicit-cast? not implemented"))
 
 ;;cast-ptypes : Symbol Symbol -> Boolean
 (define (cast-ptypes T S)
@@ -62,15 +66,14 @@
     
     [(varassign _ id expr)
      (let ([var-type (type-expr id)])
-       (if (type-ast=? var-type (type-expr expr))
+       (if (implicit-cast? var-type (type-expr expr))
            var-type
            (error "Type Mismatch in Assignment")))]
     
     [(varuse e id)
-     (let ([env (ast-envt ast)])
      (match (assoc id (envs-types env))
        [#f (error "Unbound Identifier")]
-       [(list a b) b]))]
+       [(list a b) b])]
     
     [(literal _ type value) type]
     [(or
@@ -78,8 +81,7 @@
     
     
     [(cast e c expr) 
-     (let ([env (ast-envt ast)])
-       (if (castable? c (type-expr expr) env) c (error "Invalid Cast")))]
+       (if (castable? c (type-expr expr) env) c (error "Invalid Cast"))]
     
     [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype empty 'boolean))) (ptype empty 'void) (error "Type of Test not Boolean"))]
     
@@ -96,7 +98,7 @@
     
     [(unop _ op right) (test-un-op op right)]
     [(binop _ _ _ _) (error "BinOp not implemented")]
-    [(parameter e type id) (error "parameter not implemented")]
+    [(parameter _ type _) type]
     
     
     [(block _ _ statements) (begin (map type-expr statements) (ptype empty 'void))]
@@ -109,8 +111,15 @@
     [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) 
                                                         (atype type)   
                                                         (error "Array declaration expects numeric type for size")))]
-    [(methodcall e left args) (error "Methodcall not implemented")]
-    [(methoddecl e id parameters) (error "Methoddecl not implemented")]
+    [(methodcall _ left args) 
+     (let* ([method-funt (methodcall->funt ast type-expr)]
+            [ret (match (assoc  method-funt (envs-types env))
+                      [(list a b) b]
+                      [_ (error "No Function of that name")])])
+       ret)]
+           
+           ]
+    [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
     [(method _ _ _ _ body) (type-expr body)]
     [(or (class _ _ _ _ _ _ body)
          (interface _ _ _ _ _ body)) (type-expr body)]
