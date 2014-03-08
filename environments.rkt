@@ -14,6 +14,8 @@
 (provide va)
 (provide env-empty)
 
+(provide methodcall->funt)
+
 (provide (struct-out eval))
 (provide (struct-out envs))
 (provide (struct-out roote))
@@ -33,6 +35,12 @@
     [(methoddecl _ id params) (funt id (map parameter-type params))]
     ;[(methodcall id params) (funt id (map (lambda (x) x) params))]
     [_ (error "mdecl->funt: mdecl that is not a method declaration passed int")]))
+
+
+(define (methodcall->funt mcall type-expr)
+  (match mcall
+    [(methodcall _ id params) (funt id (map type-expr params))]
+    [_ (error "Not a methodcall")]))
 
 (define (gen-root-env asts)
   (map (lambda (x) (list (c-unit-name x) (roote (gensym) (gen-class-envs x)))) asts))
