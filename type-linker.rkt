@@ -33,6 +33,9 @@
 (define (get-all-prefixes lst)
   (foldr (lambda (ele lst) (cons (list ele) (map (curry cons ele) lst))) empty lst))
 
+(define filter-classes (compose1 (curry filter (compose1 (curry equal? 1) length)) 
+                                 (curry filter list?)))
+
 ;======================================================================================
 ;==== Linker Generation
 ;======================================================================================
