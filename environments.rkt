@@ -84,7 +84,7 @@
            (rtype _ _)
            (atype _ _)
            (literal _ _ _)
-           (methodcall _ _ _)
+           (methodcall _ _ _ _)
            (arraycreate _ _ _)
            (fieldaccess _ _ _)
            (arrayaccess _ _ _)

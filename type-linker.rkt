@@ -6,15 +6,15 @@
 (provide gen-typelink-lists)
 (provide print-all-links)
 (provide print-links)
-(provide (struct-out link))
-(struct link (full env))
+;(provide (struct-out link))
+;(struct link (full env))
 
 ;======================================================================================
 ;==== Helper Functions
 ;======================================================================================
 
 (define (pair-key p) (first p))
-(define (pair-value p) ((second p))) ;Elements are stored as constant functions, ambiguity creates errors
+(define (pair-value p) (second p)) ;Elements are stored as constant functions, ambiguity creates errors
 (define (pair key value) (list key value))
 
 ;removes the last element of a list
@@ -65,54 +65,49 @@
                                                 (append-map (lambda(ci) (get-all-prefixes (remove-last (cimport-path ci)))) (filter cimport? (cunit-imports ast)))
                                                 (append-map (lambda(pi) (get-all-prefixes (pimport-path pi))) (filter pimport? (cunit-imports ast))))))
                    
-                   (define class-type-links (filter-not empty? (gen-typelink-list ast possible-typename-links rootlinks)))
-                   
-                   ;(printf "~n======== class-type-links ========~n~a~n"class-type-links)
-                   
-                   (remove-duplicates (append class-type-links (map (lambda(x) (list (first x) ((second x))) ) rootlinks))))
+                   (gen-typelink-list ast possible-typename-links rootlinks))
                  asts rootenvs)])))
 
 (define (gen-typelink-list ast possible-typename-links rootlinks)
   (define (resolve-type typename assoc-list)
-    (match (assoc typename assoc-list)
-      [`(,key ,value) (value)]
-      [_ (error "Could not resolve typename:" typename)]))
+    (define typelink (assoc typename assoc-list))
+    (cond
+      [(and (list? typelink) (procedure? (second typelink))) ((second typelink))] ;if its a procedure than there is an error associated with using this link
+      [(list? typelink) (second typelink)]
+      [else (error "Could not resolve typename:" typename)]))
   
   (define (typelink-helper typename)
     (cond
       [(empty? typename) empty]
-      [(equal? 1 (length typename)) (define typelink (resolve-type typename possible-typename-links))
-                                    (pair (check-typename-prefix-not-type typename possible-typename-links) typelink)]
-      [else (define typelink (resolve-type typename rootlinks))
-            (pair (check-typename-prefix-not-type typename possible-typename-links) typelink)]))
+      [(equal? 1 (length typename)) (resolve-type (check-typename-prefix-not-type typename possible-typename-links) possible-typename-links)]
+      [else (resolve-type (check-typename-prefix-not-type typename possible-typename-links) rootlinks)]))
   
   (define (typelink ast)
     (match ast
-      [(interface _ _ _ id e b) (append (map (lambda(x) (typelink-helper x)) e) (typelink b))]
+      [(interface _ s m id e b) (interface s m id (map (lambda(x) (typelink-helper x)) e) (typelink b))]
       
-      [(class _ _ _ id e i b) (append (list (typelink-helper e))
-                                      (map (lambda(x) (typelink-helper x)) i)
-                                      (typelink b))]
+      [(class _ s m id e i b) (class s m id (typelink-helper e) (map (lambda(x) (typelink-helper x)) i) (typelink b))]
       
-      [(rtype _ t) (cond
-                     [(list? t) (cons (typelink-helper t) empty)]
-                     [else (typelink t)])]
+      [(rtype _ t) (rtype (typelink-helper t))]
+                   ;(cond
+                   ;  [(list? t) (cons (typelink-helper t) empty)]
+                   ;  [else (typelink t)])]
       
-      [(atype _ t) (cond
-                     [(list? t) (cons (typelink-helper t) empty)]
-                     [else (typelink t)])]
+      ;[(atype _ t) (cond
+      ;               [(list? t) (cons (typelink-helper t) empty)]
+      ;               [else (typelink t)])]
       
-      [(cast _ c expr) (cond
-                         [(list? c) (cons (typelink-helper c) (typelink expr))]
-                         [else (typelink expr)])]
+      ;[(cast _ c expr) (cond
+      ;                   [(list? c) (cons (typelink-helper c) (typelink expr))]
+      ;                   [else (typelink expr)])]
       
-      [(arraycreate _ t expr) (cond
-                                [(list? t) (cons (typelink-helper t) (typelink expr))]
-                                [else (typelink expr)])]
+      ;[(arraycreate _ t expr) (cond
+      ;                          [(list? t) (cons (typelink-helper t) (typelink expr))]
+      ;                          [else (typelink expr)])]
       
-      [(classcreate _ t args) (cons (typelink-helper t) (typelink args))]
-      
-      [_ (ast-recurse ast typelink append)]))
+      ;[(classcreate _ t args) (cons (typelink-helper t) (typelink args))]
+
+      [_ (ast-transform typelink ast)]))
   (typelink ast))
 
 ;======================================================================================
@@ -122,14 +117,14 @@
 (define (find-fully-qualified-link name rootenvs)
   (define r (findf (lambda(x) (equal? name (first x))) rootenvs))
   (cond
-    [(list? r) (const (apply link r))]
+    [(list? r) (first r)]
     [else #f]))
 
 (define (find-package-links package rootenvs)
   (define (find-package-links-helper r package)
     (define r-package (remove-last (first r)))
     (cond
-      [(equal? package r-package) (list (pair (list (last (first r))) (const (apply link r))))]
+      [(equal? package r-package) (list (pair (list (last (first r))) (first r)))]
       [else empty]))
   (append-map (lambda(r) (find-package-links-helper r package)) rootenvs))
 
@@ -160,7 +155,7 @@
     (remove-duplicates (append (get-all-prefixes (get-package-name ast)) 
                                (append-map (lambda(ci) (get-all-prefixes (remove-last (cimport-path ci)))) (filter cimport? (cunit-imports ast)))
                                (append-map (lambda(pi) (get-all-prefixes (pimport-path pi))) (filter pimport? (cunit-imports ast))))))
-  (map (lambda(x) (pair (check-no-prefix-resolves-to-type x package-prefixes) (const (apply link x)))) rootenvs))
+  (map (lambda(x) (pair (check-no-prefix-resolves-to-type x package-prefixes) (first x))) rootenvs))
 
 (define (check-no-prefix-resolves-to-type rootenv package-prefixes)
   (cond
@@ -184,7 +179,7 @@
     [else (cons (first links) (check-for-clashes (rest links) enclosing-type (cons (first (first links)) seen-so-far)))]))
 
 (define (check-for-class-name-clash enclosing-type import-typelink)
-  (and (not (equal? enclosing-type (link-full (pair-value import-typelink)))) (equal? (list (last enclosing-type)) (pair-key import-typelink)) ))
+  (and (not (equal? enclosing-type (pair-value import-typelink))) (equal? (list (last enclosing-type)) (pair-key import-typelink)) ))
 
 (define (check-for-ondemand-clashes links seen-so-far)
   (define (get-package-ci link) (last (first link)))
@@ -206,7 +201,6 @@
 
 (define (print-link l)
   (match l
-    [`(,name ,(link x y)) (printf "~nTYPE: ~a LINKS TO:~n~a~n" name x)]
     [`(,name ,x) (printf "~nTYPE: ~a LINKS TO:~n~a~n" name x)]
     [`() (printf "EMPTY PAIR???~n")]))
 
