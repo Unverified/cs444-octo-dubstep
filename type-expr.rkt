@@ -12,12 +12,17 @@
 (define (parent-of? T S env)
   '())
 
+;;cast-ptypes : Symbol Symbol -> Boolean
+(define (cast-ptypes T S)
+  (error "Cast-ptypes not implemented"))
+
+
 ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
-(define (castable? t1 t2 env)
-  (match (list t1 t2)
-    [(list (ptype _ _) (ptype _ _)) (type-ast=? t1 t2)]
-    [(list (atype _ typ1) (atype _ typ2)) (castable? typ1 typ2)]
-    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? t1 t2) #t (or (parent-of? t1 t2 env) (parent-of t2 t1 env)))]
+(define (castable? T S env)
+  (match (list T S)
+    [(list (ptype _ sym1) (ptype _ sym2)) (cast-ptypes sym1 sym2)]
+    [(list (atype _ typ1) (atype _ typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
+    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? T S) #t (or (parent-of? T S env) (parent-of T S env)))]
     [(list _ _) (error "Cast type mismatch")]))
 
 
@@ -38,7 +43,7 @@
 
 ;;type-expr : ast -> (union ptype rtype atype)
 (define (type-expr ast)
-
+  (define env (ast-envt ast))
   (define (test-specific-bin-op type left right err-string)
     (if (and (type-ast=? type (type-expr left)) (type-ast=? type (type-expr right))) type (error err-string)))
 
@@ -101,15 +106,21 @@
                                         (error "Array type expected")) 
                                     (error "Array index expects type int"))]
     [(return _ expr) (type-expr expr)]
-    [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) (atype type) (error "Array declaration expects numeric type for size")))]
-    ;[(classcreate _ class params) (begin (map type-expr params)
+    [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) 
+                                                        (atype type)   
+                                                        (error "Array declaration expects numeric type for size")))]
     [(methodcall e left args) (error "Methodcall not implemented")]
     [(methoddecl e id parameters) (error "Methoddecl not implemented")]
     [(method _ _ _ _ body) (type-expr body)]
     [(or (class _ _ _ _ _ _ body)
          (interface _ _ _ _ _ body)) (type-expr body)]
     [(cunit _ _ body) (type-expr body)]
-    [(fieldaccess e left field) (error "Fieldaccess not implemented")]
+    
+    [(fieldaccess _ _ field) 
+     (match (assoc id (envs-types env))
+       [#f (error "Unbound Field Access")]
+       [(list a b) b])]
+    
     [(classcreate e class params) (error "Classcreate not implemented")]
     [(constructor e scope methoddecl body) (type-expr body)]
     [(keyword e id) (error "keyword not implemented")]
