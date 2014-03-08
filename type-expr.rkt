@@ -8,13 +8,17 @@
 
 
 
-;;parent-of? rtype rtype -> Boolean
-(define (parent-of? T S)
+;;parent-of? rtype rtype envs -> Boolean
+(define (parent-of? T S env)
   '())
 
 ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
 (define (castable? t1 t2 env)
-  (error "Castable not implemented"))
+  (match (list t1 t2)
+    [(list (ptype _ _) (ptype _ _)) (type-ast=? t1 t2)]
+    [(list (atype _ typ1) (atype _ typ2)) (castable? typ1 typ2)]
+    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? t1 t2) #t (or (parent-of? t1 t2 env) (parent-of t2 t1 env)))]
+    [(list _ _) (error "Cast type mismatch")]))
 
 
 ;;define whole-number? ptype
@@ -40,24 +44,29 @@
                         
                       
   (match ast
-    [(varuse env 'this) (error "This not implemented")]
+    [(varuse e 'this) (error "This not implemented")]
     [(vdecl _ _ _ _ _) (ptype empty 'void)]
     
-    [(varassign env id expr)
+    [(varassign _ id expr)
      (let ([var-type (type-expr id)])
        (if (type-ast=? var-type (type-expr expr))
            var-type
            (error "Type Mismatch in Assignment")))]
     
-    [(varuse env id)
+    [(varuse e id)
+     (let ([env (ast-envt ast)])
      (match (assoc id (envs-types env))
        [#f (error "Unbound Identifier")]
-       [(list a b) b])]
+       [(list a b) b]))]
     
     [(literal _ type value) type]
     [(or
       (ptype _ _ _) (atype _ _ _) (rtype _ _ _)) ast]
-    [(cast env c expr) (if (castable? c (type-expr expr) env) c (error "Invalid Cast"))]
+    
+    
+    [(cast e c expr) 
+     (let ([env (ast-envt ast)])
+       (if (castable? c (type-expr expr) env) c (error "Invalid Cast")))]
     
     [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype empty 'boolean))) (ptype empty 'void) (error "Type of Test not Boolean"))]
     
@@ -74,7 +83,7 @@
     
     [(unop _ op right) (test-un-op op right)]
     [(binop _ _ _ _) (error "BinOp not implemented")]
-    [(parameter env type id) (error "parameter not implemented")]
+    [(parameter e type id) (error "parameter not implemented")]
     
     ;[`(,binop _ + ,left ,right) '()]
     [(block _ _ statements) (begin (map type-expr statements) (ptype empty 'void))]
@@ -86,16 +95,16 @@
     [(return _ expr) (type-expr expr)]
     [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) (atype type) (error "Array declaration expects integer size")))]
     ;[(classcreate _ class params) (begin (map type-expr params)
-    [(methodcall env left args) (error "Methodcall not implemented")]
-    [(methoddecl env id parameters) (error "Methoddecl not implemented")]
+    [(methodcall e left args) (error "Methodcall not implemented")]
+    [(methoddecl e id parameters) (error "Methoddecl not implemented")]
     [(method _ _ _ _ body) (type-expr body)]
     [(or (class _ _ _ _ _ _ body)
          (interface _ _ _ _ _ body)) (type-expr body)]
     [(cunit _ _ body) (type-expr body)]
-    [(fieldaccess env left field) (error "Fieldaccess not implemented")]
-    [(classcreate env class params) (error "Classcreate not implemented")]
-    [(constructor env scope methoddecl body) (type-expr body)]
-    [(keyword env id) (error "keyword not implemented")]
+    [(fieldaccess e left field) (error "Fieldaccess not implemented")]
+    [(classcreate e class params) (error "Classcreate not implemented")]
+    [(constructor e scope methoddecl body) (type-expr body)]
+    [(keyword e id) (error "keyword not implemented")]
     
     
     
