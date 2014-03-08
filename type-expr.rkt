@@ -21,6 +21,14 @@
     [(list _ _) (error "Cast type mismatch")]))
 
 
+;;type-numeric? ptype->Boolean
+(define (type-numeric? pt)
+  (define valid-types '(int short char byte long float double))
+  (match pt
+    [(ptype _ typ) (list? (member typ valid-types))]
+    [_ #f]))
+
+
 ;;define whole-number? ptype
 (define (whole-number? pt)
   (define valid-types '(int short char byte))
@@ -38,7 +46,7 @@
     (cond
       [(symbol=? op '!) (if (type-ast=? (type-expr right) (ptype empty 'boolean)) (ptype empty 'boolean)
                             (error "! operator expects type boolean"))]
-      [(symbol=? op '-) (if (type-ast=? (type-expr right) (ptype empty 'int)) (ptype empty 'int)
+      [(symbol=? op '-) (if (type-numeric? (type-expr right)) (type-expr right)
                             (error "- operator expects numeric type"))]
       [else (error "Unimplemented operator")]))
                         
@@ -93,7 +101,7 @@
                                         (error "Array type expected")) 
                                     (error "Array index expects type int"))]
     [(return _ expr) (type-expr expr)]
-    [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) (atype type) (error "Array declaration expects integer size")))]
+    [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) (atype type) (error "Array declaration expects numeric type for size")))]
     ;[(classcreate _ class params) (begin (map type-expr params)
     [(methodcall e left args) (error "Methodcall not implemented")]
     [(methoddecl e id parameters) (error "Methoddecl not implemented")]
