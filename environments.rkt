@@ -1,3 +1,4 @@
+
 #lang racket
 
 (require "ast-tree.rkt")
@@ -60,25 +61,35 @@
   (params->envs env-empty (methoddecl-parameters decl)))
 
 (define (va cenv ast)
-  (define block-hash (make-hash))
   (define (_va block-id lenv ast)
     (match ast
-      [(varuse _ v) lenv]
-      [(vdecl _ _ _ type id) (add-env-variable lenv id block-id type ast)]
+      [(varuse _ v) (set-ast-envt! ast (env-append lenv cenv))
+                    lenv]
       
-      [(varassign _ id bdy) (_va block-id lenv bdy)
+      [(vdecl _ _ _ type id) (let ([new-env (add-env-variable lenv id block-id type ast)])
+                               (set-ast-envt! ast (env-append new-env cenv))
+                               new-env)]
+      
+      [(varassign _ id bdy) (set-ast-envt! ast (env-append lenv cenv))
+                            (_va block-id lenv bdy)
                             (_va block-id lenv id)]
       
-      [(while _ test body) (_va block-id lenv test)
+      [(while _ test body) (set-ast-envt! ast (env-append lenv cenv))
+                           (_va block-id lenv test)
                            (_va block-id lenv body)]
       
-      [(return _ expr) (_va block-id lenv expr)]
-      [(binop _ _ left right) (_va block-id lenv left)
+      [(return _ expr) (set-ast-envt! ast (env-append lenv cenv))
+                       (_va block-id lenv expr)]
+      
+      [(binop _ _ left right) (set-ast-envt! ast (env-append lenv cenv))
+                              (_va block-id lenv left)
                               (_va block-id lenv right)]
       
-      [(unop _ _ right) (_va block-id lenv right)]
+      [(unop _ _ right) (set-ast-envt! ast (env-append lenv cenv))
+                        (_va block-id lenv right)]
       
-      [(cast _ c expr)  (_va block-id lenv expr)]
+      [(cast _ c expr)  (set-ast-envt! ast (env-append lenv cenv))
+                        (_va block-id lenv expr)]
       
       [(or (ptype _ _)
            (rtype _ _)
@@ -88,22 +99,23 @@
            (arraycreate _ _ _)
            (fieldaccess _ _ _)
            (arrayaccess _ _ _)
-           (classcreate _ _ _)) lenv]
+           (classcreate _ _ _)) (set-ast-envt! ast (env-append lenv cenv)) 
+                                lenv]
       
-      [(iff _ test tru fls) (begin0 (_va block-id lenv test)
-                                    (if (empty? tru) (void) (_va block-id lenv tru))
-                                    (if (empty? fls) (void) (_va block-id lenv fls))
-                                    lenv)]
+      [(iff _ test tru fls) (set-ast-envt! ast (env-append lenv cenv))
+                            (_va block-id lenv test)
+                            (if (empty? tru) (void) (_va block-id lenv tru))
+                            (if (empty? fls) (void) (_va block-id lenv fls))
+                            lenv]
       
       [(for _ init clause update (block _ id bdy)) (let ([for-envt (_va id lenv init)])
-                                                     (hash-set! block-hash id (env-append for-envt cenv))
+                                                     (set-ast-envt! ast (env-append for-envt cenv))
                                                      (_va id for-envt clause)
                                                      (_va-list id for-envt bdy))]
       
-      [(block _ id bdy) (hash-set! block-hash id (env-append lenv cenv))
+      [(block _ id bdy) (set-ast-envt! ast (env-append lenv cenv))
                         (_va-list id lenv bdy)
                         lenv]
-      [(keyword _ _) lenv]
       
       [_ (error ast block-id)]))
   
@@ -115,18 +127,19 @@
     (match ast
       [(or (method _ _ _ _ decl (block _ id bdy))
            (constructor _ _ decl (block _ id bdy))) (let ([lenv (mdecl->envs id decl)])
-                                                      (hash-set! block-hash id (env-append lenv cenv))
+                                                      (set-ast-envt! ast (env-append lenv cenv))
                                                       (_va-list id lenv bdy))]
       [(vdecl _ _ _ _ _) cenv]
       [(varassign _ _ ex)  (_va id env-empty ex)]
       [_ env-empty]))
   (match ast
-    [(or (cunit _ _ bdy)
-         (class _ _ _ _ _ _ bdy)
-         (interface _ _ _ _ _ bdy)) (va cenv bdy)]
-    [(block _ id bdy) (hash-set! block-hash id cenv)
+    [(cunit _ _ bdy) (va cenv bdy)]
+    [(or (class _ _ _ _ _ _ bdy)
+         (interface _ _ _ _ _ bdy)) (set-ast-envt! ast cenv)
+                                    (va cenv bdy)]
+    [(block _ id bdy) (set-ast-envt! ast cenv)
                       (map (curry _top_va id) bdy)
-                      block-hash]))
+                      (void)]))
 
 ;======================================================================================
 ;==== Environment Transformation

@@ -3,9 +3,7 @@
 (require "scanner.rkt")
 (require "parse-tree.rkt")
 
-(provide (struct-out tree))
-(provide (struct-out node))
-(provide (struct-out leafnode))
+(provide (struct-out ast))
 (provide (struct-out cunit))
 (provide (struct-out cimport))
 (provide (struct-out pimport))
@@ -51,10 +49,13 @@
 (provide is-interface)
 (provide is-class-with-mod)
 
+(provide set-ast-envt!)
+(provide ast-envt)
+
 ;==============================================================================================
 ;==== AST Structures
 ;==============================================================================================
-(struct ast ([env #:auto]) #:mutable  #:auto-value empty #:prefab)
+(struct ast ([env #:auto]) #:auto-value (box '()) #:prefab)
 
 ;(struct c-unit ([package : (Listof String)] [imports : (Listof (Listof String))] [body : class U import]))
 (struct cunit (package imports body) #:prefab)
@@ -175,7 +176,7 @@
     [(rtype _ _) (error "rtype with invalid inside: " t)]
     
     
-    ['this (keyword 'this)]
+    ['this (varuse 'this)]
     ['void (ptype 'void)]
     
     [_ (ast-transform clean-ast t)]))
@@ -551,3 +552,9 @@
 
 (define (print-asts asts files)
   (for-each (lambda(ast) (printf "~n================ AST ================~n") (print-ast ast "")) asts))
+
+;==============================================================================================
+;==== AST Enviroment Modification
+;==============================================================================================
+(define (set-ast-envt! ast val) (set-box! (ast-env ast) val))
+(define ast-envt (compose1 unbox ast-env))
