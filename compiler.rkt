@@ -128,10 +128,12 @@
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
 (define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
+;(define asts (map parse-file files-to-compile))
 
 (printf "~n============== PRINTING ASTS ==============~n")
-
 (print-asts asts files-to-compile)
+(map cunit? asts)
+(define names (map c-unit-name asts))
 
 (printf "~n============== Environments ==============~n")
 
@@ -156,9 +158,16 @@
 
 ;(define full-envs (check-heirarchies ref-asts ref-all-links))
 
+;(printf "~n=====================Local Environment Generation=========================~n")
 ;(with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
 ;                                                             (error)))])
-;  (for-each (lambda (x y) (envs-print x) (print-ast y "") (va x y)) full-envs asts))
+;  (for-each (lambda (x y) 
+;              (envs-print x) 
+;              (printf "~n")
+;              (print-ast y "")
+;              (printf "~n")
+;              (va x y)
+;              (print-ast y "")) full-envs asts))
 
 (compiled)
 
