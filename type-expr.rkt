@@ -49,7 +49,10 @@
                                          (error "For test not Boolean!"))]
     
     [(unop _ op right) (test-un-op op right)]
-    [`(,binop _ + ,left ,right) '()]))
+    ;[`(,binop _ + ,left ,right) '()]
+    [(block _ _ statements) (begin (map type-expr statements) (ptype empty 'void))]
+    [(arrayaccess _ left index) (if (type-ast=? (type-expr index) (ptype empty 'int)) (if (atype? (type-expr left)) (atype-type (type-expr left)) (error "Array type expected")) (error "Array index expects type int"))]
+    ))
      
                                                 
     
