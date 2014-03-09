@@ -4,13 +4,38 @@
 (require "environments.rkt")
 (require "heirarchy-checker.rkt")
 
+
+
 (provide type-expr ast)
 
 
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S env)
-  '())
+  (error "parent-of not implemented"))
+
+
+;;num-type<? : ptype ptype -> Boolean
+(define (num-type<? pt1 pt2)
+  (define valid-types '(int short char byte long float double))
+  (match (list (ptype-type pt1) (ptype-type pt2))
+    [(list 'byte t) (list? (member t '(short int long float double)))]
+    [(list 'short t) (list? (member t '(int long float double)))]
+    [(list 'char t) (list? (member t '(int long float double)))]
+    [(list 'int t) (list? (member t '(long float double)))]
+    [(list 'long t) (list? (member t '(float double)))]
+    [(list 'float t) (list? member t '(double))]
+    [_ #f]))
+
+;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
+(define (can-assign? T S)
+  (match (list T S)
+    [(list (rtype _ _) (ptype _ _)) (error "Assignment of primitive types to reference type variables not allowed")]
+    [(list (rtype _ _) (ptype _ 'null)) #t]
+    [_ (error "Not Implemented")]))
+    
+
+    
 
 ;;cast-ptypes : Symbol Symbol -> Boolean
 (define (cast-ptypes T S)
@@ -22,7 +47,7 @@
   (match (list T S)
     [(list (ptype _ sym1) (ptype _ sym2)) (cast-ptypes sym1 sym2)]
     [(list (atype _ typ1) (atype _ typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
-    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? T S) #t (or (parent-of? T S env) (parent-of T S env)))]
+    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? T S) #t (or (parent-of? T S env) (parent-of? S T env)))]
     [(list _ _) (error "Cast type mismatch")]))
 
 
@@ -62,24 +87,22 @@
     
     [(varassign _ id expr)
      (let ([var-type (type-expr id)])
-       (if (type-ast=? var-type (type-expr expr))
+       (if (can-assign? var-type (type-expr expr))
            var-type
            (error "Type Mismatch in Assignment")))]
     
     [(varuse e id)
-     (let ([env (ast-envt ast)])
      (match (assoc id (envs-types env))
        [#f (error "Unbound Identifier")]
-       [(list a b) b]))]
+       [(list a b) b])]
     
     [(literal _ type value) type]
     [(or
-      (ptype _ _ _) (atype _ _ _) (rtype _ _ _)) ast]
+      (ptype _ _) (atype _ _ ) (rtype  _ _)) ast]
     
     
     [(cast e c expr) 
-     (let ([env (ast-envt ast)])
-       (if (castable? c (type-expr expr) env) c (error "Invalid Cast")))]
+       (if (castable? c (type-expr expr) env) c (error "Invalid Cast"))]
     
     [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype empty 'boolean))) (ptype empty 'void) (error "Type of Test not Boolean"))]
     
@@ -96,7 +119,7 @@
     
     [(unop _ op right) (test-un-op op right)]
     [(binop _ _ _ _) (error "BinOp not implemented")]
-    [(parameter e type id) (error "parameter not implemented")]
+    [(parameter _ type _) type]
     
     
     [(block _ _ statements) (begin (map type-expr statements) (ptype empty 'void))]
@@ -109,15 +132,21 @@
     [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) 
                                                         (atype type)   
                                                         (error "Array declaration expects numeric type for size")))]
-    [(methodcall e left args) (error "Methodcall not implemented")]
-    [(methoddecl e id parameters) (error "Methoddecl not implemented")]
-    [(method _ _ _ _ body) (type-expr body)]
+    [(methodcall _ _ _ args) 
+     (let* ([method-funt (methodcall->funt ast type-expr)]
+            [ret (match (assoc  method-funt (envs-types env))
+                      [(list a b) b]
+                      [_ (error "No Function of that name")])])
+       ret)]
+           
+    [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
+    [(method _ _ _ _ _ body) (type-expr body)]
     [(or (class _ _ _ _ _ _ body)
          (interface _ _ _ _ _ body)) (type-expr body)]
     [(cunit _ _ body) (type-expr body)]
     
     [(fieldaccess _ _ field) 
-     (match (assoc id (envs-types env))
+     (match (assoc field (envs-types env))
        [#f (error "Unbound Field Access")]
        [(list a b) b])]
     
