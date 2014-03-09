@@ -173,17 +173,16 @@
     [(vdecl _ sp md ty id) (vdecl sp md (clean-ast ty) id)]
     
     [(methodcall _ `() id args) (methodcall empty id (map clean-ast args))]
-    [(methodcall _ `(,ids ...) id args) (printf "clean-ast methodcall ids: ~a~n" ids) (methodcall (ambiguous ids) id (map clean-ast args))]
+    [(methodcall _ `(,ids ...) id args) (methodcall (ambiguous ids) id (map clean-ast args))]
 
     [(arraycreate _ `(,ty ...) sz) (arraycreate (rtype ty) (clean-ast sz))]
     [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate (rtype cls) (map clean-ast params))]
     [(atype _ `(,ty ...)) (atype (rtype ty))]
-
+    
     [(cast _ `(,ty ...) expr) (cast (rtype ty) (clean-ast expr))]
     [(rtype _ `(,ty ...)) (rtype ty)]
     [(rtype _ (atype _ type)) (clean-ast (atype type))]    
     [(rtype _ _) (error "rtype with invalid inside: " t)]
-    
     
     ['this (varuse 'this)]
     ['void (ptype 'void)]
@@ -191,45 +190,51 @@
     [_ (ast-transform clean-ast t)]))
 
 (define (ast-transform F ast)
-  (match ast
-    [(cunit package imports body) (cunit package imports (F body))]
-    [(class _ sp md id ex im bd) (class sp md id ex im (F bd))]  
-    [(interface _ sp md id ex bd) (interface sp md id ex (F bd))]
-    [(constructor _ sp decl bd) (constructor sp (F decl) (F bd))]
-    [(method _ sp md ty decl bd) (method sp md (F ty) (F decl) (F bd))]
-    [(methoddecl _ id params) (methoddecl id (map F params))]
-    [(parameter _ type id) (parameter (F type) id)]
-    [(vdecl _ sp md ty id) (vdecl sp md (F ty) id)]
-    [(varassign _ id ex) (varassign (F id) (F ex))]
-    [(binop _ op ls rs) (binop op (F ls) (F rs))]
-    [(unop _ op rs) (unop op (F rs))]
-    [(cast _ c ex) (cast (F c) (F ex))]
-    [(arraycreate _ ty sz) (arraycreate (F ty) (F sz))]
-    [(classcreate _ cls params) (classcreate (F cls) (map F params))]
-    [(fieldaccess _ left field) (fieldaccess (F left) field)]
-    [(methodcall _ `() id args) (methodcall empty id (map F args))] 
-    [(methodcall _ left id args) (methodcall (F left) id (map F args))] 
-    [(arrayaccess _ left index) (arrayaccess (F left) (F index))]
-    [(iff _ test '() '()) (iff (F test) empty empty)]
-    [(iff _ test '() fls) (iff (F test) empty (F fls))]
-    [(iff _ test tru '()) (iff (F test) (F tru) empty)]
-    [(iff _ test tru fls) (iff (F test) (F tru) (F fls))]
-    
+  ((lambda (ast2) (cond [(cunit? ast2) ast2]
+                        [else  (set-ast-envt! ast2 (ast-envt ast))
+                               ast2]))
+   (match ast
+     [(cunit package imports body) (cunit package imports (F body))]
+     [(class _ sp md id ex im bd) (class sp md id ex im (F bd))]  
+     [(interface _ sp md id ex bd) (interface sp md id ex (F bd))]
+     
+     [(constructor _ sp decl bd) (constructor sp (F decl) (F bd))]
+     [(method _ sp md ty decl bd) (method sp md (F ty) (F decl) (F bd))]
+     [(methoddecl _ id params) (methoddecl id (map F params))]
+     [(parameter _ type id) (parameter (F type) id)]
+     
+     [(varassign _ id ex) (varassign (F id) (F ex))]
+     [(vdecl _ sp md ty id) (vdecl sp md (F ty) id)]
+     [(binop _ op ls rs) (binop op (F ls) (F rs))]
+     [(unop _ op rs) (unop op (F rs))]
+     [(cast _ c ex) (cast (F c) (F ex))]
+     [(arraycreate _ ty sz) (arraycreate (F ty) (F sz))]
+     [(classcreate _ cls params) (classcreate (F cls) (map F params))]
+     [(fieldaccess _ left field) (fieldaccess (F left) field)]
+     [(arrayaccess _ left index) (arrayaccess (F left) (F index))]
+     
+     [(methodcall _ `() id args) (methodcall empty id (map F args))]
+     [(methodcall _ left id args) (methodcall (F left) id (map F args))]
+     
+     [(iff _ test '() '()) (iff (F test) empty empty)]
+     [(iff _ test '() fls) (iff (F test) empty (F fls))]
+     [(iff _ test tru '()) (iff (F test) (F tru) empty)]
+     [(iff _ test tru fls) (iff (F test) (F tru) (F fls))]
+     
+     [(while _ test body) (while (F test) (F body))]
+     [(return _ expr) (return (F expr))]
+     [(for _ init clause update body) (for (F init) (F clause) (F update) (F body))]
+     
+     [(ptype _ _) ast]
+     [(rtype _ _) ast]
+     [(varuse _ _) ast]
+     [(keyword _ _) ast]
+     [(ambiguous _ _) ast]
+     
+     [(atype _ type) (F type)]
+     [(literal _ type val) (literal (F type) val)]
+     [(block _ id statements) (block id (map F statements))])))
 
-    [(while _ test body) (while (F test) (F body))]
-    [(for _ init clause update body) (for (F init) (F clause) (F update) (F body))]
-    [(return _ expr) (return (F expr))]
-    [(ptype _ _) ast]
-    [(rtype _ _) ast] 
-    [(atype _ type) (F type)]
-    
-    [(literal _ type val) (literal (F type) val)]
-    [(varuse _ _) ast]
-    [(keyword _ _) ast]
-    [(block _ id statements) (block id (map F statements))]
-    [(ambiguous _ ids) (ambiguous ids)]
-    ))
-  
 (define (parse->ast t)
   (match t
     [(tree (node _) '()) empty]
@@ -584,7 +589,7 @@
     
     [(block _ id statements) (printf "block ~a" id) 
                              (for-each (lambda (x) (printf "~n") (printf "~a" indent) (print-ast x (string-append indent "  "))) statements)]
-
+    
     [(cimport path) (printf "~a(cimport " indent) (print-ast path indent) (printf ")~n")]
     [(pimport path) (printf "~a(pimport " indent) (print-ast path indent) (printf ")~n")]
     [(methoddecl _ id parameters) (printf "(methoddecl ") (print-ast id indent) (for-each (lambda(x) (printf " ") (print-ast x indent)) parameters) (printf ")")]
