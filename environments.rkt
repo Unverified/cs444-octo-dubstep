@@ -39,7 +39,7 @@
 
 (define (methodcall->funt mcall type-expr)
   (match mcall
-    [(methodcall _ id params) (funt id (map type-expr params))]
+    [(methodcall _ _ id params) (funt id (map type-expr params))]
     [_ (error "Not a methodcall")]))
 
 (define (gen-root-env asts)
