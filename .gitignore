@@ -5,6 +5,7 @@ grammar/bin/
 tests/failed_out
 *.DS_Store
 joosc
+joosc.zip
 \#*
 stdlib.asts
 *.swp

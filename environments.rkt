@@ -1,6 +1,7 @@
 
 #lang racket
 
+(require "errorf.rkt")
 (require "ast-tree.rkt")
 
 (provide env-empty)
@@ -16,9 +17,7 @@
 
 (provide (struct-out eval))
 (provide (struct-out envs))
-(provide (struct-out roote))
 
-(struct roote (id env) #:prefab)
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)
 
@@ -35,7 +34,7 @@
     [_ (error "mdecl->funt: mdecl that is not a method declaration passed int")]))
 
 (define (gen-root-env asts)
-  (map (lambda (x) (list (c-unit-name x) (roote (gensym) (gen-class-envs x)))) asts))
+  (map (lambda (x) (list (c-unit-name x) (gen-class-envs x))) asts))
 
 (define (gen-class-envs ast)
   (define (_gen-class-env scope asts envt)
@@ -91,7 +90,8 @@
       [(cast _ c expr)  (set-ast-envt! ast (env-append lenv cenv))
                         (_va block-id lenv expr)]
       
-      [(or (ptype _ _)
+      [(or (ambiguous _ _)
+           (ptype _ _)
            (rtype _ _)
            (atype _ _)
            (literal _ _ _)
@@ -166,7 +166,7 @@
         [value (eval scope ast)])
     (if (false? (assoc key (envs-constructors envt)))
         (env-append (envs empty empty empty `((,key ,value))) envt)
-        (error "adding constructor to enviroment that contains same type"))))
+        (c-errorf "adding constructor to enviroment that contains same type"))))
 
 ;(: add-env-method : envs methoddeclaration symbol type ast -> envs )
 (define (add-env-method envt mdecl scope return-type ast)
@@ -174,14 +174,14 @@
         [value (eval scope ast)])
     (if (false? (assoc key (envs-methods envt)))
         (env-append (envs `((,key ,return-type)) empty `((,key ,value)) empty) envt)
-        (error "adding method to enviroment that contains same method"))))
+        (c-errorf "adding method to enviroment that contains same method"))))
 
 ;(: add-env-variable : envs string symbol type ast -> envs )
 (define (add-env-variable envt var-name scope type ast)
   (let ([value (eval scope ast)])
     (if (false? (assoc var-name (envs-vars envt)))
         (env-append (envs `((,var-name ,type)) `((,var-name ,value)) empty empty) envt)
-        (error "adding variable to enviroment that contains same name"))))
+        (c-errorf "adding variable to enviroment that contains same name"))))
 
 ;======================================================================================
 ;==== Bases
