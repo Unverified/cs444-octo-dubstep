@@ -164,14 +164,16 @@
 
 (define (clean-ast t)
   (match t
+    [`() (error "clean-ast matched an empty list, it should not get to this point.")]
     [`(,var) (varuse var)]
-    [`(,vars ...) (ambiguous vars)]
+    [`(,vars ...) (printf "clean-ast `(vars ...) ids: ~a~n" vars) (ambiguous vars)]
     [(method _ sp md ty decl '()) (method sp md (clean-ast ty) decl (block (gensym) '()))]
     
     [(vdecl _ sp md ty (varassign _ id ex)) (varassign (vdecl sp md (clean-ast ty) id) (clean-ast ex))]
     [(vdecl _ sp md ty id) (vdecl sp md (clean-ast ty) id)]
     
-    [(methodcall _ `(,ids ...) id args) (methodcall (ambiguous ids) id (map clean-ast args))]
+    [(methodcall _ `() id args) (methodcall empty id (map clean-ast args))]
+    [(methodcall _ `(,ids ...) id args) (printf "clean-ast methodcall ids: ~a~n" ids) (methodcall (ambiguous ids) id (map clean-ast args))]
 
     [(arraycreate _ `(,ty ...) sz) (arraycreate (rtype ty) (clean-ast sz))]
     [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate (rtype cls) (map clean-ast params))]

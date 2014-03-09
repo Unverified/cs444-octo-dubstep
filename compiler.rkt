@@ -1,6 +1,7 @@
 
 #lang racket
 
+(require "class-info.rkt")
 (require "errorf.rkt")
 (require "parser.rkt")			;needed for parser
 (require "scanner.rkt")
@@ -12,6 +13,9 @@
 (require "environments.rkt")
 (require "type-linker.rkt")
 (require "heirarchy-checker.rkt")
+(require "disambiguator.rkt")
+
+(provide (struct-out info))
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -137,20 +141,31 @@
             (envs-print (second x))) rootenvs)
 
 (printf "~n============== Type Linker ==============~n")
-;class-info == something like (list (pair ("java" "lang" "String") (ast links)) ...)
+;class-info == something like (list (pair ("java" "lang" "String") #s(info ast rootenv links)) ...)
 (define class-info (gen-typelink-lists asts rootenvs))
 
 (printf "~n============== Heirarchy Checker ==========~n")
-(define full-envs (check-heirarchies class-info))
+(define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
 
 (printf "~n=====================Local Environment Generation=========================~n")
-(for-each (lambda (x y) 
-              (envs-print x) 
+(for-each (lambda (cinfo)
+              (define env (info-env (second cinfo)))
+              (define ast (info-ast (second cinfo)))
+              (envs-print env) 
               (printf "~n")
-              (print-ast (first (second y)) "")
+              (print-ast ast "")
               (printf "~n")
-              (va x (first (second y)))
-              (print-ast (first (second y)) "")) full-envs class-info)
+              (va env ast)
+              (print-ast ast "")) class-info2)
+
+(printf "~n~n============== Disambiguator ==========~n")
+;(print-info class-info2)
+(disambiguate class-info2)
 
 (compiled)
+
+
+
+
+
 

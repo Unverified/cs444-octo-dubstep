@@ -1,6 +1,7 @@
 #lang racket
 
 (require "errorf.rkt")
+(require "class-info.rkt")
 (require "environments.rkt")
 (require "type-linker.rkt")
 (require "ast-tree.rkt")
@@ -30,10 +31,10 @@
     [else extends]))
 
 (define (get-linked-ast l class-info)
-  (first (second (assoc (first l) class-info))))
+  (info-ast (second (assoc (first l) class-info))))
   
 (define (get-linked-links l class-info)
-  (second (second (assoc (first l) class-info))))
+  (info-links (second (assoc (first l) class-info))))
 
 ;======================================================================================
 ;==== Heirarchy Checking
@@ -112,7 +113,10 @@
 
   ;loop through each ast and check the heirarchy for it
   (map (lambda(cinfo) (printf "====== CHECKING HEIRARCHY FOR AST, class/interface: ~a ======~n" (first cinfo)) 
-                      (check-heirarchy (first (second cinfo)) (second (second cinfo)))) class-info))
+                      (list (first cinfo)
+                            (info (info-ast (second cinfo))
+                                  (check-heirarchy (info-ast (second cinfo)) (info-links (second cinfo)))
+                                  (info-links (second cinfo))))) class-info))
 
 
 (define (check-empty-interface-envs links cenv interface-envs)

@@ -1,5 +1,6 @@
 #lang racket
 
+(require "class-info.rkt")
 (require "errorf.rkt")
 (require "ast-tree.rkt")
 (require "environments.rkt")
@@ -55,7 +56,7 @@
                    (define rootlinks (check-and-get-rootlinks ast rootenvs))
                    
                    (define new-ast (gen-typelink-list ast possible-typename-links rootlinks))
-                   (pair (c-unit-name ast) (list new-ast (append possible-typename-links rootlinks))))
+                   (pair (c-unit-name ast) (info new-ast (second r) (append possible-typename-links rootlinks))))
                  asts rootenvs)])))
 
 (define (gen-typelink-list ast possible-typename-links rootlinks)
