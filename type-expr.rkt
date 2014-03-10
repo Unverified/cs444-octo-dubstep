@@ -30,9 +30,10 @@
 ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
 (define (can-assign? T S)
   (match (list T S)
-    [(list (rtype _ _) (ptype _ _)) (error "Assignment of primitive types to reference type variables not allowed")]
     [(list (rtype _ _) (ptype _ 'null)) #t]
-    [_ (error "Not Implemented")]))
+    [(list (rtype _ _) (ptype _ _)) (error "Assignment of primitive types to reference type variables not allowed")]
+    [(list (ptype _ _) (ptype _ 'null)) (error "Assigned null to primitive type")]
+    [_ (error "Unimplemented assignment")]))
     
 
     
@@ -96,7 +97,7 @@
        [#f (error "Unbound Identifier")]
        [(list a b) b])]
     
-    [(literal _ type value) type]
+    [(literal _ type _) type]
     [(or
       (ptype _ _) (atype _ _ ) (rtype  _ _)) ast]
     
