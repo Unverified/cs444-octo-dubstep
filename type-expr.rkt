@@ -8,7 +8,10 @@
 
 (provide type-expr ast)
 
-
+;;perform-bin-op: type type -> type
+(define (perform-bin-op t1 t2)
+  (match (list t1 t2)
+    [_ (error "Not Implemented")]))
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S env)
