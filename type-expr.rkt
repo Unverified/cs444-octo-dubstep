@@ -9,9 +9,11 @@
 (provide type-expr ast)
 
 ;;perform-bin-op: type type -> type
-(define (perform-bin-op t1 t2)
-  (match (list t1 t2)
-    [_ (error "Not Implemented")]))
+(define (perform-bin-op op t1 t2)
+  (match (list op t1 t2)
+    [(list '+ (rtype _ '(java lang String)) (rtype _ '(java lang String))) (rtype empty '(java lang String))]
+    [(list _ (ptype _ _) (ptype _ _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype empty 'int) (error "Attempt to perform binary operation on non-numeric type!"))]
+    [_ (error "Undefined Binop!")]))
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S env)
@@ -122,7 +124,7 @@
                                          (error "For test not Boolean!"))]
     
     [(unop _ op right) (test-un-op op right)]
-    [(binop _ _ _ _) (error "BinOp not implemented")]
+    [(binop _ op left right) (perform-bin-op op (type-expr left) (type-expr right))]
     [(parameter _ type _) type]
     
     
