@@ -1,6 +1,8 @@
 
 #lang racket
 
+(require "class-info.rkt")
+(require "errorf.rkt")
 (require "parser.rkt")			;needed for parser
 (require "scanner.rkt")
 (require "weeder.rkt")			;needed for weeding
@@ -10,7 +12,10 @@
 (require "parse-tree.rkt")
 (require "environments.rkt")
 (require "type-linker.rkt")
-;(require "heirarchy-checker.rkt")
+(require "heirarchy-checker.rkt")
+(require "disambiguator.rkt")
+
+(provide (struct-out info))
 
 ;==============================================================================================
 ;==== Parse Command Line
@@ -24,11 +29,6 @@
 ;==== Compiler Results
 ;==============================================================================================
 
-;Call this when the compiler found an error in the joos1w program. This will print "Error" and then exit
-(define (error . x)
-  (printf "Error: ~a~n" x)
-  (exit 42))
-
 ;Call this when the compiler successfully compiled the program. This will print "Compiled" and exit
 (define (compiled)
   (printf "Compiled!~n")
@@ -41,11 +41,10 @@
 ;Runs the scanner, checks if the scanner properly scanned the tokens, then either calles error or
 ;returns the tokens
 (define (run-scanner chars)
-  (printf "RUNNING SCANNER~n")
   (define tokens (scanner (all-tokens-machine) chars))
   (cond
     [(list? tokens) tokens]
-    [else (error)]))
+    [else (c-errorf "Scanner Failed")]))
   
 ;==============================================================================================
 ;==== Parser
@@ -65,12 +64,11 @@
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
 (define (run-parser tokens)
-  (printf "RUNNING PARSER~n")
   (define node-stack (parser tokens))
   (cond
-    [(empty? node-stack) (error)]
+    [(empty? node-stack) (c-errorf "Parser Failed")]
     [(check-node-stack node-stack) (list-ref node-stack 1)]
-    [else (error)]))
+    [else (c-errorf "Parser Failed")]))
   
 ;==============================================================================================
 ;==== Weeder
@@ -79,13 +77,12 @@
 ;Runs the parser, checks if the parser successfully parsed the tokens given. If it did it will 
 ;call compiled (for now), else call error
 (define (run-weeder filename parse-tree)
-  (printf "RUNNING WEEDER~n")
   (cond
     [(weeder filename parse-tree) (define ast (clean-ast (parse->ast (find-tree 'S parse-tree))))
                                   (printf "============= AST ==============~n")
                                   (print-ast ast "")
                                   ast]
-    [else (error)]))
+    [else (c-errorf "Weeder Failed")]))
 
 ;==============================================================================================
 ;==== Get STDLIB asts
@@ -137,37 +134,38 @@
 
 (printf "~n============== Environments ==============~n")
 
-(define rootenvs (with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
-                                                             (error)))])
-                   (gen-root-env asts)))
+(define rootenvs (gen-root-env asts))
 
 (for-each (lambda (x) 
             (printf "~a~n============================~n" (first x))
-            (envs-print (roote-env (second x)))) rootenvs)
+            (envs-print (second x))) rootenvs)
 
 (printf "~n============== Type Linker ==============~n")
-(define new-asts (gen-typelink-lists asts rootenvs))
+;class-info == something like (list (pair ("java" "lang" "String") #s(info ast rootenv links)) ...)
+(define class-info (gen-typelink-lists asts rootenvs))
 
-(print-asts new-asts files-to-compile)
-;(print-all-links all-links rootenvs)
+(printf "~n============== Heirarchy Checker ==========~n")
+(define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
 
+(printf "~n=====================Local Environment Generation=========================~n")
+(for-each (lambda (cinfo)
+              (define env (info-env (second cinfo)))
+              (define ast (info-ast (second cinfo)))
+              (envs-print env) 
+              (printf "~n")
+              (print-ast ast "")
+              (printf "~n")
+              (va env ast)
+              (print-ast ast "")) class-info2)
 
-;(printf "~n============== Heirarchy Checker ==========~n")
-;(define ref-asts (map (lambda(ast rootenv) (list (roote-id (second rootenv)) ast)) asts rootenvs))
-;(define ref-all-links (map (lambda(links rootenv) (list (roote-id (second rootenv)) links)) all-links rootenvs))
-
-;(define full-envs (check-heirarchies ref-asts ref-all-links))
-
-;(printf "~n=====================Local Environment Generation=========================~n")
-;(with-handlers ([exn:fail? (lambda (exn) (begin (printf "~a" (exn-message exn))
-;                                                             (error)))])
-;  (for-each (lambda (x y) 
-;              (envs-print x) 
-;              (printf "~n")
-;              (print-ast y "")
-;              (printf "~n")
-;              (va x y)
-;              (print-ast y "")) full-envs asts))
+(printf "~n~n============== Disambiguator ==========~n")
+;(print-info class-info2)
+(disambiguate class-info2)
 
 (compiled)
+
+
+
+
+
 

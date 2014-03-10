@@ -60,7 +60,7 @@
     [_ #f]))
 
 
-;;define whole-number? ptype
+;;define whole-number? ptype-> Bool
 (define (whole-number? pt)
   (define valid-types '(int short char byte))
   (match pt
@@ -83,7 +83,7 @@
                         
                       
   (match ast
-    [(varuse e 'this) (error "This not implemented")]
+    [(varuse _ 'this) (error "This not implemented")]
     [(vdecl _ _ _ _ _) (ptype empty 'void)]
     
     [(varassign _ id expr)
@@ -92,7 +92,7 @@
            var-type
            (error "Type Mismatch in Assignment")))]
     
-    [(varuse e id)
+    [(varuse _ id)
      (match (assoc id (envs-types env))
        [#f (error "Unbound Identifier")]
        [(list a b) b])]
@@ -102,7 +102,7 @@
       (ptype _ _) (atype _ _ ) (rtype  _ _)) ast]
     
     
-    [(cast e c expr) 
+    [(cast _ c expr) 
        (if (castable? c (type-expr expr) env) c (error "Invalid Cast"))]
     
     [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype empty 'boolean))) (ptype empty 'void) (error "Type of Test not Boolean"))]
