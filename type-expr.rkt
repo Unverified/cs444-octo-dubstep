@@ -51,25 +51,44 @@
 ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
 (define (can-assign? T S)
   (match (list T S)
+    ;;can assign null to rtype
     [(list (rtype _ _) (ptype _ 'null)) #t]
+    
+    ;;can assign boolean to boolean
     [(list (ptype _ 'boolean) (ptype _ 'boolean)) #t]
+    
+    ;;cannot assign boolean to any other ptype
     [(list (ptype _ 'boolean) (ptype _ _)) #f]
     [(list (ptype _ _) (ptype _ 'boolean)) #f]
     
     ;;If not Boolean, we know the ptypes are numeric. Check that the conversion is not narrowing
     [(list (ptype _ _) (ptype _ _)) (not (num-type<? T S))]
+    ;;Cannot assign ptype to an rtype, except null
     [(list (rtype _ _) (ptype _ _)) #f]
+    ;;cannot assign null to a ptype
     [(list (ptype _ _) (ptype _ 'null)) #f]
+    
+    ;;when assigning rtype to rtype, we must employ the algorithm in $5.2 of the spec
     [(list (rtype _ _) (rtype _ _)) (rtype-can-assign? T S)]
+    
+    ;;we may assign an atype to the following three class/interface types
     [(list (or
             (rtype _ '(java lang Object))
             (rtype _ '(java io Serializable))
             (rtype _ '(java lang Cloneable)))
            (atype _ _)) #t]
     
+    ;;assigning atypes to any but the three above results in a compile-time error
     [(list (rtype _ _) (atype _ _)) #f]
+    
+    
+    ;;assigning an atype of ptypes to an atype of ptypes requires the ptypes be equal
     [(list (atype _ (ptype _ _)) (atype _ (ptype _ _))) (type-ast=? (atype-type T) (atype-type S))]
+    
+    ;;assigning an atype of rtypes to an atype of rtypes requires the rtypes to be assignable
     [(list (atype _ (rtype _ _)) (atype _ (rtype _ _))) (can-assign? (atype-type T) (atype-type S))]
+    
+    ;;any other assignment involving atypes is a compile-time error
     [(list (atype _ _) (atype _ _)) #f]                                                     
     
     [_ (error "Unimplemented assignment")]))
@@ -79,10 +98,14 @@
 
 ;;cast-ptypes : Symbol Symbol -> Boolean
 (define (cast-ptypes T S)
-  (error "Cast-ptypes not implemented"))
+  (match (list T S)
+    [(list (ptype _ 'boolean) (ptype 'boolean)) #t]
+    [(list (ptype _ 'boolean) _) #f]
+    [(list _ (ptype 'boolean)) #f]
+    [_ #t]))
 
-
-;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
+  
+  ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
 (define (castable? T S env)
   (match (list T S)
     [(list (ptype _ sym1) (ptype _ sym2)) (cast-ptypes sym1 sym2)]
