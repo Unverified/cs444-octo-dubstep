@@ -6,7 +6,7 @@
 
 
 
-(provide type-expr ast)
+(provide type-expr)
 
 ;;perform-bin-op: type type -> type
 (define (perform-bin-op op t1 t2)
@@ -36,8 +36,22 @@
 (define (can-assign? T S)
   (match (list T S)
     [(list (rtype _ _) (ptype _ 'null)) #t]
+    [(list (ptype _ 'boolean) (ptype _ 'boolean)) #t]
+    [(list (ptype _ 'boolean) (ptype _ _)) (error "Can only assign boolean to boolean")]
+    [(list (ptype _ _) (ptype _ 'boolean)) (error "Can only assign boolean to boolean")]
     [(list (rtype _ _) (ptype _ _)) (error "Assignment of primitive types to reference type variables not allowed")]
     [(list (ptype _ _) (ptype _ 'null)) (error "Assigned null to primitive type")]
+    [(list (or
+            (rtype _ '(java lang Object))
+            (rtype _ '(java io Serializable))
+            (rtype _ '(java lang Cloneable)))
+           (atype _ _)) #t]
+    
+    [(list (rtype _ _) (atype _ _)) (error "Can only assign array type to java.lang.Object, java.lang.Cloneable, or java.io.Serializable")]
+    [(list (atype _ (ptype _ _)) (atype _ (ptype _ _))) (type-ast=? (atype-type T) (atype-type S))]
+    [(list (atype _ _) (atype _ _)) (can-assign? (atype-type T) (atype-type S))]
+                                                         
+    
     [_ (error "Unimplemented assignment")]))
     
 
