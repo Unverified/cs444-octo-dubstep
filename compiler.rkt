@@ -148,19 +148,14 @@
 (define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
 
 (printf "~n=====================Local Environment Generation=========================~n")
-(for-each (lambda (cinfo)
+(define class-info3 (map (lambda (cinfo)
               (define env (info-env (second cinfo)))
               (define ast (info-ast (second cinfo)))
-              (envs-print env) 
-              (printf "~n")
-              (print-ast ast "")
-              (printf "~n")
-              (va env ast)
-              (print-ast ast "")) class-info2)
+              (list (first cinfo) (info (va env ast) env (info-links (second cinfo))))) class-info2))
 
 (printf "~n~n============== Disambiguator ==========~n")
 ;(print-info class-info2)
-(disambiguate class-info2)
+(disambiguate class-info3)
 
 (compiled)
 

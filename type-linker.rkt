@@ -68,9 +68,9 @@
   
   (define (typelink ast)
     (match ast
-      [(interface _ s m id e b) (interface s m id (map (lambda(x) (typelink-helper x)) e) (typelink b))]
-      [(class _ s m id e i b) (class s m id (typelink-helper e) (map (lambda(x) (typelink-helper x)) i) (typelink b))]
-      [(rtype _ t) (rtype (typelink-helper t))]
+      [(interface env s m id e b) (interface env s m id (map (lambda(x) (typelink-helper x)) e) (typelink b))]
+      [(class env s m id e i b) (class env s m id (typelink-helper e) (map (lambda(x) (typelink-helper x)) i) (typelink b))]
+      [(rtype env t) (rtype env (typelink-helper t))]
       [_ (ast-transform typelink ast)]))
   (typelink ast))
 
