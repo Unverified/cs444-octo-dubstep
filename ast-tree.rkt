@@ -36,6 +36,9 @@
 (provide (struct-out keyword))
 (provide (struct-out ambiguous))
 
+;;inserted by the type-checker, prompts code generator to do a run-time check
+(provide (struct-out narrowing-ref-conversion))
+
 (provide clean-ast)
 (provide parse->ast)
 (provide print-asts)
@@ -148,6 +151,10 @@
 (struct keyword ast ( key) #:prefab)
 
 (struct ambiguous ast ( ids) #:prefab)
+
+
+;;narrowing-ref-conversion: ([target: rtype] [source: rtype])
+(struct narrowing-ref-conversion ast (target source) #:prefab)
 
 
 ;==============================================================================================
