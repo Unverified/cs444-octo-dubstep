@@ -23,7 +23,7 @@
 
 ;Get all the files from the command line
 (define files-to-compile (vector->list (current-command-line-arguments)))
-;(define files-to-compile (list "tests/in/Je_2_Locals_Overlapping_DeeplyNested.java"))
+;(define files-to-compile (list "tests/in/J1_1_Cast_NamedTypeAsVariable.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -128,35 +128,32 @@
 
 (printf "~n============== PRINTING ASTS ==============~n")
 (print-asts asts files-to-compile)
-(map cunit? asts)
 (define names (map c-unit-name asts))
 
-(printf "~n============== Environments ==============~n")
-
-(define rootenvs (gen-root-env asts))
-
-(for-each (lambda (x) 
-            (printf "~a~n============================~n" (first x))
-            (envs-print (second x))) rootenvs)
-
 (printf "~n============== Type Linker ==============~n")
-;class-info == something like (list (pair ("java" "lang" "String") #s(info ast rootenv links)) ...)
-(define class-info (gen-typelink-lists asts rootenvs))
+;class-info == something like (list (pair ("java" "lang" "String") (ast links)) ...)
+(define links (gen-typelink-lists asts names))
+
+(printf "~n============== Environments ==============~n")
+(define class-info (map (lambda (x) (list (first x)  (info (first (second x)) 
+                                                           (gen-class-envs (first (second x)))
+                                                           (second (second x))))) links))
 
 (printf "~n============== Heirarchy Checker ==========~n")
 (define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
 
+
 (printf "~n=====================Local Environment Generation=========================~n")
 (define class-info3 (map (lambda (cinfo)
-              (define env (info-env (second cinfo)))
-              (define ast (info-ast (second cinfo)))
-              (list (first cinfo) (info (va env ast) env (info-links (second cinfo))))) class-info2))
+                           (define env (info-env cinfo))
+                           (define ast (info-ast cinfo))
+                           (list (c-unit-name (info-ast cinfo)) (info (va env ast) env (info-links cinfo)))) class-info2))
 
 (printf "~n~n============== Disambiguator ==========~n")
 ;(print-info class-info2)
-(disambiguate class-info3 rootenvs)
+(disambiguate class-info3 names)
 
-(compiled)
+;(compiled)
 
 
 

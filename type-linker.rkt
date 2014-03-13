@@ -9,7 +9,6 @@
 (provide print-all-links)
 (provide print-links)
 (provide get-fullname)
-(provide get-rootenv)
 
 ;======================================================================================
 ;==== Helper Functions
@@ -38,38 +37,46 @@
 (define filter-classes (compose1 (curry filter (compose1 (curry equal? 1) length)) 
                                  (curry filter list?)))
 
+(define cunit-cimports (compose1 (curry filter cimport?) cunit-imports))
+(define cunit-pimports (compose1 (curry filter pimport?) cunit-imports))
+
 ;======================================================================================
 ;==== Linker Generation
 ;======================================================================================
+(define (create-link-pair x) (pair (first x) (const (second x)))) 
 
-(define (gen-typelink-lists asts rootenvs)
-  (let ([env-names (map first rootenvs)])
-    (cond
-      [(not (equal? (length env-names) (length (remove-duplicates env-names))))  (c-errorf "duplicate environments have been defined")]
-      [else (map (lambda (ast r) (printf "############ LINKING NAMES IN FILE: ~a ############~n" (first r))
-                   (define enclosing-class-links (list (pair (list (get-class-name ast)) (get-rootenv-link (c-unit-name ast) rootenvs))))
-                   (define enclosing-package-links (find-package-links (get-package-name ast) rootenvs))
-                   (define single-import-links (check-for-clashes (link-single-imports (filter cimport? (cunit-imports ast)) rootenvs) (c-unit-name ast) empty))
-                   (define on-demand-import-links (reverse (check-for-ondemand-clashes (link-on-demand-imports (filter pimport? (cunit-imports ast)) rootenvs) empty)))
-                   
-                   (define possible-typename-links (append enclosing-class-links single-import-links enclosing-package-links on-demand-import-links))
-                   (define rootlinks (check-and-get-rootlinks ast rootenvs))
-                   
-                   (define new-ast (gen-typelink-list ast possible-typename-links rootlinks))
-                   (pair (c-unit-name ast) (info new-ast (second r) (append possible-typename-links rootlinks))))
-                 asts rootenvs)])))
+(define (gen-typelink-list root ast)
+  (printf "############ LINKING NAMES IN CLASS: ~a ############~n" (c-unit-name ast))
+  ;(printf "cimports ~a~n" (cunit-cimports ast))
+  ;(printf "pimports ~a~n" (cunit-pimports ast))
+  (define root-nodef (filter-not (compose1 (curry equal? 1) length) root))
+  (let ([root-lnk    (map (lambda (x) (pair x (const x))) root)]
+        [class-lnk   (list (pair (list (get-class-name ast)) (const (c-unit-name ast))))]
+        [cimport-lnk (map create-link-pair (check-for-clashes (link-single-imports (cunit-cimports ast) root) (c-unit-name ast) empty))]
+        [package-lnk (map create-link-pair (find-package-links (get-package-name ast) root))]
+        [pimport-lnk (reverse (check-for-ondemand-clashes (link-on-demand-imports (cunit-pimports ast) root-nodef) empty))])
+    (let ([all-lnk (append class-lnk cimport-lnk package-lnk pimport-lnk)])
+      (define new-ast (typelink-ast ast all-lnk root-lnk))
+      ;(print-ast new-ast "")
+      (pair (c-unit-name ast) (pair new-ast all-lnk)))))
 
-(define (gen-typelink-list ast possible-typename-links rootlinks)
+(define (gen-typelink-lists asts root)
+  (cond
+    [(not (equal? (length root) (length (remove-duplicates root)))) (c-errorf "duplicate compilation units have been defined")]
+    [(not (empty? (clashing-cunit-packages (filter-not (compose1 (curry equal? 1) length) root)))) (c-errorf "a package name is clashing with a class ~a" (clashing-cunit-packages root))]
+    [else (map (curry gen-typelink-list root) asts)]))
+
+(define (typelink-ast ast all-links root)
   (define (typelink-helper typename)
     (cond
       [(empty? typename) empty]
-      [(equal? 1 (length typename)) (get-fullname (check-typename-prefix-not-type typename possible-typename-links) possible-typename-links)]
-      [else (get-fullname (check-typename-prefix-not-type typename possible-typename-links) rootlinks)]))
+      [(equal? 1 (length typename)) (get-fullname (check-typename-prefix-not-type typename all-links) all-links)]
+      [else                         (get-fullname (check-typename-prefix-not-type typename all-links) root)]))
   
   (define (typelink ast)
     (match ast
-      [(interface env s m id e b) (interface env s m id (map (lambda(x) (typelink-helper x)) e) (typelink b))]
-      [(class env s m id e i b) (class env s m id (typelink-helper e) (map (lambda(x) (typelink-helper x)) i) (typelink b))]
+      [(interface env s m id e b) (interface env s m id (map typelink-helper e) (typelink b))]
+      [(class env s m id e i b) (class env s m id (typelink-helper e) (map typelink-helper i) (typelink b))]
       [(rtype env t) (rtype env (typelink-helper t))]
       [_ (ast-transform typelink ast)]))
   (typelink ast))
@@ -78,42 +85,32 @@
 ;==== Import Linker Generation
 ;======================================================================================
 
-(define (get-rootenv-link fullname rootenvs)
-  (define rootenv-link (assoc fullname rootenvs))
+(define (get-rootenv-link rootenvs fullname)
   (cond
-    [(list? rootenv-link) rootenv-link]
+    [(list? (member fullname rootenvs)) (pair (list (last fullname)) fullname)]
     [else (c-errorf "Could not find a link for a single import.")]))
 
-(define (find-package-links package rootenvs)
-  (define (find-package-links-helper r package)
-    (define r-package (remove-last (first r)))
-    (cond
-      [(equal? package r-package) (list (pair (list (last (first r))) r))]
-      [else empty]))
-  (append-map (lambda(r) (find-package-links-helper r package)) rootenvs))
+(define (find-package-links package rootenvs)  
+  (map (lambda (x) (pair x (append package x))) (filter-classes (map (curry remove-prefix package) rootenvs))))
 
 (define (link-on-demand-imports imports rootenvs)
-  (define (get-plinks package rootenvs)
-    (define links (find-package-links package rootenvs))
-    (cond
-      [(and (empty? links) (not (is-package-prefix-decl package rootenvs))) (c-errorf "Could not find a package declaration for an import on demand.")]
-      [else links]))
-  (append-map (lambda(x) (get-plinks (pimport-path x) rootenvs)) imports))
+  (let* ([linklist (map (compose1 (curryr find-package-links rootenvs) pimport-path) imports)]
+         [empty-import (filter-map (lambda (x y) (and (empty? x) y)) linklist (map pimport-path imports))]
+         [invalid-import (filter-not (lambda (x) (ormap (curry prefix? x) rootenvs)) empty-import)])
+    (cond [(empty? invalid-import) (apply append linklist)]         
+          [else (c-errorf "Import on demand references package that doesnt exit~n~a~n" invalid-import)])))
 
 (define (link-single-imports imports rootenvs)
-  (map (lambda(x) (pair (list (last (cimport-path x))) (get-rootenv-link (cimport-path x) rootenvs))) imports))
-
+  (map (compose1 (curry get-rootenv-link rootenvs) cimport-path) imports))
 
 ;======================================================================================
 ;==== Error Checking
 ;======================================================================================
+(define occurs? (compose list? member))
 
-(define (check-and-get-rootlinks ast rootenvs)
-  (define package-prefixes 
-    (remove-duplicates (append (get-all-prefixes (get-package-name ast)) 
-                               (append-map (lambda(ci) (get-all-prefixes (remove-last (cimport-path ci)))) (filter cimport? (cunit-imports ast)))
-                               (append-map (lambda(pi) (get-all-prefixes (pimport-path pi))) (filter pimport? (cunit-imports ast))))))
-  (map (lambda(r) (pair (check-no-prefix-resolves-to-type r package-prefixes) r)) rootenvs))
+(define (clashing-cunit-packages rootenvs)
+  (define packages (remove-duplicates (append-map get-all-prefixes (map remove-last rootenvs))))
+  (filter (curryr occurs? packages) rootenvs))
 
 (define (check-no-prefix-resolves-to-type rootenv package-prefixes)
   (cond
@@ -133,36 +130,32 @@
   (cond
     [(empty? links) empty]
     [(check-for-class-name-clash enclosing-type (first links)) (c-errorf "Single import clashing with class name.")]
-    [(list? (memf (lambda(x) (equal? x (first (first links)))) seen-so-far)) (c-errorf "Single import clashing another import.")]
+    [(list? (memf (curry equal? (first (first links))) seen-so-far)) (c-errorf "Single import clashing another import.")]
     [else (cons (first links) (check-for-clashes (rest links) enclosing-type (cons (first (first links)) seen-so-far)))]))
 
 (define (check-for-class-name-clash enclosing-type import-typelink)
-  (and (not (equal? enclosing-type (first (pair-value import-typelink)))) (equal? (list (last enclosing-type)) (pair-key import-typelink)) ))
+  (and (not (equal? enclosing-type (pair-value import-typelink)))
+       (equal? (list (last enclosing-type)) (pair-key import-typelink))))
 
 (define (check-for-ondemand-clashes links seen-so-far)
+;  (printf "----- Links ~a~n" links)
+;  (printf "----- Seen ~a~n" seen-so-far)
   (define (get-package-ci link) (last (first link)))
   (cond
     [(empty? links) empty]
-    [(list? (memf (lambda(x) (equal? x (get-package-ci (first links)))) seen-so-far)) (cons (list (first (first links)) (lambda()(c-errorf "On demand clashing ~a" (get-package-ci (first links))))) 
-                                                                                            (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]
-    [else (cons (first links) (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]))
+    [(list? (memf (curry equal? (get-package-ci (first links))) seen-so-far)) (cons (list (first (first links)) (curry c-errorf "On demand clashing ~a" (get-package-ci (first links))))
+                                                                                    (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]
+    [else (cons (create-link-pair (first links)) (check-for-ondemand-clashes (rest links) (cons (get-package-ci (first links)) seen-so-far)))]))
 
 ;======================================================================================
 ;==== Getters
 ;======================================================================================
 
 (define (get-fullname typename links)
-  (first (get-link typename links)))
-
-(define (get-rootenv typename links)
-  (second (get-link typename links)))
-
-(define (get-link typename links)
-  (define x (assoc typename links))
-  (cond 
-    [(false? x) (c-errorf "Could not resolve typename: ~a" typename)]
-    [(procedure? (second x)) ((second x))]
-    [else (second x)]))
+  (printf "Looking for ~a in ~a~n" typename links)
+  (match (assoc typename links)
+    [#f (c-errorf "Could not resolve typename: ~a " typename)]
+    [`(,_ ,x)  (x)]))
 
 ;======================================================================================
 ;==== Print Functions
@@ -188,6 +181,20 @@
   (exit 42))
 
 
+(define stdlist '(((OutputStream) (java io OutputStream))
+                  ((PrintStream) (java io PrintStream))
+                  ((Serializable) (java io Serializable))
+                  ((System) (java lang System))
+                  ((String) (java lang String))
+                  ((Short) (java lang Short))
+                  ((Object) (java lang Object))
+                  ((Number) (java lang Number))
+                  ((Integer) (java lang Integer))
+                  ((Cloneable) (java lang Cloneable))
+                  ((Class) (java lang Class))
+                  ((Character) (java lang Character))
+                  ((Byte) (java lang Byte))
+                  ((Boolean) (java lang Boolean))))
 
 
 
