@@ -150,7 +150,8 @@ class-info3
 ;(printf "~n~n============== Disambiguator ==========~n")
 (define disambig-cinfo (map (curryr disambiguate names) class-info3))
 
-(map (lambda (cinfo) (type-expr (cunit-body (info-ast (second cinfo))))) disambig-cinfo)
+(type-check disambig-cinfo)
+
 (compiled)
 
 

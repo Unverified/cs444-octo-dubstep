@@ -1,19 +1,20 @@
 #lang racket
 
 (require "errorf.rkt")
+(require "class-info.rkt")
 (require "ast-tree.rkt")
 (require "environments.rkt")
 (require "heirarchy-checker.rkt")
 
-(provide type-expr)
+(provide type-check)
 
 ;;perform-bin-op: type type -> type
 (define (perform-bin-op op t1 t2)
   (match (list op t1 t2)
     [(list '+ (rtype '(java lang String)) (rtype '(java lang String))) (rtype '(java lang String))]
     ;;TODO: Verify that binops on two numerics behave like we think they do!
-    [(list _ (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (error "Attempt to perform binary operation on non-numeric type!"))]
-    [_ (error "Undefined Binop!")]))
+    [(list _ (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type!"))]
+    [_ (c-errorf "Undefined Binop!")]))
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S)
@@ -104,7 +105,7 @@
     [(list (ptype sym1) (ptype sym2)) (cast-ptypes sym1 sym2)]
     [(list (atype typ1) (atype typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
     [(list (rtype _) (rtype _)) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
-    [(list _ _) (error "Cast type mismatch")]))
+    [(list _ _) (c-errorf "Cast type mismatch")]))
 
 
 ;;type-numeric? ptype->Boolean
@@ -122,98 +123,110 @@
     [(ptype typ) (list? (member typ valid-types))]
     [_ #f]))
 
-;;type-expr : ast -> (union ptype rtype atype)
-(define (type-expr ast)
-  (define env (ast-env ast))
-  (define (test-specific-bin-op type left right err-string)
-    (if (and (type-ast=? type (type-expr left)) (type-ast=? type (type-expr right))) type (error err-string)))
+;;type-check : (assoc fullq-names info) -> void
+(define (type-check all-cinfo)
 
-  (define (test-un-op op right)
-    (cond
-      [(symbol=? op '!) (if (type-ast=? (type-expr right) (ptype 'boolean)) (ptype 'boolean)
-                            (error "! operator expects type boolean"))]
-      [(symbol=? op '-) (if (type-numeric? (type-expr right)) (type-expr right)
-                            (error "- operator expects numeric type"))]
-      [else (error "Unimplemented operator")]))
+;;define get-expr-envs (assoc info) expr -> envs
+  (define (get-expr-envs e)
+    (match (type-expr e)  
+      [(rtype t) (info-env (second (assoc t all-cinfo)))]
+      [_ (c-errorf "Expression does not resolve to a class type.")]))
+
+;;type-expr : ast -> (union ptype rtype atype)
+  (define (type-expr ast)
+    (define env (ast-env ast))
+    (define (test-specific-bin-op type left right err-string)
+      (if (and (type-ast=? type (type-expr left)) (type-ast=? type (type-expr right))) type (error err-string)))
+
+    (define (test-un-op op right)
+      (cond
+        [(symbol=? op '!) (if (type-ast=? (type-expr right) (ptype 'boolean)) (ptype 'boolean)
+                              (error "! operator expects type boolean"))]
+        [(symbol=? op '-) (if (type-numeric? (type-expr right)) (type-expr right)
+                              (error "- operator expects numeric type"))]
+        [else (error "Unimplemented operator")]))
                         
                       
-  (match ast
-    [(varuse _ 'this) (error "This not implemented")]
-    [(vdecl _ _ _ _ _) (ptype 'void)]
+    (match ast
+      [(varuse _ 'this) (error "This not implemented")]
+      [(vdecl _ _ _ _ _) (ptype 'void)]
     
-    [(varassign _ id expr)
-     (let ([var-type (type-expr id)])
-       (if (can-assign? var-type (type-expr expr))
-           var-type
-           (error "Type Mismatch in Assignment")))]
+      [(varassign _ id expr)
+       (let ([var-type (type-expr id)])
+         (if (can-assign? var-type (type-expr expr))
+             var-type
+             (c-errorf "Type Mismatch in Assignment")))]
     
-    [(varuse _ id)
-     (match (assoc id (envs-types env))
-       [#f (error "Unbound Identifier")]
-       [(list a b) b])]
+      [(varuse _ id)
+       (match (assoc id (envs-types env))
+         [#f (c-errorf "Unbound Identifier")]
+         [(list a b) b])]
     
-    [(literal _ type _) type]
-    [(or
-      (ptype _) (atype _ ) (rtype _)) ast]
+      [(literal _ type _) type]
+      [(or
+        (ptype _) (atype _ ) (rtype  _)) ast]
+    
+      [(cast _ c expr) 
+         (if (castable? c (type-expr expr) env) c (c-errorf "Invalid Cast"))]
+    
+      [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype 'boolean))) (ptype 'void) (c-errorf "Type of Test not Boolean"))]
     
     
-    [(cast _ c expr) 
-       (if (castable? c (type-expr expr) env) c (error "Invalid Cast"))]
+      [(while _ test body) (if (begin (type-expr body) (type-ast=? test (ptype 'boolean)))
+                               (ptype 'void)
+                               (c-errorf "While test not Boolean!"))]
     
-    [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype 'boolean))) (ptype 'void) (error "Type of Test not Boolean"))]
-    
-    
-    [(while _ test body) (if (begin (type-expr body) (type-ast=? test (ptype 'boolean)))
-                             (ptype 'void)
-                             (error "While test not Boolean!"))]
-    
-    [(for _ init clause update body) (if (begin (type-expr init) (type-expr update) (type-expr body)
-                                                (type-ast=? (type-expr clause) (ptype 'boolean)))
+      [(for _ init clause update body) (if (begin (type-expr init) (type-expr update) (type-expr body)
+                                                  (type-ast=? (type-expr clause) (ptype 'boolean)))
                                          
-                                         (ptype 'void)
-                                         (error "For test not Boolean!"))]
+                                           (ptype 'void)
+                                           (c-errorf "For test not Boolean!"))]
+     
+      [(unop _ op right) (test-un-op op right)]
+      [(binop _ op left right) (perform-bin-op op (type-expr left) (type-expr right))]
+      [(parameter _ type _) type]
     
-    [(unop _ op right) (test-un-op op right)]
-    [(binop _ op left right) (perform-bin-op op (type-expr left) (type-expr right))]
-    [(parameter _ type _) type]
     
-    
-    [(block _ _ statements) (begin (map type-expr statements) (ptype 'void))]
-    [(arrayaccess _ left index) (if (whole-number? (type-expr index)) 
-                                    (if (atype? (type-expr left)) 
-                                        (atype-type (type-expr left)) 
-                                        (error "Array type expected")) 
-                                    (error "Array index expects type int"))]
-    [(return _ expr) (type-expr expr)]
-    [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) 
-                                                        (atype type)   
-                                                        (error "Array declaration expects numeric type for size")))]
-    [(methodcall _ _ _ args) 
-     (let* ([method-funt (methodcall->funt ast type-expr)]
-            [ret (match (assoc method-funt (envs-types env))
-                   [(list a b) b]
-                   [_ (envs-print env)
-                      (c-errorf "No Function of that name ~a in ~a~n" method-funt)])])
-       ret)]
+      [(block _ _ statements) (begin (map type-expr statements) (ptype 'void))]
+      [(arrayaccess _ left index) (if (whole-number? (type-expr index)) 
+                                      (if (atype? (type-expr left)) 
+                                          (atype-type (type-expr left)) 
+                                          (c-errorf "Array type expected")) 
+                                      (c-errorf "Array index expects type int"))]
+      [(return _ expr) (type-expr expr)]
+      [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) 
+                                                          (atype type)   
+                                                          (c-errorf "Array declaration expects numeric type for size")))]
+      [(methodcall _ left _ args) 
+       (let* ([left-env (cond
+                          [(empty? left) (envs-types env)]           ;if the left is empty, use the current class env
+                          [else (get-expr-envs all-cinfo left)])]    ;else use the rtype of the left to get the root env for all-cinfo 
+              [method-funt (methodcall->funt ast type-expr)]
+              [ret (match (assoc  method-funt left-env)
+                        [(list a b) b]
+                        [_ (c-errorf "No Function of that name")])])
+         ret)]
            
-    [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
-    [(method _ _ _ _ _ body) (type-expr body)]
-    [(or (class _ _ _ _ _ _ body)
-         (interface _ _ _ _ _ body)) (type-expr body)]
-    [(cunit _ _ body) (type-expr body)]
+      [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
+      [(method _ _ _ _ _ body) (type-expr body)]
+      [(or (class _ _ _ _ _ _ body)
+           (interface _ _ _ _ _ body)) (type-expr body)]
+      [(cunit _ _ body) (type-expr body)]
     
-    [(fieldaccess _ _ field) 
-     (match (assoc field (envs-types env))
-       [#f (error "Unbound Field Access")]
-       [(list a b) b])]
+      [(fieldaccess _ _ field) 
+       (match (assoc field (envs-types env))
+         [#f (c-errorf "Unbound Field Access")]
+         [(list a b) b])]
     
-    [(classcreate e class params) (error "Classcreate not implemented")]
-    [(constructor e scope methoddecl body) (type-expr body)]
-    [(keyword e _) (error "keyword not implemented")]
+      [(classcreate e class params) (error "Classcreate not implemented")]
+      [(constructor e scope methoddecl body) (type-expr body)]
+      [(keyword e _) (error "keyword not implemented")]
     
     
     
-    [_ (error "Type Checker Not Implemented")]))
+      [_ (error "Type Checker Not Implemented")]))
+
+  (for-each (lambda (cinfo) (type-expr (cunit-body (info-ast (second cinfo))))) all-cinfo))
 
      
                                                 
