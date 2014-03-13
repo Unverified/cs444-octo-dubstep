@@ -13,8 +13,8 @@
 ; HEY LISTEN! I know what you're thinking, "Hey I could totally move this in the type-linker and be a hero!". NO! Dont fucking do that. This guy requires the heirarchy to be build so it can identifiy field variables from class in extends, if you move it to type-linker it wont have those and thus if wont know if a.foo() means class "a" or field variable "a".
 
 (define (disambiguate cinfo rootnames)
-  (for-each (lambda(x) (printf "~n====== DISAMBIGUATING NAMES FOR AST, class/interface: ~a ======~n~n" (first x))
-                       (disambiguate-ast rootnames (info-links (second x)) (info-env (second x)) (info-ast (second x)))) cinfo))
+  (map (lambda(x) (printf "~n====== DISAMBIGUATING NAMES FOR AST, class/interface: ~a ======~n~n" (first x))
+                       (set-cinfo-ast x (disambiguate-ast rootnames (info-links (second x)) (info-env (second x)) (info-ast (second x))))) cinfo))
 
 (define (disambiguate-ast rootnames import-links cenv t)
   (match t

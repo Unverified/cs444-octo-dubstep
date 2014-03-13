@@ -99,9 +99,9 @@
 ;;cast-ptypes : Symbol Symbol -> Boolean
 (define (cast-ptypes T S)
   (match (list T S)
-    [(list (ptype _ 'boolean) (ptype 'boolean)) #t]
+    [(list (ptype env 'boolean) (ptype env 'boolean)) #t]
     [(list (ptype _ 'boolean) _) #f]
-    [(list _ (ptype 'boolean)) #f]
+    [(list _ (ptype _ 'boolean)) #f]
     [_ #t]))
 
   
@@ -130,7 +130,7 @@
 
 ;;type-expr : ast -> (union ptype rtype atype)
 (define (type-expr ast)
-  (define env (ast-envt ast))
+  (define env (ast-env ast))
   (define (test-specific-bin-op type left right err-string)
     (if (and (type-ast=? type (type-expr left)) (type-ast=? type (type-expr right))) type (error err-string)))
 

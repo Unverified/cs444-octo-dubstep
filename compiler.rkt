@@ -12,6 +12,7 @@
 (require "parse-tree.rkt")
 (require "environments.rkt")
 (require "type-linker.rkt")
+(require "type-expr.rkt")
 (require "heirarchy-checker.rkt")
 (require "disambiguator.rkt")
 
@@ -150,10 +151,12 @@
                            (list (c-unit-name (info-ast cinfo)) (info (va env ast) env (info-links cinfo)))) class-info2))
 
 (printf "~n~n============== Disambiguator ==========~n")
-;(print-info class-info2)
-(disambiguate class-info3 names)
 
-;(compiled)
+(define disambig-cinfo (disambiguate class-info3 names))
+
+(map (lambda (cinfo) (type-expr (cunit-body (info-ast (second cinfo))))) disambig-cinfo)
+
+(compiled)
 
 
 
