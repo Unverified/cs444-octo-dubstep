@@ -147,10 +147,13 @@
 (for-each print-info class-info3)
 class-info3
 
-;(printf "~n~n============== Disambiguator ==========~n")
+(printf "~n~n============== Disambiguator ==========~n")
 (define disambig-cinfo (map (curryr disambiguate names) class-info3))
 
-(map (lambda (cinfo) (type-expr (cunit-body (info-ast (second cinfo))))) disambig-cinfo)
+
+(printf "~n~n===========Type Checking==========~n")
+(type-check disambig-cinfo)
+
 (compiled)
 
 
