@@ -154,7 +154,7 @@
 
 (printf "~n~n============== Disambiguator ==========~n")
 ;(print-info class-info2)
-(disambiguate class-info3)
+(disambiguate class-info3 rootenvs)
 
 (compiled)
 

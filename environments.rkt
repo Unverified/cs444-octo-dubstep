@@ -130,7 +130,7 @@
   (define (_va-list block-id lenv asts)
     (cond [(empty? asts) empty]
           [else  (define _va-statement (_va block-id lenv (first asts)))
-                 (cons _va-statement (_va-list block-id (ast-env _va-statement) (rest asts)))]))
+                 (cons _va-statement (_va-list block-id (if (block? _va-statement) lenv (ast-env _va-statement)) (rest asts)))]))
   
   (define (_top_va id ast)
     (match ast
@@ -185,6 +185,8 @@
 
 ;(: add-env-variable : envs string symbol type ast -> envs )
 (define (add-env-variable envt var-name scope type ast)
+  (envs-print envt)
+  (printf "VAR: ~a~n" var-name)
   (let ([value (eval scope ast)])
     (if (false? (assoc var-name (envs-vars envt)))
         (env-append (envs `((,var-name ,type)) `((,var-name ,value)) empty empty) envt)
