@@ -11,9 +11,19 @@
 ;;perform-bin-op: type type -> type
 (define (perform-bin-op op t1 t2)
   (match (list op t1 t2)
+    
+    ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
     [(list '+ (rtype '(java lang String)) (rtype '(java lang String))) (rtype '(java lang String))]
+    [(list '+ (rtype '(java lang String)) (ptype 'boolean)) (rtype '(java lang String))]
+    [(list '+ (ptype 'boolean) (rtype '(java lang String))) (rtype '(java lang String))]
+    
+    ;;Can apply == and != to bool/bool:
+    [(list (or '== '!=) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
+    
+    
     ;;TODO: Verify that binops on two numerics behave like we think they do!
-    [(list _ (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type!"))]
+    [(list (or '+ '- '* '/) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type!"))]
+    [(list (or '< '> '<= '>= '== '!=) (ptype _) (ptype _))  (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric types!")]
     [_ (c-errorf "Undefined Binop!")]))
 
 ;;parent-of? rtype rtype envs -> Boolean
@@ -23,7 +33,6 @@
 
 ;;num-type<? : ptype ptype -> Boolean
 (define (num-type<? pt1 pt2)
-  (define valid-types '(int short char byte long float double))
   (match (list (ptype-type pt1) (ptype-type pt2))
     [(list 'byte t) (list? (member t '(short int long float double)))]
     [(list 'short t) (list? (member t '(int long float double)))]
@@ -39,6 +48,7 @@
   (error "class-type? not implemented"))
 
 ;;rtype-can-assign? rtype rtype -> Boolean
+;;checks to see if source rtype (S) can be assigned to target rtype (T)
 (define (rtype-can-assign? T S)
   (cond
     [(class-type? S)  (parent-of? S T)]
@@ -91,18 +101,24 @@
     
     [_ (error "Unimplemented assignment")]))
     
-;;cast-ptypes : Symbol Symbol -> Boolean
+;;cast-ptypes : ptype ptype -> Boolean
 (define (cast-ptypes T S)
   (match (list T S)
+    ;;identity conversions: boolean to boolean
     [(list (ptype 'boolean) (ptype 'boolean)) #t]
+    ;;invalid conversions: boolean to anything else
     [(list (ptype 'boolean) _) #f]
     [(list _ (ptype 'boolean)) #f]
-    [_ #t]))
+    
+    ;;remaining conversions: Numeric type to numeric type. Will work out widening/narrowing later.
+    [(list (ptype _) (ptype _)) (and (type-numeric? T) (type-numeric? S))]
+    
+    [_ (c-errorf "Unimplemented ptype cast! ~a ~a" T S)]))
   
 ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
 (define (castable? T S env)
   (match (list T S)
-    [(list (ptype sym1) (ptype sym2)) (cast-ptypes sym1 sym2)]
+    [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
     [(list (atype typ1) (atype typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
     [(list (rtype _) (rtype _)) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
     [(list _ _) (c-errorf "Cast type mismatch")]))
@@ -201,11 +217,11 @@
        (let* ([left-env (cond
                           [(empty? left) (envs-types env)]           ;if the left is empty, use the current class env
                           [else (get-expr-envs all-cinfo left)])]    ;else use the rtype of the left to get the root env for all-cinfo 
-              [method-funt (methodcall->funt ast type-expr)]
-              [ret (match (assoc  method-funt left-env)
-                        [(list a b) b]
-                        [_ (c-errorf "No Function of that name")])])
-         ret)]
+              [method-funt (methodcall->funt ast type-expr)])
+              
+         (match (assoc  method-funt left-env)
+           [(list a b) b]
+           [_ (c-errorf "No Function of that name")]))]
            
       [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
       [(method _ _ _ _ _ body) (type-expr body)]
@@ -225,9 +241,8 @@
     
     
       [_ (error "Type Checker Not Implemented")]))
-
-  (for-each (lambda (cinfo) (type-expr (cunit-body (info-ast (second cinfo))))) all-cinfo))
-
+  
+  (for-each (lambda (cinfo) (type-expr (cunit-body (info-ast cinfo)))) all-cinfo))
      
                                                 
     
