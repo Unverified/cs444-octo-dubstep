@@ -10,6 +10,7 @@
 
 
 (define (type-ast=? t1 t2)
+  (printf "type-ast=? ~a ~a~n" t1 t2)
   (match (list t1 t2)
     [`(,(ptype ta) ,(ptype tb)) (symbol=? ta tb)]
     [`(,(rtype ta) ,(rtype tb)) (equal? ta tb)]

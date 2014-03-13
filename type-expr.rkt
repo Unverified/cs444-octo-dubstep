@@ -139,14 +139,19 @@
     [(ptype typ) (list? (member typ valid-types))]
     [_ #f]))
 
-;;type-check : (assoc fullq-names info) -> void
-(define (type-check all-cinfo)
+(define (type-method method-funt env)
+  (match (assoc method-funt (envs-types env))
+    [(list a b) (printf "HERE: ~a~n" b) b]
+    [_ (c-errorf "No Function of that name")]))
 
 ;;define get-expr-envs (assoc info) expr -> envs
-  (define (get-expr-envs e)
-    (match (type-expr e)  
-      [(rtype t) (info-env (second (assoc t all-cinfo)))]
-      [_ (c-errorf "Expression does not resolve to a class type.")]))
+(define (get-methleft-env all-cinfo l-type)
+  (match l-type 
+    [(rtype t) (info-env (find-info t all-cinfo))]
+    [_ (c-errorf "Expression does not resolve to a class type.")]))
+
+;;type-check : (assoc fullq-names info) -> void
+(define (type-check all-cinfo)
 
 ;;type-expr : ast -> (union ptype rtype atype)
   (define (type-expr ast)
@@ -213,15 +218,19 @@
       [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) 
                                                           (atype type)   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
-      [(methodcall _ left _ args) 
-       (let* ([left-env (cond
-                          [(empty? left) (envs-types env)]           ;if the left is empty, use the current class env
-                          [else (get-expr-envs all-cinfo left)])]    ;else use the rtype of the left to get the root env for all-cinfo 
-              [method-funt (methodcall->funt ast type-expr)])
-              
-         (match (assoc  method-funt left-env)
-           [(list a b) b]
-           [_ (c-errorf "No Function of that name")]))]
+      [(methodcall _ left _ args) (let* ([method-funt (methodcall->funt ast type-expr)])
+                                    (cond
+                                      [(empty? left) (type-method method-funt env)]
+                                      [(rtype? left) (type-method method-funt (get-methleft-env all-cinfo left))]
+                                      [else (type-method method-funt (get-methleft-env all-cinfo (type-expr left)))]))]
+ ;      (let* ([left-env (cond
+ ;                         [(empty? left) (envs-types env)]           ;if the left is empty, use the current class env
+ ;                         [else (get-expr-envs all-cinfo left)])]    ;else use the rtype of the left to get the root env for all-cinfo 
+ ;             [method-funt (methodcall->funt ast type-expr)]
+ ;             [ret (match (assoc  method-funt left-env)
+ ;                       [(list a b) b]
+ ;                       [_ (c-errorf "No Function of that name")])])
+ ;        ret)]
            
       [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
       [(method _ _ _ _ _ body) (type-expr body)]
@@ -241,8 +250,9 @@
     
     
       [_ (error "Type Checker Not Implemented")]))
-  
-  (for-each (lambda (cinfo) (type-expr (cunit-body (info-ast cinfo)))) all-cinfo))
+
+  (for-each (lambda (cinfo) (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) (type-expr (cunit-body (info-ast cinfo)))) all-cinfo))
+
      
                                                 
     
