@@ -2,6 +2,7 @@
 
 (require "errorf.rkt")
 (require "ast-tree.rkt")
+(require "class-info.rkt")
 (require "environments.rkt")
 
 (provide gen-typelink-lists)
@@ -55,9 +56,7 @@
         [package-lnk (map create-link-pair (find-package-links (get-package-name ast) root))]
         [pimport-lnk (reverse (check-for-ondemand-clashes (link-on-demand-imports (cunit-pimports ast) root-nodef) empty))])
     (let ([all-lnk (append class-lnk cimport-lnk package-lnk pimport-lnk)])
-      (define new-ast (typelink-ast ast all-lnk root-lnk))
-      ;(print-ast new-ast "")
-      (pair (c-unit-name ast) (pair new-ast all-lnk)))))
+      (info (c-unit-name ast) (typelink-ast ast all-lnk root-lnk) empty all-lnk empty empty))))
 
 (define (gen-typelink-lists asts root)
   (cond

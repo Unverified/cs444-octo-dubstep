@@ -27,16 +27,13 @@
     [(and (empty? extends) (not (equal? (c-unit-name ast) java-lang-Object))) java-lang-Object]
     [else extends]))
 
-(define (get-info fullname root)
-  (second (assoc fullname root)))
-
 ;======================================================================================
 ;==== Heirarchy Checking
 ;======================================================================================
 
 (define (check-heriarchy root cinfo)
   (cond
-    [(is-class? (info-ast cinfo)) (gen-full-class-info root cinfo empty)]
+    [(is-class? (info-ast cinfo))     (gen-full-class-info root cinfo empty)]
     [(is-interface? (info-ast cinfo)) (gen-full-interface-info root cinfo empty)]))
 
 (define (check-interface-info seen-so-far cinfo)
@@ -56,17 +53,17 @@
 ;check that l links to a class and that it does not exist in parent-extds
 (define (check-class-info subclasses cinfo)
   (cond [(empty? cinfo) empty]
-        [(empty? (info-ast cinfo)) (info empty env-empty empty)]
+        [(empty? (info-ast cinfo)) (info empty empty env-empty empty empty empty)]
         [else (let ([name (c-unit-name (info-ast cinfo))])
                 (cond [(not (is-class? (info-ast cinfo))) (c-errorf "Must extend a class.")]
                       [(is-class-with-mod? (info-ast cinfo) 'final) (c-errorf "Cannot extend a final class.")]
                       [else cinfo]))]))
 
 (define (lookup-cunit-env F subs root fullname)
-  (cond [(empty? fullname) (info empty env-empty empty)]
-        [else (match (assoc fullname root)
-                [`(,name ,info) (F root info subs)]
-                [_ (error "full name not found, how did i get here?")])]))
+  (cond [(empty? fullname) (info empty empty env-empty empty empty empty)]
+        [else (match (find-info fullname root)
+                [#f (error "full name not found, how did i get here?")]
+                [cinfo (F root cinfo subs)])]))
 
 (define (gen-full-class-info root cinfo subclasses)
   (let ([c-ast (info-ast cinfo)])
@@ -89,24 +86,7 @@
     (define fullenv (foldr combine-envs cenv interface-envs))
     (printf "----got fullEnv ~a~n" fullenv)
     
-    (info c-ast (check-for-abstract c-ast fullenv) (info-links cinfo))))
-
-;check a class for proper heirarchy
-;  (define (get-class-heriarchy ast links extds)
-;    (printf "CHECKING CLASS HEIR FOR: ~a~n" (c-unit-name ast))
-;    (define parent-extds (cons (c-unit-name ast) extds))
-;    (define extends (get-ast-extends ast))
-;    (define implements (get-implements ast))
-;    (printf "--- EXTENDS: ~a~n" extends)
-;    (printf "--- IMPLEMENTS: ~a~n" implements)
-;    (define class-link (check-class-link (assoc extends links) parent-extds))
-;    (define interface-links (check-interface-links (map identity implements) empty))
-; "DO STUFF HERE"    
-;    (define extends-env (get-extends-env class-link parent-extds))
-;    (define interface-envs (map (lambda(x) (get-interface-env x empty)) interface-links))
-;    (define cur-class-env (combine-envs extends-env (get-rootenv (c-unit-name ast) links)))
-;    (define return-env (foldr combine-envs cur-class-env interface-envs))
-;    (check-for-abstract ast return-env))
+    (set-cinfo-env cinfo (check-for-abstract (info-ast cinfo) fullenv))))
 
 (define (extend-path newele sub-path)
   (printf "extending-path ~a to ~a~n" (string-join newele ".") (map (curryr string-join ".") sub-path))
@@ -124,29 +104,16 @@
     (printf "- - got intEnvs ~a~n" interface-envs)
     
     (define fullenv (foldr combine-envs (info-env cinfo) (check-empty-interface-envs root (info-env cinfo) interface-envs)))
-    
-    (info c-ast fullenv (info-links cinfo))))
+    (set-cinfo-env cinfo fullenv)))
 
 (define (check-empty-interface-envs root cenv interface-envs)
   (cond
-    [(envs? (combine-envs (info-env (second (assoc (list "java" "lang" "Object") root))) cenv)) interface-envs]
+    [(envs? (combine-envs (info-env (find-info (list "java" "lang" "Object") root)) cenv)) interface-envs]
     [else interface-envs]))
-      
-;check an interface for proper heirarchy
-;(define (get-interface-heriarchy ast links impls)
-; (printf "CHECKING INTERFACE HEIR FOR: ~a~n" (c-unit-name ast))
-; (define parent-impls (cons (c-unit-name ast) impls))
-; (define extends (get-extends ast))
-; (printf "--- EXTENDS: ~a~n" extends)
-; (define interface-links (check-interface-links (map (lambda(i) (assoc i links)) extends) parent-impls))
-; (define interface-envs (map (lambda(x) (get-interface-env x parent-impls)) interface-links))
-; (define cenv (get-rootenv (c-unit-name ast) links))
-; (foldr combine-envs cenv (check-empty-interface-envs links cenv interface-envs)
-; )
 
 
 (define (check-heirarchies class-info)
- (map (compose1 (curry check-heriarchy class-info) second) class-info))
+ (map (curry check-heriarchy class-info) class-info))
 
 ;combines two environments by merging in methods and fields. Checks that methods are shadowed properly
 (define (combine-envs take-from combine-in)

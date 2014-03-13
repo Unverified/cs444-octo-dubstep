@@ -136,26 +136,21 @@
 (define links (gen-typelink-lists asts names))
 
 (printf "~n============== Environments ==============~n")
-(define class-info (map (lambda (x) (list (first x)  (info (first (second x)) 
-                                                           (gen-class-envs (first (second x)))
-                                                           (second (second x))))) links))
+(define class-info (map (lambda (x) (set-cinfo-env x (gen-class-envs (info-ast x)))) links))
 
 (printf "~n============== Heirarchy Checker ==========~n")
 (define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
 
-
 (printf "~n=====================Local Environment Generation=========================~n")
 (define class-info3 (map (lambda (cinfo)
-                           (define env (info-env cinfo))
-                           (define ast (info-ast cinfo))
-                           (list (c-unit-name (info-ast cinfo)) (info (va env ast) env (info-links cinfo)))) class-info2))
+                           (set-cinfo-ast cinfo (va (info-env cinfo) (info-ast cinfo)))) class-info2))
+(for-each print-info class-info3)
+class-info3
 
-(printf "~n~n============== Disambiguator ==========~n")
-
-(define disambig-cinfo (disambiguate class-info3 names))
+;(printf "~n~n============== Disambiguator ==========~n")
+(define disambig-cinfo (map (curryr disambiguate names) class-info3))
 
 (map (lambda (cinfo) (type-expr (cunit-body (info-ast (second cinfo))))) disambig-cinfo)
-
 (compiled)
 
 
