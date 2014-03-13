@@ -6,12 +6,18 @@
 
 
 
-(provide type-expr ast)
+(provide type-expr)
 
-
+;;perform-bin-op: type type -> type
+(define (perform-bin-op op t1 t2)
+  (match (list op t1 t2)
+    [(list '+ (rtype _ '(java lang String)) (rtype _ '(java lang String))) (rtype empty '(java lang String))]
+    ;;TODO: Verify that binops on two numerics behave like we think they do!
+    [(list _ (ptype _ _) (ptype _ _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype empty 'int) (error "Attempt to perform binary operation on non-numeric type!"))]
+    [_ (error "Undefined Binop!")]))
 
 ;;parent-of? rtype rtype envs -> Boolean
-(define (parent-of? T S env)
+(define (parent-of? T S)
   (error "parent-of not implemented"))
 
 
@@ -24,31 +30,87 @@
     [(list 'char t) (list? (member t '(int long float double)))]
     [(list 'int t) (list? (member t '(long float double)))]
     [(list 'long t) (list? (member t '(float double)))]
-    [(list 'float t) (list? member t '(double))]
+    [(list 'float t) (list? (member t '(double)))]
     [_ #f]))
+
+
+;;class-type? rtype -> Boolean
+(define (class-type? r)
+  (error "class-type? not implemented"))
+
+;;rtype-can-assign? rtype rtype -> Boolean
+
+(define (rtype-can-assign? T S)
+  (cond
+    [(class-type? S)  (parent-of? S T)]
+    [else (if (class-type? T) 
+              (type-ast=? T (rtype empty '(java lang Object)))
+              (parent-of? S T))]))
+    
 
 ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
 (define (can-assign? T S)
   (match (list T S)
-    [(list (rtype _ _) (ptype _ _)) (error "Assignment of primitive types to reference type variables not allowed")]
+    ;;can assign null to rtype
     [(list (rtype _ _) (ptype _ 'null)) #t]
-    [_ (error "Not Implemented")]))
+    
+    ;;can assign boolean to boolean
+    [(list (ptype _ 'boolean) (ptype _ 'boolean)) #t]
+    
+    ;;cannot assign boolean to any other ptype
+    [(list (ptype _ 'boolean) (ptype _ _)) #f]
+    [(list (ptype _ _) (ptype _ 'boolean)) #f]
+    
+    ;;If not Boolean, we know the ptypes are numeric. Check that the conversion is not narrowing
+    [(list (ptype _ _) (ptype _ _)) (not (num-type<? T S))]
+    ;;Cannot assign ptype to an rtype, except null
+    [(list (rtype _ _) (ptype _ _)) #f]
+    ;;cannot assign null to a ptype
+    [(list (ptype _ _) (ptype _ 'null)) #f]
+    
+    ;;when assigning rtype to rtype, we must employ the algorithm in $5.2 of the spec
+    [(list (rtype _ _) (rtype _ _)) (rtype-can-assign? T S)]
+    
+    ;;we may assign an atype to the following three class/interface types
+    [(list (or
+            (rtype _ '(java lang Object))
+            (rtype _ '(java io Serializable))
+            (rtype _ '(java lang Cloneable)))
+           (atype _ _)) #t]
+    
+    ;;assigning atypes to any but the three above results in a compile-time error
+    [(list (rtype _ _) (atype _ _)) #f]
+    
+    
+    ;;assigning an atype of ptypes to an atype of ptypes requires the ptypes be equal
+    [(list (atype _ (ptype _ _)) (atype _ (ptype _ _))) (type-ast=? (atype-type T) (atype-type S))]
+    
+    ;;assigning an atype of rtypes to an atype of rtypes requires the rtypes to be assignable
+    [(list (atype _ (rtype _ _)) (atype _ (rtype _ _))) (can-assign? (atype-type T) (atype-type S))]
+    
+    ;;any other assignment involving atypes is a compile-time error
+    [(list (atype _ _) (atype _ _)) #f]                                                     
+    
+    [_ (error "Unimplemented assignment")]))
     
 
     
 
 ;;cast-ptypes : Symbol Symbol -> Boolean
 (define (cast-ptypes T S)
-  (error "Cast-ptypes not implemented"))
+  (match (list T S)
+    [(list (ptype _ 'boolean) (ptype 'boolean)) #t]
+    [(list (ptype _ 'boolean) _) #f]
+    [(list _ (ptype 'boolean)) #f]
+    [_ #t]))
 
-
-;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
+  
+  ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
 (define (castable? T S env)
   (match (list T S)
     [(list (ptype _ sym1) (ptype _ sym2)) (cast-ptypes sym1 sym2)]
     [(list (atype _ typ1) (atype _ typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
-    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? T S) #t (or (parent-of? T S env) (parent-of? S T env)))]
-    [(list _ _) (error "Cast type mismatch")]))
+    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]   [(list _ _) (error "Cast type mismatch")]))
 
 
 ;;type-numeric? ptype->Boolean
@@ -96,7 +158,7 @@
        [#f (error "Unbound Identifier")]
        [(list a b) b])]
     
-    [(literal _ type value) type]
+    [(literal _ type _) type]
     [(or
       (ptype _ _) (atype _ _ ) (rtype  _ _)) ast]
     
@@ -118,7 +180,7 @@
                                          (error "For test not Boolean!"))]
     
     [(unop _ op right) (test-un-op op right)]
-    [(binop _ _ _ _) (error "BinOp not implemented")]
+    [(binop _ op left right) (perform-bin-op op (type-expr left) (type-expr right))]
     [(parameter _ type _) type]
     
     
@@ -152,7 +214,7 @@
     
     [(classcreate e class params) (error "Classcreate not implemented")]
     [(constructor e scope methoddecl body) (type-expr body)]
-    [(keyword e id) (error "keyword not implemented")]
+    [(keyword e _) (error "keyword not implemented")]
     
     
     

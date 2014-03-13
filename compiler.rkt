@@ -129,7 +129,6 @@
 
 (printf "~n============== PRINTING ASTS ==============~n")
 (print-asts asts files-to-compile)
-(map cunit? asts)
 (define names (map c-unit-name asts))
 
 (printf "~n============== Type Linker ==============~n")
@@ -144,20 +143,16 @@
 (printf "~n============== Heirarchy Checker ==========~n")
 (define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
 
-(printf "~n=====================Local Environment Generation=========================~n")
-(for-each (lambda (cinfo)
-            (define env (info-env cinfo))
-            (define ast (info-ast cinfo))
-            (envs-print env) 
-            (printf "~n")
-            (print-ast ast "")
-            (printf "~n")
-            (va env ast)
-            (print-ast ast "")) class-info2)
 
-;(printf "~n~n============== Disambiguator ==========~n")
+(printf "~n=====================Local Environment Generation=========================~n")
+(define class-info3 (map (lambda (cinfo)
+                           (define env (info-env cinfo))
+                           (define ast (info-ast cinfo))
+                           (list (c-unit-name (info-ast cinfo)) (info (va env ast) env (info-links cinfo)))) class-info2))
+
+(printf "~n~n============== Disambiguator ==========~n")
 ;(print-info class-info2)
-;(disambiguate class-info2)
+(disambiguate class-info3)
 
 ;(compiled)
 

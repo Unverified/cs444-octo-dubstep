@@ -47,8 +47,8 @@
 
 (define (gen-typelink-list root ast)
   (printf "############ LINKING NAMES IN CLASS: ~a ############~n" (c-unit-name ast))
-  (printf "cimports ~a~n" (cunit-cimports ast))
-  (printf "pimports ~a~n" (cunit-pimports ast))
+  ;(printf "cimports ~a~n" (cunit-cimports ast))
+  ;(printf "pimports ~a~n" (cunit-pimports ast))
   (define root-nodef (filter-not (compose1 (curry equal? 1) length) root))
   (let ([root-lnk    (map (lambda (x) (pair x (const x))) root-nodef)]
         [class-lnk   (list (pair (list (get-class-name ast)) (const (c-unit-name ast))))]
@@ -75,9 +75,9 @@
   
   (define (typelink ast)
     (match ast
-      [(interface _ s m id e b) (interface s m id (map typelink-helper e) (typelink b))]
-      [(class _ s m id e i b)   (class s m id (typelink-helper e) (map typelink-helper i) (typelink b))]
-      [(rtype _ t) (rtype (typelink-helper t))]
+      [(interface env s m id e b) (interface env s m id (map typelink-helper e) (typelink b))]
+      [(class env s m id e i b) (class env s m id (typelink-helper e) (map typelink-helper i) (typelink b))]
+      [(rtype env t) (rtype env (typelink-helper t))]
       [_ (ast-transform typelink ast)]))
   (typelink ast))
 
@@ -138,8 +138,8 @@
        (equal? (list (last enclosing-type)) (pair-key import-typelink))))
 
 (define (check-for-ondemand-clashes links seen-so-far)
-  (printf "----- Links ~a~n" links)
-  (printf "----- Seen ~a~n" seen-so-far)
+;  (printf "----- Links ~a~n" links)
+;  (printf "----- Seen ~a~n" seen-so-far)
   (define (get-package-ci link) (last (first link)))
   (cond
     [(empty? links) empty]

@@ -66,84 +66,83 @@
 (define (va cenv ast)
   (define (_va block-id lenv ast)
     (match ast
-      [(varuse _ v) (set-ast-envt! ast (env-append lenv cenv))
-                    lenv]
+      [(varuse _ v) (varuse (env-append lenv cenv) v)]
       
-      [(vdecl _ _ _ type id) (let ([new-env (add-env-variable lenv id block-id type ast)])
-                               (set-ast-envt! ast (env-append new-env cenv))
-                               new-env)]
+      [(vdecl _ x y type id) (let ([new-env (add-env-variable lenv id block-id type ast)])
+                               (vdecl new-env x y type id))]
       
-      [(varassign _ id bdy) (set-ast-envt! ast (env-append lenv cenv))
-                            (_va block-id lenv bdy)
-                            (_va block-id lenv id)]
+      [(varassign _ id bdy) (let ([newid (_va block-id lenv id)])
+                              (varassign (ast-env newid) newid (_va block-id (ast-env newid) bdy)))]
       
-      [(while _ test body) (set-ast-envt! ast (env-append lenv cenv))
-                           (_va block-id lenv test)
-                           (_va block-id lenv body)]
+      [(while _ test body) (while (env-append lenv cenv)
+                                  (_va block-id lenv test)
+                                  (_va block-id lenv body))]
+
+      [(return _ expr) (return (env-append lenv cenv)
+                               (_va block-id lenv expr))]
       
-      [(return _ expr) (set-ast-envt! ast (env-append lenv cenv))
-                       (_va block-id lenv expr)]
+      [(binop _ op left right) (binop (env-append lenv cenv)
+                                     op
+                                     (_va block-id lenv left)
+                                     (_va block-id lenv right))]
       
-      [(binop _ _ left right) (set-ast-envt! ast (env-append lenv cenv))
-                              (_va block-id lenv left)
-                              (_va block-id lenv right)]
+      [(unop _ op right) (unop (env-append lenv cenv)
+                              op
+                              (_va block-id lenv right))]
       
-      [(unop _ _ right) (set-ast-envt! ast (env-append lenv cenv))
-                        (_va block-id lenv right)]
+      [(cast _ c expr) (cast (env-append lenv cenv)
+                              c
+                              (_va block-id lenv expr))]
       
-      [(cast _ c expr)  (set-ast-envt! ast (env-append lenv cenv))
-                        (_va block-id lenv expr)]
+      [(ambiguous _ ids) (ambiguous (env-append lenv cenv) ids)]
+      [(ptype _ t) (ptype (env-append lenv cenv) t)]
+      [(rtype _ t) (rtype (env-append lenv cenv) t)]
+      [(atype _ t) (atype (env-append lenv cenv) t)]
+      [(literal _ t val) (literal (env-append lenv cenv) t val)]
+      [(methodcall _ left id args) (methodcall (env-append lenv cenv) (_va block-id lenv left) id (_va-list block-id lenv args))]
+      [(arraycreate _ t size) (arraycreate (env-append lenv cenv) t (_va block-id lenv size))]
+      [(fieldaccess _ left id) (fieldaccess (env-append lenv cenv) (_va block-id lenv left) id)]
+      [(arrayaccess _ left access) (arrayaccess (env-append lenv cenv) (_va block-id lenv left) (_va block-id lenv access))]
+      [(classcreate _ class params) (classcreate (env-append lenv cenv) (_va block-id lenv class) (_va-list block-id lenv params))]
       
-      [(or (ambiguous _ _)
-           (ptype _ _)
-           (rtype _ _)
-           (atype _ _)
-           (literal _ _ _)
-           (methodcall _ _ _ _)
-           (arraycreate _ _ _)
-           (fieldaccess _ _ _)
-           (arrayaccess _ _ _)
-           (classcreate _ _ _)) (set-ast-envt! ast (env-append lenv cenv)) 
-                                lenv]
-      
-      [(iff _ test tru fls) (set-ast-envt! ast (env-append lenv cenv))
-                            (_va block-id lenv test)
-                            (if (empty? tru) (void) (_va block-id lenv tru))
-                            (if (empty? fls) (void) (_va block-id lenv fls))
-                            lenv]
+      [(iff _ test tru fls) (iff (env-append lenv cenv)
+                                 (_va block-id lenv test)
+                                 (if (empty? tru) empty (_va block-id lenv tru))
+                                 (if (empty? fls) empty (_va block-id lenv fls)))]
       
       [(for _ init clause update (block _ id bdy)) (let ([for-envt (_va id lenv init)])
-                                                     (set-ast-envt! ast (env-append for-envt cenv))
-                                                     (_va id for-envt clause)
-                                                     (_va-list id for-envt bdy))]
+                                                     (for (env-append (ast-env for-envt) cenv)
+                                                          for-envt
+                                                          (_va id (ast-env for-envt) clause)
+                                                          (_va id (ast-env for-envt) update)
+                                                          (block (ast-env for-envt) id (_va-list id (ast-env for-envt) bdy))))]
       
-      [(block _ id bdy) (set-ast-envt! ast (env-append lenv cenv))
-                        (_va-list id lenv bdy)
-                        lenv]
+      [(block _ id bdy) (block (env-append lenv cenv)
+                               id
+                               (_va-list id lenv bdy))]
       
-      [_ (error ast block-id)]))
+      [_ ast]))
   
   (define (_va-list block-id lenv asts)
-    (cond [(empty? asts) lenv]
-          [else  (_va-list block-id (_va block-id lenv (first asts)) (rest asts))]))
+    (cond [(empty? asts) empty]
+          [else  (define _va-statement (_va block-id lenv (first asts)))
+                 (cons _va-statement (_va-list block-id (ast-env _va-statement) (rest asts)))]))
   
   (define (_top_va id ast)
     (match ast
-      [(or (method _ _ _ _ decl (block _ id bdy))
-           (constructor _ _ decl (block _ id bdy))) (let ([lenv (mdecl->envs id decl)])
-                                                      (set-ast-envt! ast (env-append lenv cenv))
-                                                      (_va-list id lenv bdy))]
-      [(vdecl _ _ _ _ _) cenv]
-      [(varassign _ _ ex)  (_va id env-empty ex)]
-      [_ env-empty]))
+      [(method _ s m t decl bdy) (let ([lenv (mdecl->envs id decl)])
+                                                      (method (env-append lenv cenv) s m t decl
+                                                              (_va block-id lenv bdy)))]
+      [(constructor _ id decl bdy) (let ([lenv (mdecl->envs id decl)])
+                                                      (constructor (env-append lenv cenv) id decl
+                                                                   (_va block-id lenv bdy)))]
+      [(vdecl _ s m t md) (vdecl cenv s m t md)]
+      [(varassign _ id ex) (varassign cenv id (_va id env-empty ex))]))
   (match ast
-    [(cunit _ _ bdy) (va cenv bdy)]
-    [(or (class _ _ _ _ _ _ bdy)
-         (interface _ _ _ _ _ bdy)) (set-ast-envt! ast cenv)
-                                    (va cenv bdy)]
-    [(block _ id bdy) (set-ast-envt! ast cenv)
-                      (map (curry _top_va id) bdy)
-                      (void)]))
+    [(cunit package imports bdy) (cunit package imports (va cenv bdy))]
+    [(class _ s m id exts impls bdy) (class cenv s m id exts impls (va cenv bdy))]
+    [(interface _ s m id exts bdy) (interface cenv s m id exts (va cenv bdy))]
+    [(block _ id bdy) (block cenv id (map (curry _top_va id) bdy))]))
 
 ;======================================================================================
 ;==== Environment Transformation

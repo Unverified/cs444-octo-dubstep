@@ -9,8 +9,8 @@
 TEST_DIR="tests"
 
 STDLIB=`find stdlib -iname "*.java"`
-IN_TEST_DIR="$TEST_DIR/in"
-OUT_TEST_DIR="$TEST_DIR/out"
+IN_TEST_DIR="$TEST_DIR/in/a2"
+OUT_TEST_DIR="$TEST_DIR/out/a2"
 FAILED_TEST_DIR="$TEST_DIR/failed_out"
 
 # get the command-line arguments
@@ -61,13 +61,13 @@ do
   echo "$test_files"
   echo "$STDLIB"
     
-  racket compiler.rkt $test_files #  > $FAILED_TEST_DIR/$test_name.out
+  racket compiler.rkt $test_files  > $FAILED_TEST_DIR/$test_name.out
   test_output=$?
   expected_output=`cat $out_file`
 
   if [ "$test_output" == "$expected_output" ]
   then
-    #rm $FAILED_TEST_DIR/$test_name.out
+    rm $FAILED_TEST_DIR/$test_name.out
     echo "Test Passed!"
   else
     echo "Test Failed! Compiler returned: $test_output, Expected: $expected_output"

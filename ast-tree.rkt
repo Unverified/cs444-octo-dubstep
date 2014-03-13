@@ -36,11 +36,13 @@
 (provide (struct-out keyword))
 (provide (struct-out ambiguous))
 
+;;inserted by the type-checker, prompts code generator to do a run-time check
+(provide (struct-out narrowing-ref-conversion))
+
 (provide clean-ast)
 (provide parse->ast)
 (provide print-asts)
 (provide print-ast)
-(provide ast-recurse)
 (provide get-class-name)
 (provide get-package-name)
 (provide c-unit-name)
@@ -51,13 +53,12 @@
 (provide is-class-with-mod?)
 (provide ast-transform)
 
-(provide set-ast-envt!)
-(provide ast-envt)
 
 ;==============================================================================================
 ;==== AST Structures
 ;==============================================================================================
-(struct ast ([env #:auto]) #:auto-value (box '()) #:prefab)
+
+(struct ast (env) #:prefab)
 
 ;(struct c-unit ([package : (Listof String)] [imports : (Listof (Listof String))] [body : class U import]))
 (struct cunit (package imports body) #:prefab)
@@ -69,87 +70,91 @@
 (struct pimport (path) #:prefab)
 
 ;(struct interface ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [body : block]))
-(struct interface ast (scope mod id extends body) #:prefab)
+(struct interface ast ( scope mod id extends body) #:prefab)
 
 ;(struct class ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [extends : (Listof (Listof String))] [implements : string] [body : block]))
-(struct class ast (scope mod id extends implements body) #:prefab)
+(struct class ast ( scope mod id extends implements body) #:prefab)
 
 ;(struct constructor ([scope : Symbol] [methoddecl : methoddecl] [body : block]))
-(struct constructor ast (scope methoddecl body) #:prefab)
+(struct constructor ast ( scope methoddecl body) #:prefab)
 
 ;(struct method ([scope : Symbol] [mod : (Listof Symbol)] [methoddecl : methoddecl] [body : block]))
-(struct method ast (scope mod type methoddecl body) #:prefab)
+(struct method ast ( scope mod type methoddecl body) #:prefab)
 
 ;(struct methoddecl ([id : String] [parameters : (Listof parameter)]))
-(struct methoddecl ast (id parameters) #:prefab)
+(struct methoddecl ast ( id parameters) #:prefab)
 
 ;(struct parameter ([type : (ptype, rtype, atype)] [id : String]))
-(struct parameter ast (type id) #:prefab)
+(struct parameter ast ( type id) #:prefab)
 
 ;(struct var ([scope : Symbol] [mod : Symbol] [type : (ptype, rtype, atype)] [var-assign : varassign]))
-(struct vdecl ast (scope mod type id) #:prefab)
+(struct vdecl ast ( scope mod type id) #:prefab)
 
 ;(struct varassign ([id : String] [expr : "alot of things"]))
-(struct varassign ast (id expr) #:prefab)
+(struct varassign ast ( id expr) #:prefab)
 
 ;(struct binop ([op : Symbol] [left: "expression"] [right: "expression"]))
-(struct binop ast (op left right) #:prefab)
+(struct binop ast ( op left right) #:prefab)
 
 ;(struct unop ([op : Symbol] [right: "expression"]))
-(struct unop ast (op right) #:prefab)
+(struct unop ast ( op right) #:prefab)
 
 ;(struct cast ([c : Symbol] [expr: "expression"]))
-(struct cast ast (c expr) #:prefab)
+(struct cast ast ( c expr) #:prefab)
 
 ;(struct arraycreate ([type : (ptype, (Listof String))] [size: "expression"]))
-(struct arraycreate ast (type size) #:prefab)
+(struct arraycreate ast ( type size) #:prefab)
 
 ;(struct classcreate ([class : (Listof String)] [params: (Listof "expression")]))
-(struct classcreate ast (class params) #:prefab)
+(struct classcreate ast ( class params) #:prefab)
 
 ;(struct fieldaccess ([left : "primary"] [field: String]))
-(struct fieldaccess ast (left field) #:prefab)
+(struct fieldaccess ast ( left field) #:prefab)
 
 ;(struct methodcall ([left : (Listof String) | fieldaccess] [args: (Listof "expression")]))
-(struct methodcall ast (left id args) #:prefab)
+(struct methodcall ast ( left id args) #:prefab)
 
 ;(struct arrayaccess ([left : (Listof String) | "primary, no new arrays"] [index: "expression"]))
-(struct arrayaccess ast (left index) #:prefab)
+(struct arrayaccess ast ( left index) #:prefab)
 
 ;(struct iff ([test : "expression"] [tru: block | "lots of things"] [fls: block | "lots of things"]))
-(struct iff ast (test tru fls) #:prefab)
+(struct iff ast ( test tru fls) #:prefab)
 
 ;(struct while ([test : "expression"] [body: block | "lots of things"]))
-(struct while ast (test body) #:prefab)
+(struct while ast ( test body) #:prefab)
 
 ;(struct for ([init : var | varassign | methodcall | classcreate] [clause: "expression"] [update: varassign | methodcall | classcreate]))
-(struct for ast (init clause update body) #:prefab)
+(struct for ast ( init clause update body) #:prefab)
 
 ;(struct return ([expr : "expression"]))
-(struct return ast (expr) #:prefab)
+(struct return ast ( expr) #:prefab)
 
 ;(struct literal ([type: ptype | rtype | atype][value : Any])
-(struct literal ast (type value) #:prefab)
+(struct literal ast ( type value) #:prefab)
 
 ;(struct ptype ([type : Symbol]))
-(struct ptype ast (type) #:prefab)
+(struct ptype ast ( type) #:prefab)
 
 ;(struct rtype ([type : Symbol]))
-(struct rtype ast (type) #:prefab)
+(struct rtype ast ( type) #:prefab)
 
 ;(struct atype ([type : Symbol]))
-(struct atype ast (type) #:prefab)
+(struct atype ast ( type) #:prefab)
 
 ;(struct block ([id : Symbol] [statements : (Listof "lots of things")]))
-(struct block ast (id statements) #:prefab)
+(struct block ast ( id statements) #:prefab)
 
 ;(struct varuse ([id : String]))
-(struct varuse ast (id) #:prefab)
+(struct varuse ast ( id) #:prefab)
 
 ;(struct keyword ())
-(struct keyword ast (key) #:prefab)
+(struct keyword ast ( key) #:prefab)
 
-(struct ambiguous ast (ids) #:prefab)
+(struct ambiguous ast ( ids) #:prefab)
+
+
+;;narrowing-ref-conversion: ([target: rtype] [source: rtype])
+(struct narrowing-ref-conversion ast (target source) #:prefab)
 
 
 ;==============================================================================================
@@ -159,71 +164,68 @@
 (define (create-new-blocks s)
   (cond
     [(empty? s) empty]
-    [(vdecl? (first s)) (list (first s) (block (gensym) (create-new-blocks (rest s))))]
+    [(vdecl? (first s)) (list (first s) (block empty (gensym) (create-new-blocks (rest s))))]
     [else (cons (first s) (create-new-blocks (rest s)))]))
 
 (define (clean-ast t)
   (match t
     [`() (error "clean-ast matched an empty list, it should not get to this point.")]
-    [`(,var) (varuse var)]
-    [`(,vars ...) (printf "clean-ast `(vars ...) ids: ~a~n" vars) (ambiguous vars)]
-    [(method _ sp md ty decl '()) (method sp md (clean-ast ty) decl (block (gensym) '()))]
+    [`(,var) (varuse empty var)]
+    [`(,vars ...) (printf "clean-ast `(vars ...) ids: ~a~n" vars) (ambiguous empty vars)]
+    [(method _ sp md ty decl '()) (method empty sp md (clean-ast ty) decl (block empty (gensym) '()))]
     
-    [(vdecl _ sp md ty (varassign _ id ex)) (varassign (vdecl sp md (clean-ast ty) id) (clean-ast ex))]
-    [(vdecl _ sp md ty id) (vdecl sp md (clean-ast ty) id)]
+    [(vdecl _ sp md ty (varassign _ id ex)) (varassign empty (vdecl empty sp md (clean-ast ty) id) (clean-ast ex))]
+    [(vdecl _ sp md ty id) (vdecl empty sp md (clean-ast ty) id)]
     
-    [(methodcall _ `() id args) (methodcall empty id (map clean-ast args))]
-    [(methodcall _ `(,ids ...) id args) (methodcall (ambiguous ids) id (map clean-ast args))]
+    [(methodcall _ `() id args) (methodcall empty empty id (map clean-ast args))]
+    [(methodcall _ `(,ids ...) id args) (methodcall empty (ambiguous empty ids) id (map clean-ast args))]
 
-    [(arraycreate _ `(,ty ...) sz) (arraycreate (rtype ty) (clean-ast sz))]
-    [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate (rtype cls) (map clean-ast params))]
-    [(atype _ `(,ty ...)) (atype (rtype ty))]
+    [(arraycreate _ `(,ty ...) sz) (arraycreate empty (rtype empty ty) (clean-ast sz))]
+    [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate empty (rtype empty cls) (map clean-ast params))]
+    [(atype _ `(,ty ...)) (atype empty (rtype empty ty))]
     
-    [(cast _ `(,ty ...) expr) (cast (rtype ty) (clean-ast expr))]
-    [(rtype _ `(,ty ...)) (rtype ty)]
-    [(rtype _ (atype _ type)) (clean-ast (atype type))]    
+    [(cast _ `(,ty ...) expr) (cast empty (rtype empty ty) (clean-ast expr))]
+    [(rtype _ `(,ty ...)) (rtype empty ty)]
+    [(rtype _ (atype _ type)) (clean-ast (atype empty type))]    
     [(rtype _ _) (error "rtype with invalid inside: " t)]
     
-    ['this (varuse 'this)]
-    ['void (ptype 'void)]
+    ['this (varuse empty 'this)]
+    ['void (ptype empty 'void)]
     
     [_ (ast-transform clean-ast t)]))
 
 (define (ast-transform F ast)
-  ((lambda (ast2) (cond [(cunit? ast2) ast2]
-                        [else  (set-ast-envt! ast2 (ast-envt ast))
-                               ast2]))
    (match ast
      [(cunit package imports body) (cunit package imports (F body))]
-     [(class _ sp md id ex im bd) (class sp md id ex im (F bd))]  
-     [(interface _ sp md id ex bd) (interface sp md id ex (F bd))]
+     [(class env sp md id ex im bd) (class env sp md id ex im (F bd))]  
+     [(interface env sp md id ex bd) (interface env sp md id ex (F bd))]
      
-     [(constructor _ sp decl bd) (constructor sp (F decl) (F bd))]
-     [(method _ sp md ty decl bd) (method sp md (F ty) (F decl) (F bd))]
-     [(methoddecl _ id params) (methoddecl id (map F params))]
-     [(parameter _ type id) (parameter (F type) id)]
+     [(constructor env sp decl bd) (constructor env sp (F decl) (F bd))]
+     [(method env sp md ty decl bd) (method env sp md (F ty) (F decl) (F bd))]
+     [(methoddecl env id params) (methoddecl env id (map F params))]
+     [(parameter env type id) (parameter env (F type) id)]
      
-     [(varassign _ id ex) (varassign (F id) (F ex))]
-     [(vdecl _ sp md ty id) (vdecl sp md (F ty) id)]
-     [(binop _ op ls rs) (binop op (F ls) (F rs))]
-     [(unop _ op rs) (unop op (F rs))]
-     [(cast _ c ex) (cast (F c) (F ex))]
-     [(arraycreate _ ty sz) (arraycreate (F ty) (F sz))]
-     [(classcreate _ cls params) (classcreate (F cls) (map F params))]
-     [(fieldaccess _ left field) (fieldaccess (F left) field)]
-     [(arrayaccess _ left index) (arrayaccess (F left) (F index))]
+     [(varassign env id ex) (varassign env (F id) (F ex))]
+     [(vdecl env sp md ty id) (vdecl env sp md (F ty) id)]
+     [(binop env op ls rs) (binop env op (F ls) (F rs))]
+     [(unop env op rs) (unop env op (F rs))]
+     [(cast env c ex) (cast env (F c) (F ex))]
+     [(arraycreate env ty sz) (arraycreate env (F ty) (F sz))]
+     [(classcreate env cls params) (classcreate env (F cls) (map F params))]
+     [(fieldaccess env left field) (fieldaccess env (F left) field)]
+     [(arrayaccess env left index) (arrayaccess env (F left) (F index))]
      
-     [(methodcall _ `() id args) (methodcall empty id (map F args))]
-     [(methodcall _ left id args) (methodcall (F left) id (map F args))]
+     [(methodcall env `() id args) (methodcall env empty id (map F args))]
+     [(methodcall env left id args) (methodcall env (F left) id (map F args))]
      
-     [(iff _ test '() '()) (iff (F test) empty empty)]
-     [(iff _ test '() fls) (iff (F test) empty (F fls))]
-     [(iff _ test tru '()) (iff (F test) (F tru) empty)]
-     [(iff _ test tru fls) (iff (F test) (F tru) (F fls))]
+     [(iff env test '() '()) (iff env (F test) empty empty)]
+     [(iff env test '() fls) (iff env (F test) empty (F fls))]
+     [(iff env test tru '()) (iff env (F test) (F tru) empty)]
+     [(iff env test tru fls) (iff env (F test) (F tru) (F fls))]
      
-     [(while _ test body) (while (F test) (F body))]
-     [(return _ expr) (return (F expr))]
-     [(for _ init clause update body) (for (F init) (F clause) (F update) (F body))]
+     [(while env test body) (while env (F test) (F body))]
+     [(return env expr) (return env (F expr))]
+     [(for env init clause update body) (for env (F init) (F clause) (F update) (F body))]
      
      [(ptype _ _) ast]
      [(rtype _ _) ast]
@@ -231,9 +233,10 @@
      [(keyword _ _) ast]
      [(ambiguous _ _) ast]
      
-     [(atype _ type) (F type)]
-     [(literal _ type val) (literal (F type) val)]
-     [(block _ id statements) (block id (map F statements))])))
+     [(atype env type) (F type)]
+     [(literal env type val) (literal env (F type) val)]
+     [(block env id statements) (block env id (map F statements))]
+     [_ (error "Could not match: " ast)]))
 
 (define (parse->ast t)
   (match t
@@ -247,44 +250,44 @@
     [(tree (node 'S) `(,x ,y ,z)) (cunit (parse->ast x) (parse->ast y) (parse->ast z))]
     
     ;cimport/pimport
-    [(tree (node 'CLASS_IMPORT) `(,_ ,x ,_)) (cimport (parse->ast x))]
+    [(tree (node 'CLASS_IMPORT) `(,_ ,x ,_)) (cimport  (parse->ast x))]
     [(tree (node 'PACKAGE_IMPORT) `(,_ ,x ,_ ,_ ,_)) (pimport (parse->ast x))]
     
     ;interface
-    [(tree (node 'INTERFACE_DECLARATION) x) (interface (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (block (gensym) (parse->ast (list-ref x 5))))]
+    [(tree (node 'INTERFACE_DECLARATION) x) (interface empty (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (block empty (gensym) (parse->ast (list-ref x 5))))]
     
     ;class
-    [(tree (node 'CLASS_DECLARATION) x) (class (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (parse->ast (list-ref x 5)) (block (gensym) (parse->ast (list-ref x 6))))]
+    [(tree (node 'CLASS_DECLARATION) x) (class empty (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (parse->ast (list-ref x 5)) (block empty (gensym) (parse->ast (list-ref x 6))))]
     
     ;constructor
-    [(tree (node 'CONSTRUCTOR_DECLARATION) `(,scope ,decl ,body)) (constructor (parse->ast scope) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'CONSTRUCTOR_DECLARATION) `(,scope ,decl ,body)) (constructor empty (parse->ast scope) (parse->ast decl) (parse->ast body))]
     
     ;method
-    [(tree (node 'NORMAL_METHOD_DECLARATION) `(,scope ,type ,decl ,body)) (method (parse->ast scope) empty (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'ABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'IABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'FINAL_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'STATIC_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method (parse->ast scope) (parse->ast mod) (ptype (parse->ast type)) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'NORMAL_METHOD_DECLARATION_NO_BODY) `(,scope ,type ,decl ,body)) (method (parse->ast scope) (list 'abstract) (parse->ast type) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'NORMAL_METHOD_DECLARATION) `(,scope ,type ,decl ,body)) (method empty (parse->ast scope) empty (parse->ast type) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'ABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'IABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'FINAL_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'STATIC_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (parse->ast mod) (ptype empty (parse->ast type)) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'NORMAL_METHOD_DECLARATION_NO_BODY) `(,scope ,type ,decl ,body)) (method empty (parse->ast scope) (list 'abstract) (parse->ast type) (parse->ast decl) (parse->ast body))]
     
     ;methoddecl
-    [(tree (node 'METHOD_DECLARATOR) `(,id ,_ ,params ,_)) (methoddecl (parse->ast id) (parse->ast params))]
-    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (methoddecl (parse->ast id) (list (parameter (ptype 'int) (parse->ast p-id))))]
+    [(tree (node 'METHOD_DECLARATOR) `(,id ,_ ,params ,_)) (methoddecl empty (parse->ast id) (parse->ast params))]
+    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (methoddecl empty (parse->ast id) (list (parameter empty (ptype empty 'int) (parse->ast p-id))))]
     
     ;ptype/rtype/atype
-    [(tree (node 'PRIMITIVE_TYPE) `(,x)) (ptype (parse->ast x))]
-    [(tree (node 'REFERENCE_TYPE) `(,x)) (rtype (parse->ast x))]
-    [(tree (node 'ARRAY_TYPE) x) (atype (parse->ast (first x)))]
+    [(tree (node 'PRIMITIVE_TYPE) `(,x)) (ptype empty (parse->ast x))]
+    [(tree (node 'REFERENCE_TYPE) `(,x)) (rtype empty (parse->ast x))]
+    [(tree (node 'ARRAY_TYPE) x) (atype empty (parse->ast (first x)))]
     
     ;var
-    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v)) (vdecl empty empty (parse->ast type) (parse->ast v))]
-    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,v ,_ )) (vdecl (parse->ast x) empty (parse->ast type) (parse->ast v))]
-    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,v ,_ )) (vdecl (parse->ast x) 'static (parse->ast type) (parse->ast v))]
+    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v)) (vdecl empty empty empty (parse->ast type) (parse->ast v))]
+    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,v ,_ )) (vdecl empty (parse->ast x) empty (parse->ast type) (parse->ast v))]
+    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,v ,_ )) (vdecl empty (parse->ast x) 'static (parse->ast type) (parse->ast v))]
     
     ;varassign
-    [(tree (node 'VARIABLE_DECLARATOR) `( ,id ,_ ,expr )) (varassign (parse->ast id) (parse->ast expr)) ]
-    [(tree (node 'ASSIGNMENT) `(,lhs ,_ ,rhs)) (varassign (parse->ast lhs) (parse->ast rhs))]
+    [(tree (node 'VARIABLE_DECLARATOR) `( ,id ,_ ,expr )) (varassign empty (parse->ast id) (parse->ast expr)) ]
+    [(tree (node 'ASSIGNMENT) `(,lhs ,_ ,rhs)) (varassign empty (parse->ast lhs) (parse->ast rhs))]
     
     ;binop
     [(or (tree (node 'LOGICAL_OR) `(,x ,y ,z))
@@ -294,48 +297,48 @@
          (tree (node 'EQUALITY) `(,x ,y ,z))
          (tree (node 'RELATIONAL) `(,x ,y ,z))
          (tree (node 'ADDITIVE) `(,x ,y ,z))
-         (tree (node 'MULTIPLICATIVE) `(,x ,y ,z))) (binop (parse->ast y) (parse->ast x) (parse->ast z))] 
+         (tree (node 'MULTIPLICATIVE) `(,x ,y ,z))) (binop empty (parse->ast y) (parse->ast x) (parse->ast z))] 
     
     ;unop
     [(or (tree (node 'UNARY_MINUS) `(,x ,y))
-         (tree (node 'UNARY_NOT) `  (,x ,y))) (unop (parse->ast x) (parse->ast y))]
+         (tree (node 'UNARY_NOT) `  (,x ,y))) (unop empty (parse->ast x) (parse->ast y))]
     
     ;block
-    [(tree (node 'BLOCK) `(,_ ,x ,_)) (block (gensym) (create-new-blocks (parse->ast x)))]
+    [(tree (node 'BLOCK) `(,_ ,x ,_)) (block empty (gensym) (create-new-blocks (parse->ast x)))]
     
     ;cast
-    [(tree (node 'CAST) `(,_ ,c ,_ ,expr)) (cast (parse->ast c) (parse->ast expr))]
+    [(tree (node 'CAST) `(,_ ,c ,_ ,expr)) (cast empty (parse->ast c) (parse->ast expr))]
     
     ;arraycreate
-    [(tree (node 'ARRAY_CREATION_EXPRESSION) `(,_ ,type ,_ ,size ,_)) (arraycreate (parse->ast type) (parse->ast size))]
+    [(tree (node 'ARRAY_CREATION_EXPRESSION) `(,_ ,type ,_ ,size ,_)) (arraycreate empty (parse->ast type) (parse->ast size))]
     
     ;classcreate
-    [(tree (node 'CLASS_CREATION_EXPRESSION) `(,_ ,class ,_ ,params ,_)) (classcreate (parse->ast class) (parse->ast params))]
+    [(tree (node 'CLASS_CREATION_EXPRESSION) `(,_ ,class ,_ ,params ,_)) (classcreate empty (parse->ast class) (parse->ast params))]
     
     ;fieldaccess
-    [(tree (node 'FIELD_ACCESS) `(,left ,_ ,field)) (fieldaccess (parse->ast left) (parse->ast field))]
+    [(tree (node 'FIELD_ACCESS) `(,left ,_ ,field)) (fieldaccess empty (parse->ast left) (parse->ast field))]
     
     ;methodcall
-    [(tree (node 'METHOD_CALL) `(,id ,_ ,args ,_)) (methodcall empty (parse->ast id) (parse->ast args))]
-    [(tree (node 'METHOD_CALL) `(,left ,_ ,id ,_ ,args ,_)) (methodcall (parse->ast left) (parse->ast id) (parse->ast args))]
+    [(tree (node 'METHOD_CALL) `(,id ,_ ,args ,_)) (methodcall empty empty (parse->ast id) (parse->ast args))]
+    [(tree (node 'METHOD_CALL) `(,left ,_ ,id ,_ ,args ,_)) (methodcall empty (parse->ast left) (parse->ast id) (parse->ast args))]
     
     ;arrayaccess
-    [(tree (node 'ARRAY_ACCESS) `(,left ,_ ,index ,_)) (arrayaccess (parse->ast left) (parse->ast index))]
+    [(tree (node 'ARRAY_ACCESS) `(,left ,_ ,index ,_)) (arrayaccess empty (parse->ast left) (parse->ast index))]
     
     ;iff
-    [(tree (node 'IF_STATEMENT) `(,_ ,_ ,test ,_ ,tru)) (iff (parse->ast test) (parse->ast tru) empty)]
-    [(tree (node 'IF_ELSE_STATEMENT) `(,_ ,_ ,test ,_ ,tru ,_ ,fls)) (iff (parse->ast test) (parse->ast tru) (parse->ast fls))]
-    [(tree (node 'IF_ELSE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,tru ,_ ,fls)) (iff (parse->ast test) (parse->ast tru) (parse->ast fls))]
+    [(tree (node 'IF_STATEMENT) `(,_ ,_ ,test ,_ ,tru)) (iff empty (parse->ast test) (parse->ast tru) empty)]
+    [(tree (node 'IF_ELSE_STATEMENT) `(,_ ,_ ,test ,_ ,tru ,_ ,fls)) (iff empty (parse->ast test) (parse->ast tru) (parse->ast fls))]
+    [(tree (node 'IF_ELSE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,tru ,_ ,fls)) (iff empty (parse->ast test) (parse->ast tru) (parse->ast fls))]
     
     ;while
-    [(tree (node 'WHILE_STATEMENT) `(,_ ,_ ,test ,_ ,body)) (while (parse->ast test) (parse->ast body))]
-    [(tree (node 'WHILE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,body)) (while (parse->ast test) (parse->ast body))]
+    [(tree (node 'WHILE_STATEMENT) `(,_ ,_ ,test ,_ ,body)) (while empty (parse->ast test) (parse->ast body))]
+    [(tree (node 'WHILE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,body)) (while empty (parse->ast test) (parse->ast body))]
     
     ;for
     [(or (tree (node 'FOR_STATEMENT) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body))
          (tree (node 'FOR_STATEMENT_NO_IF) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body))) (let* ([body-ast (parse->ast body)]
-                                                                                                  [body (if (block? body-ast) body-ast (block (gensym) (list body-ast)))])
-                                                                                             (for (parse->ast init) (parse->ast clause) (parse->ast update) body))]
+                                                                                                  [body (if (block? body-ast) body-ast (block empty (gensym) (list body-ast)))])
+                                                                                             (for empty (parse->ast init) (parse->ast clause) (parse->ast update) body))]
     
     ;==============================================================================================
     ;==== REDUCTION RULES, all rules below serve to strip junk from the parse tree
@@ -371,7 +374,7 @@
     
     [(tree (node 'PARAMETER_LIST) `(,params ,_ ,param)) (append (parse->ast params) (parse->ast param))]
     [(tree (node 'PARAMETER_LIST) `(,param)) (parse->ast param)]
-    [(tree (node 'PARAMETER) `(,type ,id)) (list (parameter (parse->ast type) (parse->ast id)))]
+    [(tree (node 'PARAMETER) `(,type ,id)) (list (parameter empty (parse->ast type) (parse->ast id)))]
     
     [(tree (node 'INTERFACE_MODIFIER) `(,x)) (parse->ast x)]
     [(tree (node 'CLASS_MODIFIER) `(,x)) (parse->ast x)]
@@ -436,15 +439,15 @@
     
     [(tree (node 'EXPRESSION_STATEMENT) `(,x ,_)) (parse->ast x)]
     [(tree (node 'STATEMENT_EXPRESSION) `(,x)) (parse->ast x)]
-    [(tree (node 'RETURN_STATEMENT) `(,_ ,x ,_)) (return (parse->ast x))]
+    [(tree (node 'RETURN_STATEMENT) `(,_ ,x ,_)) (return empty (parse->ast x))]
     
     [(tree (leafnode (token 'void x)) _) 'void]
     
-    [(tree (leafnode (token 'decimal-lit x)) _) (literal (ptype 'int) (string->number x))]
-    [(tree (leafnode (token 'null-lit x)) _)    (literal (ptype 'null) x)]
-    [(tree (leafnode (token 'string-lit x)) _)  (literal (rtype '("java" "lang" "String")) x)]
-    [(tree (leafnode (token 'char-lit x)) _)    (literal (ptype 'char) x)]
-    [(tree (leafnode (token 'bool-lit x)) _)    (literal (ptype 'bool) x)]
+    [(tree (leafnode (token 'decimal-lit x)) _) (literal empty (ptype empty 'int) (string->number x))]
+    [(tree (leafnode (token 'null-lit x)) _)    (literal empty (ptype empty 'null) x)]
+    [(tree (leafnode (token 'string-lit x)) _)  (literal empty (rtype empty '("java" "lang" "String")) x)]
+    [(tree (leafnode (token 'char-lit x)) _)    (literal empty (ptype empty 'char) x)]
+    [(tree (leafnode (token 'bool-lit x)) _)    (literal empty (ptype empty 'bool) x)]
     
     [(tree (leafnode (token 'semi x)) _) empty]
     [(tree (leafnode (token 'id x)) _) x]
@@ -623,8 +626,10 @@
 (define (print-asts asts files)
   (for-each (lambda(ast) (printf "~n================ AST ================~n") (print-ast ast "")) asts))
 
-;==============================================================================================
-;==== AST Enviroment Modification
-;==============================================================================================
-(define (set-ast-envt! ast val) (set-box! (ast-env ast) val))
-(define ast-envt (compose1 unbox ast-env))
+
+
+
+
+
+
+
