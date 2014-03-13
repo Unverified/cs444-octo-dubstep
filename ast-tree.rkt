@@ -70,87 +70,87 @@
 (struct pimport (path) #:prefab)
 
 ;(struct interface ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [body : block]))
-(struct interface ast ( scope mod id extends body) #:prefab)
+(struct interface ast (scope mod id extends body) #:prefab)
 
 ;(struct class ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [extends : (Listof (Listof String))] [implements : string] [body : block]))
 (struct class ast ( scope mod id extends implements body) #:prefab)
 
 ;(struct constructor ([scope : Symbol] [methoddecl : methoddecl] [body : block]))
-(struct constructor ast ( scope methoddecl body) #:prefab)
+(struct constructor ast (scope methoddecl body) #:prefab)
 
 ;(struct method ([scope : Symbol] [mod : (Listof Symbol)] [methoddecl : methoddecl] [body : block]))
-(struct method ast ( scope mod type methoddecl body) #:prefab)
+(struct method ast (scope mod type methoddecl body) #:prefab)
 
 ;(struct methoddecl ([id : String] [parameters : (Listof parameter)]))
-(struct methoddecl ast ( id parameters) #:prefab)
+(struct methoddecl ast (id parameters) #:prefab)
 
 ;(struct parameter ([type : (ptype, rtype, atype)] [id : String]))
-(struct parameter ast ( type id) #:prefab)
+(struct parameter ast (type id) #:prefab)
 
 ;(struct var ([scope : Symbol] [mod : Symbol] [type : (ptype, rtype, atype)] [var-assign : varassign]))
-(struct vdecl ast ( scope mod type id) #:prefab)
+(struct vdecl ast (scope mod type id) #:prefab)
 
 ;(struct varassign ([id : String] [expr : "alot of things"]))
-(struct varassign ast ( id expr) #:prefab)
+(struct varassign ast (id expr) #:prefab)
 
 ;(struct binop ([op : Symbol] [left: "expression"] [right: "expression"]))
-(struct binop ast ( op left right) #:prefab)
+(struct binop ast (op left right) #:prefab)
 
 ;(struct unop ([op : Symbol] [right: "expression"]))
-(struct unop ast ( op right) #:prefab)
+(struct unop ast (op right) #:prefab)
 
 ;(struct cast ([c : Symbol] [expr: "expression"]))
-(struct cast ast ( c expr) #:prefab)
+(struct cast ast (c expr) #:prefab)
 
 ;(struct arraycreate ([type : (ptype, (Listof String))] [size: "expression"]))
-(struct arraycreate ast ( type size) #:prefab)
+(struct arraycreate ast (type size) #:prefab)
 
 ;(struct classcreate ([class : (Listof String)] [params: (Listof "expression")]))
-(struct classcreate ast ( class params) #:prefab)
+(struct classcreate ast (class params) #:prefab)
 
 ;(struct fieldaccess ([left : "primary"] [field: String]))
-(struct fieldaccess ast ( left field) #:prefab)
+(struct fieldaccess ast (left field) #:prefab)
 
 ;(struct methodcall ([left : (Listof String) | fieldaccess] [args: (Listof "expression")]))
-(struct methodcall ast ( left id args) #:prefab)
+(struct methodcall ast (left id args) #:prefab)
 
 ;(struct arrayaccess ([left : (Listof String) | "primary, no new arrays"] [index: "expression"]))
-(struct arrayaccess ast ( left index) #:prefab)
+(struct arrayaccess ast (left index) #:prefab)
 
 ;(struct iff ([test : "expression"] [tru: block | "lots of things"] [fls: block | "lots of things"]))
-(struct iff ast ( test tru fls) #:prefab)
+(struct iff ast (test tru fls) #:prefab)
 
 ;(struct while ([test : "expression"] [body: block | "lots of things"]))
 (struct while ast ( test body) #:prefab)
 
 ;(struct for ([init : var | varassign | methodcall | classcreate] [clause: "expression"] [update: varassign | methodcall | classcreate]))
-(struct for ast ( init clause update body) #:prefab)
+(struct for ast (init clause update body) #:prefab)
 
 ;(struct return ([expr : "expression"]))
-(struct return ast ( expr) #:prefab)
+(struct return ast (expr) #:prefab)
 
 ;(struct literal ([type: ptype | rtype | atype][value : Any])
-(struct literal ast ( type value) #:prefab)
+(struct literal ast (type value) #:prefab)
 
 ;(struct ptype ([type : Symbol]))
-(struct ptype ast ( type) #:prefab)
+(struct ptype (type) #:prefab)
 
 ;(struct rtype ([type : Symbol]))
-(struct rtype ast ( type) #:prefab)
+(struct rtype (type) #:prefab)
 
 ;(struct atype ([type : Symbol]))
-(struct atype ast ( type) #:prefab)
+(struct atype (type) #:prefab)
 
 ;(struct block ([id : Symbol] [statements : (Listof "lots of things")]))
-(struct block ast ( id statements) #:prefab)
+(struct block ast (id statements) #:prefab)
 
 ;(struct varuse ([id : String]))
-(struct varuse ast ( id) #:prefab)
+(struct varuse ast (id) #:prefab)
 
 ;(struct keyword ())
-(struct keyword ast ( key) #:prefab)
+(struct keyword ast (key) #:prefab)
 
-(struct ambiguous ast ( ids) #:prefab)
+(struct ambiguous ast (ids) #:prefab)
 
 
 ;;narrowing-ref-conversion: ([target: rtype] [source: rtype])
@@ -180,17 +180,17 @@
     [(methodcall _ `() id args) (methodcall empty empty id (map clean-ast args))]
     [(methodcall _ `(,ids ...) id args) (methodcall empty (ambiguous empty ids) id (map clean-ast args))]
 
-    [(arraycreate _ `(,ty ...) sz) (arraycreate empty (rtype empty ty) (clean-ast sz))]
-    [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate empty (rtype empty cls) (map clean-ast params))]
-    [(atype _ `(,ty ...)) (atype empty (rtype empty ty))]
+    [(arraycreate _ `(,ty ...) sz) (arraycreate empty (rtype ty) (clean-ast sz))]
+    [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate empty (rtype cls) (map clean-ast params))]
+    [(atype `(,ty ...)) (atype (rtype ty))]
     
-    [(cast _ `(,ty ...) expr) (cast empty (rtype empty ty) (clean-ast expr))]
-    [(rtype _ `(,ty ...)) (rtype empty ty)]
-    [(rtype _ (atype _ type)) (clean-ast (atype empty type))]    
-    [(rtype _ _) (error "rtype with invalid inside: " t)]
+    [(cast _ `(,ty ...) expr) (cast empty (rtype ty) (clean-ast expr))]
+    [(rtype `(,ty ...)) (rtype ty)]
+    [(rtype (atype type)) (clean-ast (atype type))]    
+    [(rtype _) (error "rtype with invalid inside: " t)]
     
     ['this (varuse empty 'this)]
-    ['void (ptype empty 'void)]
+    ['void (ptype 'void)]
     
     [_ (ast-transform clean-ast t)]))
 
@@ -227,14 +227,14 @@
      [(return env expr) (return env (F expr))]
      [(for env init clause update body) (for env (F init) (F clause) (F update) (F body))]
      
-     [(ptype _ _) ast]
-     [(rtype _ _) ast]
+     [(ptype _) ast]
+     [(rtype _) ast]
      [(varuse _ _) ast]
      [(keyword _ _) ast]
      [(ambiguous _ _) ast]
      
-     [(atype env type) (F type)]
-     [(literal env type val) (literal env (F type) val)]
+     [(atype type) (F type)]
+     [(literal _ type val) (literal empty (F type) val)]
      [(block env id statements) (block env id (map F statements))]
      [_ (error "Could not match: " ast)]))
 
@@ -268,17 +268,17 @@
     [(tree (node 'IABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'FINAL_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'STATIC_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (parse->ast mod) (ptype empty (parse->ast type)) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (parse->ast mod) (ptype (parse->ast type)) (parse->ast decl) (parse->ast body))]
     [(tree (node 'NORMAL_METHOD_DECLARATION_NO_BODY) `(,scope ,type ,decl ,body)) (method empty (parse->ast scope) (list 'abstract) (parse->ast type) (parse->ast decl) (parse->ast body))]
     
     ;methoddecl
     [(tree (node 'METHOD_DECLARATOR) `(,id ,_ ,params ,_)) (methoddecl empty (parse->ast id) (parse->ast params))]
-    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (methoddecl empty (parse->ast id) (list (parameter empty (ptype empty 'int) (parse->ast p-id))))]
+    [(tree (node 'STATIC_NATIVE_BODY) `(,id ,_ ,int ,p-id ,_)) (methoddecl empty (parse->ast id) (list (parameter empty (ptype 'int) (parse->ast p-id))))]
     
     ;ptype/rtype/atype
-    [(tree (node 'PRIMITIVE_TYPE) `(,x)) (ptype empty (parse->ast x))]
-    [(tree (node 'REFERENCE_TYPE) `(,x)) (rtype empty (parse->ast x))]
-    [(tree (node 'ARRAY_TYPE) x) (atype empty (parse->ast (first x)))]
+    [(tree (node 'PRIMITIVE_TYPE) `(,x)) (ptype (parse->ast x))]
+    [(tree (node 'REFERENCE_TYPE) `(,x)) (rtype (parse->ast x))]
+    [(tree (node 'ARRAY_TYPE) x) (atype (parse->ast (first x)))]
     
     ;var
     [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v)) (vdecl empty empty empty (parse->ast type) (parse->ast v))]
@@ -443,16 +443,15 @@
     
     [(tree (leafnode (token 'void x)) _) 'void]
     
-    [(tree (leafnode (token 'decimal-lit x)) _) (literal empty (ptype empty 'int) (string->number x))]
-    [(tree (leafnode (token 'null-lit x)) _)    (literal empty (ptype empty 'null) x)]
-    [(tree (leafnode (token 'string-lit x)) _)  (literal empty (rtype empty '("java" "lang" "String")) x)]
-    [(tree (leafnode (token 'char-lit x)) _)    (literal empty (ptype empty 'char) x)]
-    [(tree (leafnode (token 'bool-lit x)) _)    (literal empty (ptype empty 'bool) x)]
+    [(tree (leafnode (token 'decimal-lit x)) _) (literal empty (ptype 'int) (string->number x))]
+    [(tree (leafnode (token 'null-lit x)) _)    (literal empty (ptype 'null) x)]
+    [(tree (leafnode (token 'string-lit x)) _)  (literal empty (rtype '("java" "lang" "String")) x)]
+    [(tree (leafnode (token 'char-lit x)) _)    (literal empty (ptype 'char) x)]
+    [(tree (leafnode (token 'bool-lit x)) _)    (literal empty (ptype 'bool) x)]
     
     [(tree (leafnode (token 'semi x)) _) empty]
     [(tree (leafnode (token 'id x)) _) x]
-    [(tree (leafnode (token x _)) _) x]
-    ))
+    [(tree (leafnode (token x _)) _) x]))
 
 ;==============================================================================================
 ;==== Helper
@@ -487,9 +486,9 @@
             [(while _ test body) (comb (proc test) (proc body))]
             [(for _ init clause update body) (comb (proc init) (proc clause) (proc update) (proc body))]
             [(return _ expr) (comb (proc expr))]
-            [(ptype _ type) (comb (proc type))]
-            [(rtype _ type) (comb (proc type))]
-            [(atype _ type) (comb (proc type))]
+            [(ptype type) (comb (proc type))]
+            [(rtype type) (comb (proc type))]
+            [(atype type) (comb (proc type))]
             [(block _ id statements) (comb (proc statements))]
             [_ empty])]))
 
@@ -615,9 +614,9 @@
     [(methodcall _ left id args) (printf "(methodcall ") (print-ast left indent) (printf " ") (print-ast id indent) (print-ast args indent) (printf ")")]
     [(arrayaccess _ left index) (printf "(arrayaccess ") (print-ast left indent) (printf " ") (print-ast index indent) (printf ")")]
     [(return _ expr) (printf "(return ") (print-ast expr indent) (printf ")")]
-    [(ptype _ type) (printf "(ptype ") (print-ast type indent) (printf ")")]
-    [(rtype _ type) (printf "(rtype ") (print-ast type indent) (printf ")")]
-    [(atype _ type) (printf "(atype ") (print-ast type indent) (printf ")")]
+    [(ptype type) (printf "(ptype ") (print-ast type indent) (printf ")")]
+    [(rtype type) (printf "(rtype ") (print-ast type indent) (printf ")")]
+    [(atype type) (printf "(atype ") (print-ast type indent) (printf ")")]
     [(keyword _ key) (printf "(keyword this)" )]
     [(ambiguous _ ids) (printf "(ambiguous ") (print-ast ids indent) (printf ")")]
     [`() (printf "empty")]

@@ -76,7 +76,7 @@
     (match ast
       [(interface env s m id e b) (interface env s m id (map typelink-helper e) (typelink b))]
       [(class env s m id e i b) (class env s m id (typelink-helper e) (map typelink-helper i) (typelink b))]
-      [(rtype env t) (rtype env (typelink-helper t))]
+      [(rtype t) (rtype (typelink-helper t))]
       [_ (ast-transform typelink ast)]))
   (typelink ast))
 

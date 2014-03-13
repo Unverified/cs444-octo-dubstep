@@ -1,19 +1,18 @@
 #lang racket
 
+(require "errorf.rkt")
 (require "ast-tree.rkt")
 (require "environments.rkt")
 (require "heirarchy-checker.rkt")
-
-
 
 (provide type-expr)
 
 ;;perform-bin-op: type type -> type
 (define (perform-bin-op op t1 t2)
   (match (list op t1 t2)
-    [(list '+ (rtype _ '(java lang String)) (rtype _ '(java lang String))) (rtype empty '(java lang String))]
+    [(list '+ (rtype '(java lang String)) (rtype '(java lang String))) (rtype '(java lang String))]
     ;;TODO: Verify that binops on two numerics behave like we think they do!
-    [(list _ (ptype _ _) (ptype _ _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype empty 'int) (error "Attempt to perform binary operation on non-numeric type!"))]
+    [(list _ (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (error "Attempt to perform binary operation on non-numeric type!"))]
     [_ (error "Undefined Binop!")]))
 
 ;;parent-of? rtype rtype envs -> Boolean
@@ -39,12 +38,11 @@
   (error "class-type? not implemented"))
 
 ;;rtype-can-assign? rtype rtype -> Boolean
-
 (define (rtype-can-assign? T S)
   (cond
     [(class-type? S)  (parent-of? S T)]
     [else (if (class-type? T) 
-              (type-ast=? T (rtype empty '(java lang Object)))
+              (type-ast=? T (rtype '(java lang Object)))
               (parent-of? S T))]))
     
 
@@ -52,72 +50,68 @@
 (define (can-assign? T S)
   (match (list T S)
     ;;can assign null to rtype
-    [(list (rtype _ _) (ptype _ 'null)) #t]
+    [(list (rtype _) (ptype 'null)) #t]
     
     ;;can assign boolean to boolean
-    [(list (ptype _ 'boolean) (ptype _ 'boolean)) #t]
+    [(list (ptype 'boolean) (ptype 'boolean)) #t]
     
     ;;cannot assign boolean to any other ptype
-    [(list (ptype _ 'boolean) (ptype _ _)) #f]
-    [(list (ptype _ _) (ptype _ 'boolean)) #f]
+    [(list (ptype 'boolean) (ptype _)) #f]
+    [(list (ptype _) (ptype 'boolean)) #f]
     
     ;;If not Boolean, we know the ptypes are numeric. Check that the conversion is not narrowing
-    [(list (ptype _ _) (ptype _ _)) (not (num-type<? T S))]
+    [(list (ptype _) (ptype _)) (not (num-type<? T S))]
     ;;Cannot assign ptype to an rtype, except null
-    [(list (rtype _ _) (ptype _ _)) #f]
+    [(list (rtype _) (ptype _)) #f]
     ;;cannot assign null to a ptype
-    [(list (ptype _ _) (ptype _ 'null)) #f]
+    [(list (ptype _) (ptype 'null)) #f]
     
     ;;when assigning rtype to rtype, we must employ the algorithm in $5.2 of the spec
-    [(list (rtype _ _) (rtype _ _)) (rtype-can-assign? T S)]
+    [(list (rtype _) (rtype _)) (rtype-can-assign? T S)]
     
     ;;we may assign an atype to the following three class/interface types
-    [(list (or
-            (rtype _ '(java lang Object))
-            (rtype _ '(java io Serializable))
-            (rtype _ '(java lang Cloneable)))
-           (atype _ _)) #t]
+    [(list (or (rtype '(java lang Object))
+               (rtype '(java io Serializable))
+               (rtype '(java lang Cloneable)))
+           (atype _)) #t]
     
     ;;assigning atypes to any but the three above results in a compile-time error
-    [(list (rtype _ _) (atype _ _)) #f]
+    [(list (rtype _) (atype _)) #f]
     
     
     ;;assigning an atype of ptypes to an atype of ptypes requires the ptypes be equal
-    [(list (atype _ (ptype _ _)) (atype _ (ptype _ _))) (type-ast=? (atype-type T) (atype-type S))]
+    [(list (atype (ptype _)) (atype (ptype _))) (type-ast=? (atype-type T) (atype-type S))]
     
     ;;assigning an atype of rtypes to an atype of rtypes requires the rtypes to be assignable
-    [(list (atype _ (rtype _ _)) (atype _ (rtype _ _))) (can-assign? (atype-type T) (atype-type S))]
+    [(list (atype (rtype _)) (atype (rtype _))) (can-assign? (atype-type T) (atype-type S))]
     
     ;;any other assignment involving atypes is a compile-time error
-    [(list (atype _ _) (atype _ _)) #f]                                                     
+    [(list (atype _) (atype _)) #f]                                                     
     
     [_ (error "Unimplemented assignment")]))
     
-
-    
-
 ;;cast-ptypes : Symbol Symbol -> Boolean
 (define (cast-ptypes T S)
   (match (list T S)
-    [(list (ptype env 'boolean) (ptype env 'boolean)) #t]
-    [(list (ptype _ 'boolean) _) #f]
-    [(list _ (ptype _ 'boolean)) #f]
+    [(list (ptype 'boolean) (ptype 'boolean)) #t]
+    [(list (ptype 'boolean) _) #f]
+    [(list _ (ptype 'boolean)) #f]
     [_ #t]))
-
   
-  ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
+;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
 (define (castable? T S env)
   (match (list T S)
-    [(list (ptype _ sym1) (ptype _ sym2)) (cast-ptypes sym1 sym2)]
-    [(list (atype _ typ1) (atype _ typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
-    [(list (rtype _ _) (rtype _ _)) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]   [(list _ _) (error "Cast type mismatch")]))
+    [(list (ptype sym1) (ptype sym2)) (cast-ptypes sym1 sym2)]
+    [(list (atype typ1) (atype typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
+    [(list (rtype _) (rtype _)) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
+    [(list _ _) (error "Cast type mismatch")]))
 
 
 ;;type-numeric? ptype->Boolean
 (define (type-numeric? pt)
   (define valid-types '(int short char byte long float double))
   (match pt
-    [(ptype _ typ) (list? (member typ valid-types))]
+    [(ptype typ) (list? (member typ valid-types))]
     [_ #f]))
 
 
@@ -125,7 +119,7 @@
 (define (whole-number? pt)
   (define valid-types '(int short char byte))
   (match pt
-    [(ptype _ typ) (list? (member typ valid-types))]
+    [(ptype typ) (list? (member typ valid-types))]
     [_ #f]))
 
 ;;type-expr : ast -> (union ptype rtype atype)
@@ -136,7 +130,7 @@
 
   (define (test-un-op op right)
     (cond
-      [(symbol=? op '!) (if (type-ast=? (type-expr right) (ptype empty 'boolean)) (ptype empty 'boolean)
+      [(symbol=? op '!) (if (type-ast=? (type-expr right) (ptype 'boolean)) (ptype 'boolean)
                             (error "! operator expects type boolean"))]
       [(symbol=? op '-) (if (type-numeric? (type-expr right)) (type-expr right)
                             (error "- operator expects numeric type"))]
@@ -145,7 +139,7 @@
                       
   (match ast
     [(varuse _ 'this) (error "This not implemented")]
-    [(vdecl _ _ _ _ _) (ptype empty 'void)]
+    [(vdecl _ _ _ _ _) (ptype 'void)]
     
     [(varassign _ id expr)
      (let ([var-type (type-expr id)])
@@ -160,23 +154,23 @@
     
     [(literal _ type _) type]
     [(or
-      (ptype _ _) (atype _ _ ) (rtype  _ _)) ast]
+      (ptype _) (atype _ ) (rtype _)) ast]
     
     
     [(cast _ c expr) 
        (if (castable? c (type-expr expr) env) c (error "Invalid Cast"))]
     
-    [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype empty 'boolean))) (ptype empty 'void) (error "Type of Test not Boolean"))]
+    [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype 'boolean))) (ptype 'void) (error "Type of Test not Boolean"))]
     
     
-    [(while _ test body) (if (begin (type-expr body) (type-ast=? test (ptype empty 'boolean)))
-                             (ptype empty 'void)
+    [(while _ test body) (if (begin (type-expr body) (type-ast=? test (ptype 'boolean)))
+                             (ptype 'void)
                              (error "While test not Boolean!"))]
     
     [(for _ init clause update body) (if (begin (type-expr init) (type-expr update) (type-expr body)
-                                                (type-ast=? (type-expr clause) (ptype empty 'boolean)))
+                                                (type-ast=? (type-expr clause) (ptype 'boolean)))
                                          
-                                         (ptype empty 'void)
+                                         (ptype 'void)
                                          (error "For test not Boolean!"))]
     
     [(unop _ op right) (test-un-op op right)]
@@ -184,7 +178,7 @@
     [(parameter _ type _) type]
     
     
-    [(block _ _ statements) (begin (map type-expr statements) (ptype empty 'void))]
+    [(block _ _ statements) (begin (map type-expr statements) (ptype 'void))]
     [(arrayaccess _ left index) (if (whole-number? (type-expr index)) 
                                     (if (atype? (type-expr left)) 
                                         (atype-type (type-expr left)) 
@@ -196,9 +190,10 @@
                                                         (error "Array declaration expects numeric type for size")))]
     [(methodcall _ _ _ args) 
      (let* ([method-funt (methodcall->funt ast type-expr)]
-            [ret (match (assoc  method-funt (envs-types env))
-                      [(list a b) b]
-                      [_ (error "No Function of that name")])])
+            [ret (match (assoc method-funt (envs-types env))
+                   [(list a b) b]
+                   [_ (envs-print env)
+                      (c-errorf "No Function of that name ~a in ~a~n" method-funt)])])
        ret)]
            
     [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]

@@ -40,14 +40,14 @@
   (cond
     [(list? local-var) (varuse lenv id)]
     [(list? field-var) (varuse lenv id)] ;?
-    [(list? typelink) (rtype lenv ((second typelink)))]
+    [(list? typelink) (rtype ((second typelink)))]
     [else (list id)]))
 
 (define (disambiguate-result rootnames lenv ids result)
   (cond
     [(fieldaccess? result) (fieldaccess lenv result (last ids))]
     [(or (varuse? result) (rtype? result)) (fieldaccess lenv result (last ids))]
-    [(and (list? result) (list? (member ids rootnames))) (rtype lenv (first (member ids rootnames)))]
+    [(and (list? result) (list? (member ids rootnames))) (rtype (first (member ids rootnames)))]
     [else ids]))
 
 

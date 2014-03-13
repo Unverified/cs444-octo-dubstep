@@ -11,9 +11,9 @@
 
 (define (type-ast=? t1 t2)
   (match (list t1 t2)
-    [`(,(ptype _ ta) ,(ptype _ tb)) (equal? ta tb)]
-    [`(,(rtype _ ta) ,(rtype _ tb)) (equal? ta tb)]
-    [`(,(atype _ ta) ,(atype _ tb)) (type-ast=? ta tb)]
+    [`(,(ptype ta) ,(ptype tb)) (symbol=? ta tb)]
+    [`(,(rtype ta) ,(rtype tb)) (equal? ta tb)]
+    [`(,(atype ta) ,(atype tb)) (type-ast=? ta tb)]
     [_ #f]))
 
 ;======================================================================================
