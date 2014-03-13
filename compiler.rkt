@@ -23,7 +23,7 @@
 
 ;Get all the files from the command line
 (define files-to-compile (vector->list (current-command-line-arguments)))
-;(define files-to-compile (list "tests/in/Je_2_Locals_Overlapping_DeeplyNested.java"))
+;(define files-to-compile (list "tests/in/J1_1_Cast_NamedTypeAsVariable.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -132,37 +132,34 @@
 (map cunit? asts)
 (define names (map c-unit-name asts))
 
-(printf "~n============== Environments ==============~n")
-
-(define rootenvs (gen-root-env asts))
-
-(for-each (lambda (x) 
-            (printf "~a~n============================~n" (first x))
-            (envs-print (second x))) rootenvs)
-
 (printf "~n============== Type Linker ==============~n")
-;class-info == something like (list (pair ("java" "lang" "String") #s(info ast rootenv links)) ...)
-(define class-info (gen-typelink-lists asts rootenvs))
+;class-info == something like (list (pair ("java" "lang" "String") (ast links)) ...)
+(define links (gen-typelink-lists asts names))
+
+(printf "~n============== Environments ==============~n")
+(define class-info (map (lambda (x) (list (first x)  (info (first (second x)) 
+                                                           (gen-class-envs (first (second x)))
+                                                           (second (second x))))) links))
 
 (printf "~n============== Heirarchy Checker ==========~n")
 (define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
 
 (printf "~n=====================Local Environment Generation=========================~n")
 (for-each (lambda (cinfo)
-              (define env (info-env (second cinfo)))
-              (define ast (info-ast (second cinfo)))
-              (envs-print env) 
-              (printf "~n")
-              (print-ast ast "")
-              (printf "~n")
-              (va env ast)
-              (print-ast ast "")) class-info2)
+            (define env (info-env cinfo))
+            (define ast (info-ast cinfo))
+            (envs-print env) 
+            (printf "~n")
+            (print-ast ast "")
+            (printf "~n")
+            (va env ast)
+            (print-ast ast "")) class-info2)
 
-(printf "~n~n============== Disambiguator ==========~n")
+;(printf "~n~n============== Disambiguator ==========~n")
 ;(print-info class-info2)
-(disambiguate class-info2)
+;(disambiguate class-info2)
 
-(compiled)
+;(compiled)
 
 
 

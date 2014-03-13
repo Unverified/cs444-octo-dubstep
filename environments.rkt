@@ -22,7 +22,6 @@
 
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)
-
 (struct envs (types vars methods constructors))
 
 ;======================================================================================
@@ -30,11 +29,8 @@
 ;======================================================================================
 
 (define (mdecl->funt mdecl)
-  (match mdecl
-    [(methoddecl _ id params) (funt id (map parameter-type params))]
-    ;[(methodcall id params) (funt id (map (lambda (x) x) params))]
-    [_ (error "mdecl->funt: mdecl that is not a method declaration passed int")]))
-
+  (match-let ([(methoddecl _ id params) mdecl])
+    (funt id (map parameter-type params))))
 
 (define (methodcall->funt mcall type-expr)
   (match mcall
@@ -47,7 +43,7 @@
 (define (gen-class-envs ast)
   (define (_gen-class-env scope asts envt)
     (match asts
-      [`() envt]     
+      [`() envt] 
       [`(,(constructor _ scop mdecl _) ,rst ...)     (_gen-class-env scope rst (add-env-const envt mdecl scope (first asts)))]
       [`(,(method _ scop mod type mdecl _) ,rst ...) (_gen-class-env scope rst (add-env-method envt mdecl scope type (first asts)))]
       [`(,(or (varassign _ (vdecl _ _ _ type id) _)

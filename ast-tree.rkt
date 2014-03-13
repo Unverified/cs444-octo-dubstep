@@ -46,9 +46,9 @@
 (provide c-unit-name)
 (provide get-extends)
 (provide get-implements)
-(provide is-class)
-(provide is-interface)
-(provide is-class-with-mod)
+(provide is-class?)
+(provide is-interface?)
+(provide is-class-with-mod?)
 (provide ast-transform)
 
 (provide set-ast-envt!)
@@ -498,8 +498,7 @@
 
 (define (get-package-name ast)
   (match ast
-    [(or (cunit package _ (class _ _ _ id _ _ _)) 
-         (cunit package _ (interface _ _ _ id _ _))) package]
+    [(cunit package _ _) package]
     [_ (error "Something went terribly wrong in get-package-name")]))
 
 (define (c-unit-name ast)
@@ -508,30 +507,36 @@
          (cunit package _ (interface _ _ _ id _ _))) (append package (list id))]
     [_ (error "Something went terribly wrong in c-unit-name")]))
 
-(define (is-class ast)
+(define (is-class? ast)
   (match ast
-    [(cunit package _ (class _ _ _ _ _ _ _)) #t]
+    [(cunit _ _ body) (is-class? body)]
+    [(class _ _ _ _ _ _ _)  #t]
     [_ #f]))
 
-(define (is-class-with-mod ast mod)
-  (printf "@@@ Checking if C/I ~a has mod ~a~n" (c-unit-name ast) mod)
+(define (is-class-with-mod? ast mod)
   (match ast
-    [(cunit package _ (class _ _ m _ _ _ _)) (equal? m mod)]
+    [(cunit _ _ body) (is-class-with-mod? body mod)]
+    [(class _ _ m _ _ _ _) (equal? m mod)]
     [_ #f]))
 
-(define (is-interface ast)
-  (not (is-class ast)))
+(define (is-interface? ast)
+    (match ast
+    [(cunit _ _ body) (is-interface? body)]
+    [(interface _ _ _ _ _ _)  #t]
+    [_ #f]))
 
 (define (get-extends ast)
   (match ast
-    [(or (cunit package _ (class _ _ _ _ e _ _)) 
-         (cunit package _ (interface _ _ _ _ e _))) e]
+    [(cunit _ _ body) (get-extends body)]
+    [(or (class _ _ _ _ e _ _)
+         (interface _ _ _ _ e _)) e]
     [_ (error "Something went terribly wrong in get-extends")]))
 
 (define (get-implements ast)
   (match ast
-    [(cunit package _ (class _ _ _ _ _ i _)) i]
-    [(cunit package _ (interface _ _ _ _ _ _)) empty]
+    [(cunit package _ body) (get-implements body)]
+    [(class _ _ _ _ _ i _) i]
+    [(interface _ _ _ _ _ _) empty]
     [_ (error "Something went terribly wrong in get-implements")]))
 
 ;==============================================================================================
