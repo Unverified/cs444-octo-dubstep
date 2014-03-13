@@ -110,16 +110,15 @@
   (last (regexp-split #px"/" filepath)))
 
 (define (do-import-stuff ast)
+  (display "DONE PARSING FILE\n" (current-error-port))
   (define (same-imports x y)
     (match (list x y)
       [(or `(,(cimport x) ,(cimport y))
            `(,(pimport x) ,(pimport y))) (equal? x y)]
       [else #f]))
-  (printf "DOING IMPORT STUFF~n")
   (cunit (cunit-package ast) (remove-duplicates (cons (pimport (list "java" "lang")) (cunit-imports ast)) (lambda(x y) (same-imports x y))) (cunit-body ast)))
 
 (define (parse-file file)
-  (printf "GETTING AST FOR ~a~n" file)
   (define clist (string->list (file->string file)))
   (define parse-tree (run-parser (run-scanner clist)))
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
