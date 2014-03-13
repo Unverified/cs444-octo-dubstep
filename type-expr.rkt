@@ -13,18 +13,19 @@
   (match (list op t1 t2)
     
     ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
-    [(list '+ (rtype '(java lang String)) (rtype '(java lang String))) (rtype '(java lang String))]
-    [(list '+ (rtype '(java lang String)) (ptype 'boolean)) (rtype '(java lang String))]
-    [(list '+ (ptype 'boolean) (rtype '(java lang String))) (rtype '(java lang String))]
+    [(list 'plus (rtype '(java lang String)) (rtype '(java lang String))) (rtype '(java lang String))]
+    [(list 'plus (rtype '(java lang String)) (ptype 'boolean)) (rtype '(java lang String))]
+    [(list 'plus (ptype 'boolean) (rtype '(java lang String))) (rtype '(java lang String))]
     
     ;;Can apply == and != to bool/bool:
-    [(list (or '== '!=) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
+    [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
     
     
     ;;TODO: Verify that binops on two numerics behave like we think they do!
-    [(list (or '+ '- '* '/) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type!"))]
-    [(list (or '< '> '<= '>= '== '!=) (ptype _) (ptype _))  (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric types!")]
-    [_ (c-errorf "Undefined Binop!")]))
+    [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
+    [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
+    [(list (or 'bar 'amp) _ _) (c-errorf "Bitwise operation detected: ~a" op)]
+    [_ (c-errorf "Undefined Binop ~a" op)]))
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S)
@@ -161,11 +162,11 @@
 
     (define (test-un-op op right)
       (cond
-        [(symbol=? op '!) (if (type-ast=? (type-expr right) (ptype 'boolean)) (ptype 'boolean)
+        [(symbol=? op 'not) (if (type-ast=? (type-expr right) (ptype 'boolean)) (ptype 'boolean)
                               (error "! operator expects type boolean"))]
-        [(symbol=? op '-) (if (type-numeric? (type-expr right)) (type-expr right)
+        [(symbol=? op 'minus) (if (type-numeric? (type-expr right)) (type-expr right)
                               (error "- operator expects numeric type"))]
-        [else (error "Unimplemented operator")]))
+        [else (c-errorf "Unimplemented operator ~a" op)]))
                         
                       
     (match ast
@@ -190,10 +191,10 @@
       [(cast _ c expr) 
          (if (castable? c (type-expr expr) env) c (c-errorf "Invalid Cast"))]
     
-      [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? test (ptype 'boolean))) (ptype 'void) (c-errorf "Type of Test not Boolean"))]
+      [(iff _ test tru fls) (if (begin  (type-expr tru) (type-expr fls) (type-ast=? (type-expr test) (ptype 'boolean))) (ptype 'void) (c-errorf "Type of Test not Boolean" ))]
     
     
-      [(while _ test body) (if (begin (type-expr body) (type-ast=? test (ptype 'boolean)))
+      [(while _ test body) (if (begin (type-expr body) (type-ast=? (type-expr test) (ptype 'boolean)))
                                (ptype 'void)
                                (c-errorf "While test not Boolean!"))]
     
