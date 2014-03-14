@@ -447,7 +447,7 @@
     [(tree (leafnode (token 'null-lit x)) _)    (literal empty (ptype 'null) x)]
     [(tree (leafnode (token 'string-lit x)) _)  (literal empty (rtype '("java" "lang" "String")) x)]
     [(tree (leafnode (token 'char-lit x)) _)    (literal empty (ptype 'char) x)]
-    [(tree (leafnode (token 'bool-lit x)) _)    (literal empty (ptype 'bool) x)]
+    [(tree (leafnode (token 'bool-lit x)) _)    (literal empty (ptype 'boolean) x)]
     
     [(tree (leafnode (token 'semi x)) _) empty]
     [(tree (leafnode (token 'id x)) _) x]
