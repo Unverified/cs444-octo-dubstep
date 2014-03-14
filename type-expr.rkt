@@ -107,9 +107,10 @@
   
   ;;num-type<? : ptype ptype -> Boolean
   (define (num-type<? pt1 pt2)
+    (printf "num-type<? ~a ~a~n" pt1 pt2) 
     (match (list (ptype-type pt1) (ptype-type pt2))
-      [(list 'byte t) (list? (member t '(short int long float double)))]
-      [(list 'short t) (list? (member t '(int long float double)))]
+      [(list 'byte t) (list? (member t '(short int char long float double)))]
+      [(list 'short t) (list? (member t '(int char long float double)))]
       [(list 'char t) (list? (member t '(int long float double)))]
       [(list 'int t) (list? (member t '(long float double)))]
       [(list 'long t) (list? (member t '(float double)))]
@@ -207,12 +208,17 @@
       [(list (ptype 'boolean) (ptype _)) #f]
       [(list (ptype _) (ptype 'boolean)) #f]
       
-      ;;If not Boolean, we know the ptypes are numeric. Check that the conversion is not narrowing
-      [(list (ptype _) (ptype _)) (not (num-type<? T S))]
+      ;;If not Boolean, we know the ptypes are numeric. The following 4 are the only ptype assigns we allow
+      [(list (ptype 'int) (ptype 'char)) #t]
+      [(list (ptype 'int) (ptype 'short)) #t]
+      [(list (ptype 'short) (ptype 'byte)) #t]
+      [(list (ptype 'int) (ptype 'byte)) #t]
+      [(list (ptype _) (ptype 'null)) #f]
+      [(list (ptype _) (ptype _)) (type-ast=? T S)]
+     ; [(list (ptype _) (ptype _)) (not (num-type<? T S))]
       ;;Cannot assign ptype to an rtype, except null
       [(list (rtype _) (ptype _)) #f]
       ;;cannot assign null to a ptype
-      [(list (ptype _) (ptype 'null)) #f]
       
       ;;when assigning rtype to rtype, we must employ the algorithm in $5.2 of the spec
       [(list (rtype _) (rtype _)) (rtype-can-assign? T S)]
