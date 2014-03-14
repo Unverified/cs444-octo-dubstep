@@ -239,6 +239,11 @@
      [(block env id statements) (block env id (map F statements))]
      [_ (error "Could not match: " ast)]))
 
+(define (check-for-returns cons-block)
+  (cond
+    [(list? (memf (lambda(s) (return? s)) (block-statements cons-block))) (c-errorf "Constructor cannot have return statement.")]
+    [else cons-block]))
+
 (define (parse->ast t)
   (match t
     [(tree (node _) '()) empty]
@@ -261,7 +266,7 @@
     [(tree (node 'CLASS_DECLARATION) x) (class empty (parse->ast (list-ref x 0)) (parse->ast (list-ref x 1)) (parse->ast (list-ref x 3)) (parse->ast (list-ref x 4)) (parse->ast (list-ref x 5)) (block empty (gensym) (parse->ast (list-ref x 6))))]
     
     ;constructor
-    [(tree (node 'CONSTRUCTOR_DECLARATION) `(,scope ,decl ,body)) (constructor empty (parse->ast scope) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'CONSTRUCTOR_DECLARATION) `(,scope ,decl ,body)) (constructor empty (parse->ast scope) (parse->ast decl) (check-for-returns (parse->ast body)))]
     
     ;method
     [(tree (node 'NORMAL_METHOD_DECLARATION) `(,scope ,type ,decl ,body)) (method empty (parse->ast scope) empty (parse->ast type) (parse->ast decl) (parse->ast body))]
