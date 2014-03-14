@@ -69,7 +69,7 @@
   (and (or is-subclass static?) (equal? c-field-scope rt-field-scope)))
 
 ;;get-type-field
-(define (get-type-field C mod F all-cinfo field-ast)
+(define (get-type-field C mod F all-cinfo field-ast R/W)
   (define cenv (info-env (find-info C all-cinfo)))
   (define (get-rt-env rt)
     (match rt 
@@ -101,7 +101,8 @@
                     [(equal? mod (list 'static)) (c-errorf "Cannot use \"this\" inside static method/initializer.")]
                     [else (type-fieldaccess (F left))])]
     [(rtype? left) (type-static-fieldaccess left)]
-    [(and (atype? (F left)) (equal? "length" (fieldaccess-field field-ast))) (ptype 'int)]
+    [(and (atype? (F left)) (equal? "length" (fieldaccess-field field-ast))) (cond [(equal? R/W 'Read) (ptype 'int)]
+                                                                                   [(equal? R/W 'Write) (c-errorf "cant write to final field")])]
     [else (type-fieldaccess (F left))]))
 
 ;;type-check : (assoc fullq-names info) -> void
@@ -294,6 +295,13 @@
       [(this _ type) type]
       [(vdecl _ _ _ type _) (type-expr C mod type)]
     
+      
+      [(varassign _ (fieldaccess _ left field) val)
+       (let ([field-type (get-type-field C mod (curry type-expr C mod) all-cinfo (varassign-id ast) 'Write)])
+         (if (can-assign? field-type (type-expr C mod val))
+             (if (ftype? field-type) (ftype-type field-type) field-type)
+             (c-errorf "Type Mismatch in Assignment ~a ~a" field-type (type-expr C mod val))))]
+      
       [(varassign _ id expr)
        (let ([var-type (type-expr C mod id)])
          (if (can-assign? var-type (type-expr C mod expr))
@@ -359,7 +367,7 @@
            (interface _ _ _ _ _ body)) (type-expr C mod body)]
       [(cunit _ _ body) (type-expr C mod body)]
     
-      [(fieldaccess _ left field) (type-expr C mod (get-type-field C mod (curry type-expr C mod) all-cinfo ast))]
+      [(fieldaccess _ left field) (type-expr C mod (get-type-field C mod (curry type-expr C mod) all-cinfo ast 'Read))]
     
       [(classcreate e class params) (type-expr C mod (let ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
