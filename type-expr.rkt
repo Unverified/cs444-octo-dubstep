@@ -8,7 +8,7 @@
 
 (provide type-check)
 
-;;perform-bin-op: type type -> type
+;;perform-bin-op: symbol (union rtype ptype atype) (union rtype ptype atype) -> (union rtype ptype atype)
 (define (perform-bin-op op t1 t2)
   (match (list op t1 t2)
     
@@ -25,7 +25,7 @@
     [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
     [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
     [(list (or 'bar 'amp) _ _) (c-errorf "Bitwise operation detected: ~a" op)]
-    [_ (c-errorf "Undefined Binop ~a" op)]))
+    [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S)
