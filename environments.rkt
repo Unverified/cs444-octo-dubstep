@@ -45,8 +45,10 @@
 
 (define (method-check? F s-proc eqs methcall-ast env)
   (let* ([meth-funt (methodcall->funt methcall-ast F)]
-         [meth-ast (eval-ast (second (assoc meth-funt (envs-methods env))))])
+         [asoc (assoc meth-funt (envs-methods env))]
+         [meth-ast (if(false? asoc) #f (eval-ast (second asoc)))])
     (cond
+      [(false? meth-ast) #f]
       [(ast? meth-ast) (equal? eqs (s-proc meth-ast))]
       [else (error "In method-check?, could not find meth-funt in envs-method" methcall-ast)])))
 
