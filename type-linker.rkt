@@ -76,6 +76,7 @@
       [(interface env s m id e b) (interface env s m id (map typelink-helper e) (typelink b))]
       [(class env s m id e i b) (class env s m id (typelink-helper e) (map typelink-helper i) (typelink b))]
       [(rtype t) (rtype (typelink-helper t))]
+      [(this _ _) (this empty (rtype ((second (first all-links)))))]
       [_ (ast-transform typelink ast)]))
   (typelink ast))
 
@@ -169,30 +170,3 @@
   (match l
     [`(,name ,x) (printf "~nTYPE: ~a LINKS TO:~n~a~n" name x)]
     [`() (printf "EMPTY PAIR???~n")]))
-
-;======================================================================================
-;==== ERROR
-;======================================================================================
-
-(define (error message . args)
-  (printf (string-append message " ~a") args)
-  (exit 42))
-
-
-(define stdlist '(((OutputStream) (java io OutputStream))
-                  ((PrintStream) (java io PrintStream))
-                  ((Serializable) (java io Serializable))
-                  ((System) (java lang System))
-                  ((String) (java lang String))
-                  ((Short) (java lang Short))
-                  ((Object) (java lang Object))
-                  ((Number) (java lang Number))
-                  ((Integer) (java lang Integer))
-                  ((Cloneable) (java lang Cloneable))
-                  ((Class) (java lang Class))
-                  ((Character) (java lang Character))
-                  ((Byte) (java lang Byte))
-                  ((Boolean) (java lang Boolean))))
-
-
-

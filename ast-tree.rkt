@@ -1,5 +1,6 @@
 #lang racket
 
+(require "errorf.rkt")
 (require "scanner.rkt")
 (require "parse-tree.rkt")
 
@@ -33,8 +34,8 @@
 (provide (struct-out atype))
 (provide (struct-out block))
 (provide (struct-out varuse))
-(provide (struct-out keyword))
 (provide (struct-out ambiguous))
+(provide (struct-out this))
 
 ;;inserted by the type-checker, prompts code generator to do a run-time check
 (provide (struct-out narrowing-ref-conversion))
@@ -147,11 +148,11 @@
 ;(struct varuse ([id : String]))
 (struct varuse ast (id) #:prefab)
 
-;(struct keyword ())
-(struct keyword ast (key) #:prefab)
-
+;(struct ambiguous ([ids : (Listof String)])
 (struct ambiguous ast (ids) #:prefab)
 
+;(Struct this ([type : (Listof String)])
+(struct this ast (type) #:prefab)
 
 ;;narrowing-ref-conversion: ([target: rtype] [source: rtype])
 (struct narrowing-ref-conversion ast (target source) #:prefab)
@@ -169,7 +170,7 @@
 
 (define (clean-ast t)
   (match t
-    [`() (error "clean-ast matched an empty list, it should not get to this point.")]
+    [`() (c-errorf "clean-ast matched an empty list, it should not get to this point.")]
     [`(,var) (varuse empty var)]
     [`(,vars ...) (printf "clean-ast `(vars ...) ids: ~a~n" vars) (ambiguous empty vars)]
     [(method _ sp md ty decl '()) (method empty sp md (clean-ast ty) decl (block empty (gensym) '()))]
@@ -181,18 +182,23 @@
     [(methodcall _ `(,ids ...) id args) (methodcall empty (ambiguous empty ids) id (map clean-ast args))]
 
     [(arraycreate _ `(,ty ...) sz) (arraycreate empty (rtype ty) (clean-ast sz))]
-    [(classcreate _ `(,cls ...) params) (printf "clean-ast classcreate ~a ~a~n" cls params) (classcreate empty (rtype cls) (map clean-ast params))]
+    [(classcreate _ `(,cls ...) params) (classcreate empty (rtype cls) (map clean-ast params))]
     [(atype `(,ty ...)) (atype (rtype ty))]
     
     [(cast _ `(,ty ...) expr) (cast empty (rtype ty) (clean-ast expr))]
     [(rtype `(,ty ...)) (rtype ty)]
     [(rtype (atype type)) (clean-ast (atype type))]    
-    [(rtype _) (error "rtype with invalid inside: " t)]
+    [(rtype _) (c-errorf "rtype with invalid inside: ~a" t)]
     
-    ['this (varuse empty 'this)]
+    ['this (this empty empty)]
     ['void (ptype 'void)]
     
     [_ (ast-transform clean-ast t)]))
+
+
+(define (run-nonempty F expr)
+  (cond [(empty? expr) expr]
+        [else (F expr)]))
 
 (define (ast-transform F ast)
    (match ast
@@ -214,24 +220,18 @@
      [(classcreate env cls params) (classcreate env (F cls) (map F params))]
      [(fieldaccess env left field) (fieldaccess env (F left) field)]
      [(arrayaccess env left index) (arrayaccess env (F left) (F index))]
-     
-     [(methodcall env `() id args) (methodcall env empty id (map F args))]
-     [(methodcall env left id args) (methodcall env (F left) id (map F args))]
-     
-     [(iff env test '() '()) (iff env (F test) empty empty)]
-     [(iff env test '() fls) (iff env (F test) empty (F fls))]
-     [(iff env test tru '()) (iff env (F test) (F tru) empty)]
-     [(iff env test tru fls) (iff env (F test) (F tru) (F fls))]
-     
      [(while env test body) (while env (F test) (F body))]
-     [(return env expr) (return env (F expr))]
-     [(for env init clause update body) (for env (F init) (F clause) (F update) (F body))]
+     
+     [(methodcall env left id args) (methodcall env (run-nonempty F left) id (map F args))]
+     [(iff env test tru fls) (iff env (F test) (run-nonempty F tru) (run-nonempty F fls))]
+     [(return env expr) (return env (run-nonempty F expr))]
+     [(for env init clause update body) (for env (run-nonempty F init) (run-nonempty F clause) (run-nonempty F update) (F body))]
      
      [(ptype _) ast]
      [(rtype _) ast]
      [(varuse _ _) ast]
-     [(keyword _ _) ast]
      [(ambiguous _ _) ast]
+     [(this _ _) ast]
      
      [(atype type) (F type)]
      [(literal _ type val) (literal empty (F type) val)]
@@ -281,9 +281,15 @@
     [(tree (node 'ARRAY_TYPE) x) (atype (parse->ast (first x)))]
     
     ;var
-    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v)) (vdecl empty empty empty (parse->ast type) (parse->ast v))]
-    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,v ,_ )) (vdecl empty (parse->ast x) empty (parse->ast type) (parse->ast v))]
-    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,v ,_ )) (vdecl empty (parse->ast x) 'static (parse->ast type) (parse->ast v))]
+    [(tree (node 'LOCAL_VARAIABLE_DECLARATION) `(,type ,v))  (let ([node (vdecl empty empty empty (parse->ast type) (parse->ast v))])
+                                                               (printf "~a~n" node)
+                                                               node)]
+    [(tree (node 'CLASS_VARIABLE_DECLARATION) `( ,x ,type ,v ,_ )) (let ([node (vdecl empty (parse->ast x) empty (parse->ast type) (parse->ast v))])
+                                                                     (printf "~a~n" node)
+                                                                     node)]
+    [(tree (node 'STATIC_CLASS_VARIABLE_DECLARATION) `( ,x ,_ ,type ,v ,_ )) (let ([node (vdecl empty (parse->ast x) 'static (parse->ast type) (parse->ast v))])
+                                                                               (printf "~a~n" node)
+                                                                               node)]
     
     ;varassign
     [(tree (node 'VARIABLE_DECLARATOR) `( ,id ,_ ,expr )) (varassign empty (parse->ast id) (parse->ast expr)) ]
@@ -617,18 +623,12 @@
     [(ptype type) (printf "(ptype ") (print-ast type indent) (printf ")")]
     [(rtype type) (printf "(rtype ") (print-ast type indent) (printf ")")]
     [(atype type) (printf "(atype ") (print-ast type indent) (printf ")")]
-    [(keyword _ key) (printf "(keyword this)" )]
+    [(this _ type) (printf "(this ") (print-ast type indent) (printf ")")]
     [(ambiguous _ ids) (printf "(ambiguous ") (print-ast ids indent) (printf ")")]
     [`() (printf "empty")]
     [_ (printf "~a" ast-node)]))
 
 (define (print-asts asts files)
   (for-each (lambda(ast) (printf "~n================ AST ================~n") (print-ast ast "")) asts))
-
-
-
-
-
-
 
 

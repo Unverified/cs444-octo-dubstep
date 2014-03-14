@@ -94,10 +94,8 @@
                               (_va block-id lenv expr))]
       
       [(ambiguous _ ids) (ambiguous (env-append cenv lenv) ids)]
-      
-      [(ptype t) (ptype t)]
-      [(rtype t) (rtype t)]
-      [(atype t) (atype t)]
+     
+      [(this _ t) (this (env-append cenv lenv) t)]
       [(literal _ t val) (literal (env-append cenv lenv) t val)]
       
       [(methodcall _ left id args) (methodcall (env-append lenv cenv) (_va block-id lenv left) id (_va-list block-id lenv args))]

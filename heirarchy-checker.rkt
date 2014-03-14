@@ -8,7 +8,6 @@
 (provide type-ast=?)
 (provide check-heirarchies)
 
-
 (define (type-ast=? t1 t2)
   (printf "type-ast=? ~a ~a~n" t1 t2)
   (match (list t1 t2)
@@ -73,10 +72,12 @@
         [implements (get-implements (info-ast cinfo))])
     (let* ([superclass-info (check-class-info classpath (lookup-cunit-env gen-full-class-info classpath root extends))]
            [interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements))]
-           [interface-envs (map info-env interface-infos)]
-           [cenv (combine-envs (info-env superclass-info) (info-env cinfo))])
+           [linked-envs (append (list (info-env superclass-info)) (map info-env interface-infos))]
+           [cenv (foldr combine-envs (info-env cinfo) linked-envs)])
+      
+      
       ((compose1 
-        (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) (foldr combine-envs cenv interface-envs)))
+        (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) cenv))
         (curryr set-cinfo-supers (filter-not empty? (info-path superclass-info)))
         (curryr set-cinfo-impls (remove-duplicates (append (append-map info-supers interface-infos) (info-impls superclass-info)))))
        cinfo))))

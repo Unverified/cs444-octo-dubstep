@@ -11,7 +11,6 @@
 ;;perform-bin-op: type type -> type
 (define (perform-bin-op op t1 t2)
   (match (list op t1 t2)
-    
     ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
     [(list '+ (rtype '(java lang String)) (rtype '(java lang String))) (rtype '(java lang String))]
     [(list '+ (rtype '(java lang String)) (ptype 'boolean)) (rtype '(java lang String))]
@@ -88,7 +87,6 @@
     
     ;;assigning atypes to any but the three above results in a compile-time error
     [(list (rtype _) (atype _)) #f]
-    
     
     ;;assigning an atype of ptypes to an atype of ptypes requires the ptypes be equal
     [(list (atype (ptype _)) (atype (ptype _))) (type-ast=? (atype-type T) (atype-type S))]
@@ -169,8 +167,8 @@
                         
                       
     (match ast
-      [(varuse _ 'this) (error "This not implemented")]
-      [(vdecl _ _ _ _ _) (ptype 'void)]
+      [(this _ type) type]
+      [(vdecl _ _ _ type _) type]
     
       [(varassign _ id expr)
        (let ([var-type (type-expr id)])
@@ -245,9 +243,6 @@
     
       [(classcreate e class params) (error "Classcreate not implemented")]
       [(constructor e scope methoddecl body) (type-expr body)]
-      [(keyword e _) (error "keyword not implemented")]
-    
-    
     
       [_ (error "Type Checker Not Implemented")]))
 
