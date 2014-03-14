@@ -83,8 +83,10 @@
     (match (list op t1 t2)
       ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
       [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
-      [(list 'plus (rtype '("java" "lang" "String")) (ptype 'boolean)) (rtype '("java" "lang" "String"))]
-      [(list 'plus (ptype 'boolean) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+      [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) #f]
+      [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) #f]
+      [(list 'plus (rtype '("java" "lang" "String")) (ptype _)) (rtype '("java" "lang" "String"))]
+      [(list 'plus (ptype _) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
       
       ;;Can apply == and != to bool/bool:
       [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
@@ -145,7 +147,7 @@
   (define (castable? T S env)
     (match (list T S)
       [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
-      [(list (atype typ1) (atype typ2)) (castable? typ1 typ2)]
+      [(list (atype typ1) (atype typ2)) (castable? typ1 typ2 env)]
       [(list (or (atype _) (rtype _)) (or (atype _) (rtype _))) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
       [(list _ _) (c-errorf "Cast type mismatch")]))
   
@@ -190,7 +192,9 @@
   (define (can-assign? T S)
     (match (list T S)
       ;;can assign null to rtype
-      [(list (rtype _) (ptype 'null)) #t]
+      [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
+
+     
       
       ;;can assign bool to bool
       [(list (ptype 'boolean) (ptype 'boolean)) #t]
