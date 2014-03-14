@@ -8,6 +8,14 @@
 
 (provide type-check)
 
+(define (same-package? n1 n2)
+  (cond [(and (empty? n1) (empty? n2)) #t]
+        [(empty? n1) #f]
+        [(empty? n2) #f]
+        [(and (empty? (rest n1)) (empty? (rest n2))) #t]
+        [(equal? (first n1) (first n2)) (same-package? (rest n1) (rest n2))]
+        [else #f]))
+
 (define (remove-last l)
   (reverse (rest (reverse l))))
 
@@ -84,8 +92,7 @@
     [else (type-fieldaccess (F left))]))
 
 ;;type-check : (assoc fullq-names info) -> void
-(define (type-check all-cinfo)
-  
+(define (type-check all-cinfo) 
   ;;perform-bin-op: symbol (union rtype ptype atype) (union rtype ptype atype) -> (union rtype ptype atype)
   (define (perform-bin-op op t1 t2)
     (match (list op t1 t2)
@@ -135,8 +142,6 @@
   ;;
   (define (num-type-max p1 p2)
     (if (num-type<? p1 p2) p2 p1))
-  
-  
   
   ;;cast-ptypes : ptype ptype -> Boolean
   (define (cast-ptypes T S)
@@ -206,9 +211,7 @@
     (match (list T S)
       ;;can assign null to rtype
       [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
-
-     
-      
+   
       ;;can assign bool to bool
       [(list (ptype 'boolean) (ptype 'boolean)) #t]
       
@@ -245,9 +248,7 @@
       
       ;;assigning an atype of rtypes to an atype of rtypes requires the rtypes to be assignable
       [(list (atype (rtype _)) (atype (rtype _))) (can-assign? (atype-type T) (atype-type S))]
-      
-      
-      
+     
       ;;any other assignment involving atypes is a compile-time error
       [(list (atype _) (atype _)) #f]                                                     
       
@@ -262,10 +263,9 @@
     (define (test-un-op op right)
       (cond
         [(symbol=? op 'not) (if (type-ast=? (type-expr C mod right) (ptype 'boolean)) (ptype 'boolean)
-                              (error "! operator expects type boolean"))]
+                              (c-errorf "! operator expects type boolean"))]
         [(symbol=? op 'minus) (if (type-numeric? (type-expr C mod right)) (type-expr C mod right)
-                              (error "- operator expects numeric type"))]
-        [else (c-errorf "Unimplemented operator ~a" op)]))
+                              (c-errorf "- operator expects numeric type"))]))
                         
                       
     (match ast
@@ -278,11 +278,6 @@
              var-type
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mod expr))))]
 
-     [(varuse _ id)
-       (match (assoc id (envs-types (ast-env ast)))
-         [#f (c-errorf "Unbound Identifier")]
-         [(list a b) (printf "VARUSE IS: ~a~n" b) b])]
-    
 ;      [(varuse _ id)
 ;       (define p (assoc id (envs-vars (ast-env ast))))
 ;       (cond
@@ -300,6 +295,11 @@
 ;         [else (match (assoc id (envs-types (ast-env ast)))
 ;                 [#f (c-errorf "Unbound Identifier")]
 ;                 [(list a b) (printf "VARUSE IS: ~a~n" b) b])])]
+      [(varuse _ id)
+       (match (assoc id (envs-types (ast-env ast)))
+         [#f (c-errorf "Unbound Identifier")]
+         [(list a (ptype 'fail)) (c-errorf "Variable used within own assign statement ~a" id)]
+         [(list a b) (printf "VARUSE IS: ~a~n" b) b])]
     
       [(literal _ type _) type]
       [(or
@@ -353,8 +353,14 @@
     
       [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
-                                      (cond [(pair? (assoc confunt class-consts))  class]
-                                            [else (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)]))]
+                                      (define thing (assoc confunt class-consts))
+                                      (printf "~a~n~a~n" (first thing) (second thing))
+                                      (match thing
+                                        [`(,_ ,(eval _ _ (constructor _ `public _ _))) class]
+                                        [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C) 
+                                                                                          class 
+                                                                                          (c-errorf "Invalid call to protected constructor of class ~a from ~a" class C))]
+                                        [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)]))]
       
       [(constructor e scope methoddecl body) (type-expr C mod body)]
     
