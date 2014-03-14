@@ -106,27 +106,6 @@
 
 ;;type-check : (assoc fullq-names info) -> void
 (define (type-check all-cinfo) 
-  ;;perform-bin-op: symbol (union rtype ptype atype) (union rtype ptype atype) -> (union rtype ptype atype)
-  (define (perform-bin-op op t1 t2)
-    (match (list op t1 t2)
-      ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
-      [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
-      [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) #f]
-      [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) #f]
-      [(list 'plus (rtype '("java" "lang" "String")) (or (rtype _) (atype _) (ptype _))) (rtype '("java" "lang" "String"))]
-      [(list 'plus (or (rtype _) (atype _) (ptype _)) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
-     
-      ;;Can apply == and != to bool/bool:
-      [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
-      
-      ;;cann apply == and != to reference/reference:
-      [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (printf "BinOp: ~a ~a ~a~n" t1 op t2) (ptype 'boolean)]
-      
-      ;;TODO: Verify that binops on two numerics behave like we think they do!
-      [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
-      [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
-      [(list (or 'bar 'amp) _ _) (c-errorf "Bitwise operation detected: ~a" op)]
-      [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
   
   ;;parent-of? rtype rtype envs -> Boolean
   (define (parent-of? T S)
@@ -172,6 +151,7 @@
   
   ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
   (define (castable? T S env)
+    (printf "Castable? T: ~a S: ~a~n" T S)
     (match (list T S)
       [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
       [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
@@ -275,6 +255,30 @@
  ;;type-expr : ast -> (union ptype rtype atype)
   (define (type-expr C mod ast)
     (ast-print-struct ast)
+
+
+     ;;perform-bin-op: symbol (union rtype ptype atype) (union rtype ptype atype) -> (union rtype ptype atype)
+  (define (perform-bin-op op t1 t2)
+    (match (list op t1 t2)
+      ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
+      [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+      [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) #f]
+      [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) #f]
+      [(list 'plus (rtype '("java" "lang" "String")) (or (rtype _) (atype _) (ptype _))) (rtype '("java" "lang" "String"))]
+      [(list 'plus (or (rtype _) (atype _) (ptype _)) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+     
+      ;;Can apply == and != to bool/bool:
+      [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
+      
+      ;;cann apply == and != to reference/reference:
+      [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (if (or (castable? t1 t2 (ast-env ast)) (castable? t2 t1 (ast-env ast))) (ptype 'boolean) (c-errorf "Attempt to perform equality operator ~a on non-castable types ~a ~a" op t1 t2))]
+      
+      ;;TODO: Verify that binops on two numerics behave like we think they do!
+      [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
+      [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
+      [(list (or 'bar 'amp) _ _) (c-errorf "Bitwise operation detected: ~a" op)]
+      [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
+ 
     (define (test-specific-bin-op type left right err-string)
       (if (and (type-ast=? type (type-expr C mod left)) (type-ast=? type (type-expr C mod right))) type (error err-string)))
 
@@ -297,13 +301,13 @@
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mod expr))))]
     
       [(varuse _ id)
-       (match (assoc id (envs-types (ast-env ast)))
+       (type-expr C mod (match (assoc id (envs-types (ast-env ast)))
          [#f (c-errorf "Unbound Identifier")]
          ;[(list a (ftype _)) (c-errorf "Variable used within own assign statement ~a" id)]
-         [(list a b) (printf "VARUSE IS: ~a~n" b) b])]
+         [(list a b) (printf "VARUSE IS: ~a~n" b) b]))]
     
       [(literal _ type _) type]
-      [(or (rtype '("java" "lang" "Integer"))) (ptype 'int)]
+      ;[(or (rtype '("java" "lang" "Integer"))) (ptype 'int)]
       [(or
         (ptype _) (atype _ ) (rtype  _)) ast]
     
@@ -333,7 +337,7 @@
      
       [(unop _ op right) (type-expr C mod (test-un-op op (type-expr C mod right)))]
       [(binop _ op left right) (type-expr C mod (perform-bin-op op (type-expr C mod left) (type-expr C mod right)))]
-      [(parameter _ type _) type]
+      [(parameter _ type _) (type-expr C mod type)]
     
     
       [(block _ _ statements) (begin (map (curry type-expr C mod) statements) (ptype 'void))]
@@ -345,7 +349,7 @@
       [(return _ empty) (ptype 'void)]
       [(return _ expr) (type-expr C mod expr)]
       [(arraycreate _ type size) (begin (type-expr C mod type) (if (whole-number? (type-expr C mod size)) 
-                                                          (atype type)   
+                                                          (atype (type-expr C mod type))   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
       [(methodcall _ left _ args) (type-expr C mod (get-type-method C mod (curry type-expr C mod) all-cinfo ast))]
            
@@ -357,7 +361,7 @@
     
       [(fieldaccess _ left field) (type-expr C mod (get-type-field C mod (curry type-expr C mod) all-cinfo ast))]
     
-      [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mod) params))]
+      [(classcreate e class params) (type-expr C mod (let ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
                                       (define thing (assoc confunt class-consts))
                                       (match thing
@@ -365,7 +369,7 @@
                                         [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C) 
                                                                                           class 
                                                                                           (c-errorf "Invalid call to protected constructor of class ~a from ~a" class C))]
-                                        [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)]))]
+                                        [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)])))]
       
       [(constructor e scope methoddecl body) (type-expr C mod body)]
     
