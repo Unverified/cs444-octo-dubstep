@@ -74,7 +74,7 @@
 (struct interface ast (scope mod id extends body) #:prefab)
 
 ;(struct class ([scope : Symbol] [mod : Symbol] [id : String] [extends : (Listof String)] [extends : (Listof (Listof String))] [implements : string] [body : block]))
-(struct class ast ( scope mod id extends implements body) #:prefab)
+(struct class ast (scope mod id extends implements body) #:prefab)
 
 ;(struct constructor ([scope : Symbol] [methoddecl : methoddecl] [body : block]))
 (struct constructor ast (scope methoddecl body) #:prefab)
