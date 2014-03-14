@@ -53,7 +53,7 @@
 (provide is-interface?)
 (provide is-class-with-mod?)
 (provide ast-transform)
-
+(provide ast-print-struct)
 
 ;==============================================================================================
 ;==== AST Structures
@@ -268,7 +268,7 @@
     [(tree (node 'IABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'FINAL_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'STATIC_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (parse->ast mod) (ptype (parse->ast type)) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (printf "NICK LOOK HERE ~a~n~a~n"mod (parse->ast mod)) (method empty (parse->ast scope) (parse->ast mod) (ptype (parse->ast type)) (parse->ast decl) (parse->ast body))]
     [(tree (node 'NORMAL_METHOD_DECLARATION_NO_BODY) `(,scope ,type ,decl ,body)) (method empty (parse->ast scope) (list 'abstract) (parse->ast type) (parse->ast decl) (parse->ast body))]
     
     ;methoddecl
@@ -376,7 +376,7 @@
     [(tree (node 'CLASS_BODY_DECLARATIONS) `(,x)) (parse->ast x)]
     [(tree (node 'CLASS_BODY_DECLARATION) `(,x)) (list (parse->ast x))]
     
-    [(tree (node 'STATIC_NATIVE) `(,x ,y)) (list (parse->ast x) (parse->ast x))]
+    [(tree (node 'STATIC_NATIVE) `(,x ,y)) (list (parse->ast x) (parse->ast y))]
     
     [(tree (node 'PARAMETER_LIST) `(,params ,_ ,param)) (append (parse->ast params) (parse->ast param))]
     [(tree (node 'PARAMETER_LIST) `(,param)) (parse->ast param)]
@@ -453,7 +453,7 @@
     [(tree (leafnode (token 'null-lit x)) _)    (literal empty (ptype 'null) x)]
     [(tree (leafnode (token 'string-lit x)) _)  (literal empty (rtype '("java" "lang" "String")) x)]
     [(tree (leafnode (token 'char-lit x)) _)    (literal empty (ptype 'char) x)]
-    [(tree (leafnode (token 'bool-lit x)) _)    (literal empty (ptype 'bool) x)]
+    [(tree (leafnode (token 'bool-lit x)) _)    (literal empty (ptype 'boolean) x)]
     
     [(tree (leafnode (token 'semi x)) _) empty]
     [(tree (leafnode (token 'id x)) _) x]
@@ -550,6 +550,37 @@
 ;==============================================================================================
 ;==== Print
 ;==============================================================================================
+
+(define (ast-print-struct ast)
+  (match ast
+    [(cunit package imports body) (printf "cunit~n")]
+    [(cimport path) (printf "cimport~n")]
+    [(pimport path) (printf "pimport~n")]
+    [(interface _ scope mod id extends body) (printf "interface~n")]
+    [(class _ scope mod id extends implements body) (printf "class~n")]
+    [(constructor _ scope methoddecl body) (printf "constructor~n")]
+    [(method _ scope mod type methoddecl body) (printf "method~n")]
+    [(methoddecl _ id parameters) (printf "methdecl~n")]
+    [(parameter _ type id) (printf "parameter~n")]
+    [(vdecl _ scope mod type id) (printf "vdecl~n")]
+    [(varassign _ id expr) (printf "varassign~n")]
+    [(binop _ op left right) (printf "binop~n")]
+    [(unop _ op right) (printf "unop~n")]
+    [(cast _ c expr) (printf "cast~n")]
+    [(arraycreate _ type size) (printf "arraycreate~n")]
+    [(classcreate _ class params) (printf "classcreate~n")]
+    [(fieldaccess _ left field) (printf "fieldaccess~n")]
+    [(methodcall _ left id args) (printf "methodcall~n")]
+    [(arrayaccess _ left index) (printf "arrayaccess~n")]
+    [(iff _ test tru fls) (printf "iff~n")]
+    [(while _ test body) (printf "while~n")]
+    [(for _ init clause update body) (printf "for~n")]
+    [(return _ expr) (printf "return~n")]
+    [(ptype type) (printf "ptype~n")]
+    [(rtype type) (printf "rtype~n")]
+    [(atype type) (printf "atype~n")]
+    [(block _ id statements) (printf "block~n")]
+    [_ (printf "OTHER: ~a~n" ast)]))
 
 (define (print-ast ast-node indent)
   (match ast-node
