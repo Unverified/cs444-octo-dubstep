@@ -262,9 +262,9 @@
 
     (define (test-un-op op right)
       (cond
-        [(symbol=? op 'not) (if (type-ast=? (type-expr C right) (ptype 'boolean)) (ptype 'boolean)
+        [(symbol=? op 'not) (if (type-ast=? (type-expr C mod right) (ptype 'boolean)) (ptype 'boolean)
                               (c-errorf "! operator expects type boolean"))]
-        [(symbol=? op 'minus) (if (type-numeric? (type-expr C right)) (type-expr C right)
+        [(symbol=? op 'minus) (if (type-numeric? (type-expr C mod right)) (type-expr C mod right)
                               (c-errorf "- operator expects numeric type"))]))
                         
                       
