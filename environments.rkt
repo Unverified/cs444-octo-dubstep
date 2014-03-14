@@ -95,7 +95,7 @@
 (define (gen-top-ast-env senv cenv env ast)
   (define (_va bid cenv ast)
     (match ast
-      [(varuse _ v) (varuse (env-append senv cenv) v)]
+      [(varuse _ v) (varuse (env-append cenv senv) v)]
       [(vdecl _ scp mod type id) (vdecl (add-env-variable cenv id bid type ast #f) scp mod type id)]
       
       [(varassign _ (varuse _ v) bdy) (varassign cenv (ambiguous (env-append senv env) (list v)) (_va bid cenv bdy))]
@@ -104,28 +104,28 @@
                                    [foreenv (if (vdecl? newid) (push-ftype (ast-env newid)) cenv)])
                               (varassign backenv newid (_va bid foreenv bdy)))]
       
-      [(binop _ op left right) (binop (env-append senv cenv)
+      [(binop _ op left right) (binop (env-append cenv senv)
                                       op
                                       (_va bid cenv left)
                                       (_va bid cenv right))]
       
-      [(unop _ op right) (unop (env-append senv cenv)
+      [(unop _ op right) (unop (env-append cenv senv)
                                op
                                (_va bid cenv right))]
       
-      [(cast _ c expr) (cast (env-append senv cenv)
+      [(cast _ c expr) (cast (env-append cenv senv)
                              c
                              (_va bid cenv expr))]
       
-      [(ambiguous _ ids) (ambiguous (env-append senv cenv) ids)]
+      [(ambiguous _ ids) (ambiguous (env-append cenv senv) ids)]
       
-      [(this _ t) (this (env-append senv cenv) t)]
-      [(literal _ t val) (literal (env-append senv cenv) t val)]     
-      [(methodcall _ left id args) (methodcall (env-append senv cenv) (_va bid cenv left) id (map (curry _va bid cenv) args))]
-      [(arraycreate _ t size) (arraycreate (env-append senv cenv) t (_va bid cenv size))]
-      [(fieldaccess _ left id) (fieldaccess (env-append senv cenv) (_va bid cenv left) id)]
-      [(arrayaccess _ left access) (arrayaccess (env-append senv cenv) (_va bid cenv left) (_va bid cenv access))]
-      [(classcreate _ class params) (classcreate (env-append senv cenv) (_va bid cenv class) (map (curry _va bid cenv) params))]
+      [(this _ t) (this (env-append cenv senv) t)]
+      [(literal _ t val) (literal (env-append cenv senv) t val)]     
+      [(methodcall _ left id args) (methodcall (env-append cenv senv) (_va bid cenv left) id (map (curry _va bid cenv) args))]
+      [(arraycreate _ t size) (arraycreate (env-append cenv senv) t (_va bid cenv size))]
+      [(fieldaccess _ left id) (fieldaccess (env-append cenv senv) (_va bid cenv left) id)]
+      [(arrayaccess _ left access) (arrayaccess (env-append cenv senv) (_va bid cenv left) (_va bid cenv access))]
+      [(classcreate _ class params) (classcreate (env-append cenv senv) (_va bid cenv class) (map (curry _va bid cenv) params))]
       [_ ast]))
   
   (define (_top-list blockid cenv asts)
@@ -139,7 +139,7 @@
                                                        (ast-env newnode)) (rest asts))))]))
   
   (match ast
-    [(cunit pack imps body) (cunit pack imps (gen-top-ast-env senv cenv env body))]
+    [(cunit pack imps body) (cunit pack imps (gen-top-ast-env cenv senv env body))]
     [(class e scp mod id ex imp bdy) (class cenv scp mod id ex imp (gen-top-ast-env senv (sanatize-vars cenv) cenv bdy))]
     [(interface e scp mod id ex bdy) (interface cenv scp mod id ex (gen-top-ast-env senv (sanatize-vars cenv) cenv bdy))]
     [(block e id s) (block cenv id (_top-list id cenv s))]))
