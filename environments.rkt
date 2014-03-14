@@ -33,15 +33,6 @@
 ;======================================================================================
 ;==== Environment Generation
 ;======================================================================================
-;  (define (method-static? methcall-ast env)
-;    (let* ([meth-funt (methodcall->funt methcall-ast type-expr)]
-;           [meth-ast (eval-ast (assoc meth-funt (envs-method env)))])
-;      (equal? (list 'static) (method-mod meth-ast))))
-
-;  (define (method-public? methcall-ast env)
-;    (let* ([meth-funt (methodcall->funt methcall-ast type-expr)]
-;           [meth-ast (eval-ast (assoc meth-funt (envs-method env)))])
-;      (equal? 'public (method-scope meth-ast))))
 
 (define (method-check? F s-proc eqs methcall-ast env)
   (let* ([meth-funt (methodcall->funt methcall-ast F)]
@@ -166,7 +157,7 @@
 (define (va cenv ast)
   (define (_va block-id lenv ast)
     (match ast
-      [(varuse _ v) (varuse (env-append cenv lenv) v)]
+      [(varuse _ v) (varuse (env-append lenv cenv) v)]
       
       [(vdecl _ x y type id) (let ([new-env (add-env-variable lenv id block-id type ast #t)])
                                (vdecl new-env x y type id))]
@@ -176,23 +167,23 @@
                                    [foreenv (if (vdecl? newid) (push-ftype (ast-env newid)) lenv)])
                               (varassign backenv newid (_va block-id foreenv bdy)))]
       
-      [(binop _ op left right) (binop (env-append cenv lenv)
+      [(binop _ op left right) (binop (env-append lenv cenv)
                                       op
                                       (_va block-id lenv left)
                                       (_va block-id lenv right))]
       
-      [(unop _ op right) (unop (env-append cenv lenv)
+      [(unop _ op right) (unop (env-append lenv cenv)
                                op
                                (_va block-id lenv right))]
       
-      [(cast _ c expr) (cast (env-append cenv lenv)
+      [(cast _ c expr) (cast (env-append lenv cenv)
                              c
                              (_va block-id lenv expr))]
       
-      [(ambiguous _ ids) (ambiguous (env-append cenv lenv) ids)]
+      [(ambiguous _ ids) (ambiguous (env-append lenv cenv) ids)]
       
-      [(this _ t) (this (env-append cenv lenv) t)]
-      [(literal _ t val) (literal (env-append cenv lenv) t val)]     
+      [(this _ t) (this (env-append lenv cenv) t)]
+      [(literal _ t val) (literal (env-append lenv cenv) t val)]     
       [(methodcall _ left id args) (methodcall (env-append lenv cenv) (_va block-id lenv left) id (_va-list block-id lenv args))]
       [(arraycreate _ t size) (arraycreate (env-append lenv cenv) t (_va block-id lenv size))]
       [(fieldaccess _ left id) (fieldaccess (env-append lenv cenv) (_va block-id lenv left) id)]
@@ -200,11 +191,11 @@
       [(classcreate _ class params) (classcreate (env-append lenv cenv) (_va block-id lenv class) (_va-list block-id lenv params))]
       
       
-      [(while _ test body) (while (env-append cenv lenv)
+      [(while _ test body) (while (env-append lenv cenv)
                                   (_va block-id lenv test)
                                   (_va block-id lenv body))]
       
-      [(return _ expr) (return (env-append cenv lenv) (run-nonempty (curry _va block-id lenv) expr))]
+      [(return _ expr) (return (env-append lenv cenv) (run-nonempty (curry _va block-id lenv) expr))]
       
       [(iff _ test tru fls) (iff (env-append lenv cenv)
                                  (_va block-id lenv test)
@@ -237,10 +228,10 @@
   
   (define (_top_va id ast)
     (match ast
-      [(method _ s m t decl bdy) (let ([lenv (mdecl->envs id decl)])
-                                   (method (env-append lenv cenv) s m t decl (_va block-id lenv bdy)))]
-      [(constructor _ id decl bdy) (let ([lenv (mdecl->envs id decl)])
-                                     (constructor (env-append lenv cenv) id decl (_va block-id lenv bdy)))]
+      [(method _ s m t decl (block _ bid bdy)) (let ([lenv (mdecl->envs bid decl)])
+                                   (method (env-append lenv cenv) s m t decl (block empty bid (_va-list bid lenv bdy))))]
+      [(constructor _ id decl (block _ bid bdy)) (let ([lenv (mdecl->envs bid decl)])
+                                     (constructor (env-append lenv cenv ) id decl (block empty bid (_va-list bid lenv bdy))))]
       [(vdecl _ _ _ _ _) ast]
       [(varassign _ _ _) ast]))
   

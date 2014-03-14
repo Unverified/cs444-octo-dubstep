@@ -126,6 +126,25 @@
                                                                                    [(equal? R/W 'Write) (c-errorf "cant write to final field")])]
     [else (type-fieldaccess (F left))]))
 
+(define (check-varuse-static mod ast id)
+  (define (check-asoc id-asoc)
+    (define id-vdecl (if (varassign? (eval-ast (second asoc))) 
+                         (varassign-id (eval-ast (second asoc)) )
+                         (eval-ast (second asoc))))
+    (and (or (equal? 'static mod) (equal? `(static) mod))
+         (not (eval-local? (second asoc)))
+         (not (equal? 'static (vdecl-mod id-vdecl)))))
+
+  (printf "NICK HERE!~n")
+  (print-ast ast "")
+  (printf "ENV!~n")
+  (envs-print (ast-env ast))
+  (define asoc (assoc id (envs-vars (ast-env ast))))
+  (cond
+    [(false? asoc) #f]
+    [(check-asoc asoc) (c-errorf "Use of non-static field variable inside a static method.")]
+    [else #t]))
+
 ;;type-check : (assoc fullq-names info) -> void
 (define (type-check all-cinfo) 
   
@@ -325,12 +344,14 @@
              (c-errorf "Type Mismatch in Assignment ~a ~a" field-type (type-expr C mrtn mod val))))]
       
       [(varassign _ id expr)
-       (let ([var-type (type-expr C mrtn mod id)])
-         (if (can-assign? var-type (type-expr C mrtn mod expr))
+       (let ([var-type (type-expr C mrtn mod id)]
+             [new-mod (if(vdecl? id) (vdecl-mod id) mod)])
+         (if (can-assign? var-type (type-expr C mrtn new-mod expr))
              (if (ftype? var-type) (ftype-type var-type) var-type)
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mrtn mod expr))))]
     
       [(varuse _ id)
+       (check-varuse-static mod ast id)
        (match (assoc id (envs-types (ast-env ast)))
          [#f (c-errorf "Unbound Identifier")]
          [`(,x ,y) (if(class? y) (c-errorf "Unbound Identifier") y)])]
@@ -410,7 +431,11 @@
     
       [_ (error "Type Checker Not Implemented")]))
 
-  (for-each (lambda (cinfo) (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) (print-ast (info-ast cinfo) "") (type-expr (info-name cinfo) empty empty (cunit-body (info-ast cinfo)))) all-cinfo))
+  (for-each (lambda (cinfo) 
+              (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) 
+              (print-ast (info-ast cinfo) "") 
+              (envs-print (info-env cinfo)) 
+              (type-expr (info-name cinfo) empty empty (cunit-body (info-ast cinfo)))) all-cinfo))
 
      
                                                 
