@@ -74,17 +74,17 @@ do
   echo "$test_files"
   echo "$STDLIB"
     
-  racket compiler.rkt $test_files > $FAILED_TEST_DIR/temp.out
+  racket compiler.rkt $test_files #> $FAILED_TEST_DIR/temp.out
   test_output=$?
   expected_output=`cat $out_file`
 
   if [ "$test_output" == "$expected_output" ]
   then
-    rm $FAILED_TEST_DIR/temp.out
+    #rm $FAILED_TEST_DIR/temp.out
     rm -f $FAILED_TEST_DIR/$A/$test_name
     echo "Test Passed!"
   else
-    mv $FAILED_TEST_DIR/temp.out $FAILED_TEST_DIR/$A/$test_name
+   # mv $FAILED_TEST_DIR/temp.out $FAILED_TEST_DIR/$A/$test_name
     echo "Test Failed! Compiler returned: $test_output, Expected: $expected_output"
     echo "Output in file: $FAILED_TEST_DIR/$A/$test_name"
 
