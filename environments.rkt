@@ -25,7 +25,7 @@
 (provide field-check?)
 
 (struct funt (id argt)   #:prefab)
-(struct eval (scope ast) #:prefab)
+(struct eval (scope local? ast) #:prefab)
 (struct envs (types vars methods constructors))
 
 ;======================================================================================
@@ -76,7 +76,7 @@
       [`(,(constructor _ scop mdecl _) ,rst ...)     (_gen-class-env scope rst (add-env-const envt mdecl scope (first asts)))]
       [`(,(method _ scop mod type mdecl _) ,rst ...) (_gen-class-env scope rst (add-env-method envt mdecl scope type (first asts)))]
       [`(,(or (varassign _ (vdecl _ _ _ type id) _)
-              (vdecl _ _ _ type id)) ,rst ...)       (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
+              (vdecl _ _ _ type id)) ,rst ...)       (_gen-class-env scope rst (add-env-variable envt id scope type (first asts) #f))]
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
   (match ast
     [(or (cunit package _ (class _ _ _ id _ _ b))
@@ -95,7 +95,7 @@
   (define (_va bid cenv ast)
     (match ast
       [(varuse _ v) (varuse (env-append senv cenv) v)]
-      [(vdecl _ scp mod type id) (vdecl (add-env-variable cenv id bid type ast) scp mod type id)]
+      [(vdecl _ scp mod type id) (vdecl (add-env-variable cenv id bid type ast #f) scp mod type id)]
       
       [(varassign _ id bdy) (let* ([newid (_va bid cenv id)]
                                    [backenv (if (vdecl? newid) (ast-env newid) cenv)]
@@ -149,7 +149,7 @@
   (define (params->envs envt params)
     (cond [(empty? params) envt]
           [else (match-let ([(parameter _ type id) (first params)])
-                  (params->envs (add-env-variable envt id scope type (first params)) (rest params)))]))
+                  (params->envs (add-env-variable envt id scope type (first params) #t) (rest params)))]))
   (params->envs env-empty (methoddecl-parameters decl)))
 
 (define (va cenv ast)
@@ -157,7 +157,7 @@
     (match ast
       [(varuse _ v) (varuse (env-append cenv lenv) v)]
       
-      [(vdecl _ x y type id) (let ([new-env (add-env-variable lenv id block-id type ast)])
+      [(vdecl _ x y type id) (let ([new-env (add-env-variable lenv id block-id type ast #t)])
                                (vdecl new-env x y type id))]
       
       [(varassign _ id bdy) (let ([newid (_va block-id lenv id)])
@@ -259,7 +259,7 @@
 ;(: add-env-const : envs methoddeclaration symbol ast -> envs )
 (define (add-env-const envt mdecl scope ast)
   (let ([key  (funt "" (funt-argt (mdecl->funt mdecl)))]
-        [value (eval scope ast)])
+        [value (eval scope #f ast)])
     (if (false? (assoc key (envs-constructors envt)))
         (env-append (envs empty empty empty `((,key ,value))) envt)
         (c-errorf "adding constructor to enviroment that contains same type ~a" key))))
@@ -267,16 +267,16 @@
 ;(: add-env-method : envs methoddeclaration symbol type ast -> envs )
 (define (add-env-method envt mdecl scope return-type ast)
   (let ([key (mdecl->funt mdecl)]
-        [value (eval scope ast)])
+        [value (eval scope #f ast)])
     (if (false? (assoc key (envs-methods envt)))
         (env-append (envs `((,key ,return-type)) empty `((,key ,value)) empty) envt)
         (c-errorf "adding method to enviroment that contains same method ~a" key))))
 
 ;(: add-env-variable : envs string symbol type ast -> envs )
-(define (add-env-variable envt var-name scope type ast)
+(define (add-env-variable envt var-name scope type ast local)
   (envs-print envt)
   (printf "VAR: ~a~n" var-name)
-  (let ([value (eval scope ast)])
+  (let ([value (eval scope local ast)])
     (if (false? (assoc var-name (envs-vars envt)))
         (env-append (envs `((,var-name ,type)) `((,var-name ,value)) empty empty) envt)
         (c-errorf "adding variable to enviroment that contains same name ~a" var-name))))

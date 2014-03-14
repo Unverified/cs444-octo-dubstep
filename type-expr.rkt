@@ -279,9 +279,14 @@
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mod expr))))]
     
       [(varuse _ id)
-       (match (assoc id (envs-types (ast-env ast)))
-         [#f (c-errorf "Unbound Identifier")]
-         [(list a b) (printf "VARUSE IS: ~a~n" b) b])]
+       (let* ([is-var-local (eval-local? (second (assoc id (envs-vars (ast-env ast)))))]
+              [var-ast (eval-ast (second (assoc id (envs-vars (ast-env ast)))))]
+              [var-mod (vdecl-mod (varassign-id var-ast))])
+         (cond
+           [(and (equal? mod (list 'static)) (not is-var-local) (not (equal? var-mod 'static))) (c-errorf "Cannot use a non static field in a static method.")]
+           [else (match (assoc id (envs-types (ast-env ast)))
+                   [#f (c-errorf "Unbound Identifier")]
+                   [(list a b) (printf "VARUSE IS: ~a~n" b) b])]))]
     
       [(literal _ type _) type]
       [(or
