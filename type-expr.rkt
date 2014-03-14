@@ -64,10 +64,10 @@
     ;;can assign null to rtype
     [(list (rtype _) (ptype 'null)) #t]
     
-    ;;can assign boolean to boolean
+    ;;can assign bool to bool
     [(list (ptype 'boolean) (ptype 'boolean)) #t]
     
-    ;;cannot assign boolean to any other ptype
+    ;;cannot assign bool to any other ptype
     [(list (ptype 'boolean) (ptype _)) #f]
     [(list (ptype _) (ptype 'boolean)) #f]
     
@@ -105,9 +105,9 @@
 ;;cast-ptypes : ptype ptype -> Boolean
 (define (cast-ptypes T S)
   (match (list T S)
-    ;;identity conversions: boolean to boolean
+    ;;identity conversions: bool to bool
     [(list (ptype 'boolean) (ptype 'boolean)) #t]
-    ;;invalid conversions: boolean to anything else
+    ;;invalid conversions: bool to anything else
     [(list (ptype 'boolean) _) #f]
     [(list _ (ptype 'boolean)) #f]
     
@@ -163,7 +163,7 @@
     (define (test-un-op op right)
       (cond
         [(symbol=? op 'not) (if (type-ast=? (type-expr right) (ptype 'boolean)) (ptype 'boolean)
-                              (error "! operator expects type boolean"))]
+                              (error "! operator expects type bool"))]
         [(symbol=? op 'minus) (if (type-numeric? (type-expr right)) (type-expr right)
                               (error "- operator expects numeric type"))]
         [else (c-errorf "Unimplemented operator ~a" op)]))
@@ -171,13 +171,13 @@
                       
     (match ast
       [(varuse _ 'this) (error "This not implemented")]
-      [(vdecl _ _ _ _ _) (ptype 'void)]
+      [(vdecl _ _ _ type _) type]
     
       [(varassign _ id expr)
        (let ([var-type (type-expr id)])
          (if (can-assign? var-type (type-expr expr))
              var-type
-             (c-errorf "Type Mismatch in Assignment")))]
+             (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr expr))))]
     
       [(varuse _ id)
        (match (assoc id (envs-types env))
