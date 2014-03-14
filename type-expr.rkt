@@ -394,16 +394,18 @@
       [(cunit _ _ body) (type-expr C mrtn mod body)]
     
       [(fieldaccess _ left field) (type-expr C mrtn mod (get-type-field C mod (curry type-expr C mrtn mod) all-cinfo ast 'Read))]
-    
-      [(classcreate e class params) (type-expr C mrtn mod (let ([confunt (funt "" (map (curry type-expr C mrtn mod) params))]
-                                          [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
-                                      (define thing (assoc confunt class-consts))
-                                      (match thing
-                                        [`(,_ ,(eval _ _ (constructor _ `public _ _))) class]
-                                        [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C) 
-                                                                                          class 
-                                                                                          (c-errorf "Invalid call to protected constructor of class ~a from ~a" class C))]
-                                        [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)])))]
+      
+      [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mrtn mod) params))]
+                                          [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))]
+                                          [class-ast (info-ast (find-info (rtype-type class) all-cinfo))])
+                                      (cond [(is-class-with-mod? class-ast 'abstract) (c-errorf "Trying to instance abstract classs ~a" (rtype-type class))]
+                                            [(not (is-class? class-ast)) (c-errorf "trying to instance non-class ~a" (rtype-type class))])
+                                            (match (assoc confunt class-consts)
+                                              [`(,_ ,(eval _ _ (constructor _ `public _ _))) class]
+                                              [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C)
+                                                                                                    class
+                                                                                                    (c-errorf "Invalid call to protected constructor of class ~a from ~a" class C))]
+                                              [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)]))]
       
       [(constructor e scope methoddecl body) (type-expr C mrtn mod body)]
     
