@@ -213,11 +213,12 @@
       [(list (ptype 'int) (ptype 'short)) #t]
       [(list (ptype 'short) (ptype 'byte)) #t]
       [(list (ptype 'int) (ptype 'byte)) #t]
+      [(list (ptype _) (ptype 'null)) #f]
+      [(list (ptype _) (ptype _)) (type-ast=? T S)]
      ; [(list (ptype _) (ptype _)) (not (num-type<? T S))]
       ;;Cannot assign ptype to an rtype, except null
       [(list (rtype _) (ptype _)) #f]
       ;;cannot assign null to a ptype
-      [(list (ptype _) (ptype 'null)) #f]
       
       ;;when assigning rtype to rtype, we must employ the algorithm in $5.2 of the spec
       [(list (rtype _) (rtype _)) (rtype-can-assign? T S)]
