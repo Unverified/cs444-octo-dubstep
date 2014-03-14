@@ -7,6 +7,8 @@
 ;==========================================================================================
 
 (define (c-errorf message . x)
+  (display (string-append "COMPILER ERROR: " message "\n") (current-error-port))
+
   (printf "COMPILER ERROR: ")
   (cond
     [(equal? `() x) (printf "~a" message)]

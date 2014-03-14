@@ -65,6 +65,15 @@
                 [#f (error "full name not found, how did i get here?")]
                 [cinfo (F root cinfo subs)])]))
 
+(define (check-constructor-super super-envs)
+  (define super-cons (map first (envs-constructors super-envs)))
+  (define empty-arg-cons (funt "" empty))
+  (printf "super-cons: ~a~n" super-cons )
+  (printf "empty-arg-cons: ~a~n" empty-arg-cons )
+  (cond
+    [(false? (member empty-arg-cons super-cons)) (c-errorf "Extends class must contain a zero argument constructor")]
+    [else #f]))
+
 (define (gen-full-class-info root cinfo subclasses)
   (printf "Checking Class Heir of ~a~n" (string-join (info-name cinfo) "."))
   (let ([classpath (extend-path (info-name cinfo) subclasses)]
@@ -74,8 +83,10 @@
            [interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements))]
            [linked-envs (append (list (info-env superclass-info)) (map info-env interface-infos))]
            [cenv (foldr combine-envs (info-env cinfo) linked-envs)])
-      
-      
+
+      (printf "EXTENDS: ~a~n" extends)
+      (if (empty? extends) #t (check-constructor-super (info-env superclass-info)))
+
       ((compose1 
         (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) cenv))
         (curryr set-cinfo-supers (filter-not empty? (info-path superclass-info)))
