@@ -13,9 +13,9 @@
   (match (list op t1 t2)
     
     ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
-    [(list 'plus (rtype '(java lang String)) (rtype '(java lang String))) (rtype '(java lang String))]
-    [(list 'plus (rtype '(java lang String)) (ptype 'boolean)) (rtype '(java lang String))]
-    [(list 'plus (ptype 'boolean) (rtype '(java lang String))) (rtype '(java lang String))]
+    [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+    [(list 'plus (rtype '("java" "lang" "String")) (ptype 'boolean)) (rtype '("java" "lang" "String"))]
+    [(list 'plus (ptype 'boolean) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
     
     ;;Can apply == and != to bool/bool:
     [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
@@ -29,7 +29,7 @@
 
 ;;parent-of? rtype rtype envs -> Boolean
 (define (parent-of? T S)
-  (error "parent-of not implemented"))
+  (superclass? S T))
 
 
 ;;num-type<? : ptype ptype -> Boolean
@@ -54,7 +54,7 @@
   (cond
     [(class-type? S)  (parent-of? S T)]
     [else (if (class-type? T) 
-              (type-ast=? T (rtype '(java lang Object)))
+              (type-ast=? T (rtype '("java" "lang" "Object")))
               (parent-of? S T))]))
     
 
@@ -64,10 +64,10 @@
     ;;can assign null to rtype
     [(list (rtype _) (ptype 'null)) #t]
     
-    ;;can assign boolean to boolean
+    ;;can assign bool to bool
     [(list (ptype 'boolean) (ptype 'boolean)) #t]
     
-    ;;cannot assign boolean to any other ptype
+    ;;cannot assign bool to any other ptype
     [(list (ptype 'boolean) (ptype _)) #f]
     [(list (ptype _) (ptype 'boolean)) #f]
     
@@ -82,9 +82,9 @@
     [(list (rtype _) (rtype _)) (rtype-can-assign? T S)]
     
     ;;we may assign an atype to the following three class/interface types
-    [(list (or (rtype '(java lang Object))
-               (rtype '(java io Serializable))
-               (rtype '(java lang Cloneable)))
+    [(list (or (rtype '("java" "lang" "Object"))
+               (rtype '("java" "io" "Serializable"))
+               (rtype '("java" "lang" "Cloneable")))
            (atype _)) #t]
     
     ;;assigning atypes to any but the three above results in a compile-time error
@@ -105,9 +105,9 @@
 ;;cast-ptypes : ptype ptype -> Boolean
 (define (cast-ptypes T S)
   (match (list T S)
-    ;;identity conversions: boolean to boolean
+    ;;identity conversions: bool to bool
     [(list (ptype 'boolean) (ptype 'boolean)) #t]
-    ;;invalid conversions: boolean to anything else
+    ;;invalid conversions: bool to anything else
     [(list (ptype 'boolean) _) #f]
     [(list _ (ptype 'boolean)) #f]
     
@@ -193,13 +193,13 @@
                       
     (match ast
       [(varuse _ 'this) (error "This not implemented")]
-      [(vdecl _ _ _ _ _) (ptype 'void)]
+      [(vdecl _ _ _ type _) type]
     
       [(varassign _ id expr)
        (let ([var-type (type-expr C id)])
          (if (can-assign? var-type (type-expr C expr))
              var-type
-             (c-errorf "Type Mismatch in Assignment")))]
+             (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C expr))))]
     
       [(varuse _ id)
        (match (assoc id (envs-types env))
