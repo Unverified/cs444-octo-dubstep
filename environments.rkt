@@ -199,21 +199,20 @@
                                   (_va block-id lenv test)
                                   (_va block-id lenv body))]
       
-      [(return _ expr) (return (env-append cenv lenv)
-                               (_va block-id lenv expr))]
+      [(return _ expr) (return (env-append cenv lenv) (run-nonempty (curry _va block-id lenv) expr))]
       
       [(iff _ test tru fls) (iff (env-append lenv cenv)
                                  (_va block-id lenv test)
-                                 (if (empty? tru) empty (_va block-id lenv tru))
-                                 (if (empty? fls) empty (_va block-id lenv fls)))]
+                                 (if (empty? tru) empty (run-nonempty (curry _va block-id lenv) tru))
+                                 (if (empty? fls) empty (run-nonempty (curry _va block-id lenv) fls)))]
       
-      [(for _ init clause update (block _ id bdy)) (let ([for-envt (_va id lenv init)])
-                                                     (for 
-                                                       (env-append (ast-env for-envt) cenv)
-                                                       for-envt
-                                                       (_va id (ast-env for-envt) clause)
-                                                       (_va id (ast-env for-envt) update)
-                                                       (block (ast-env for-envt) id (_va-list id (ast-env for-envt) bdy))))]
+      [(for _ init clause update (block _ id bdy)) (let* ([init-ast (run-nonempty (curry _va id lenv) init)]
+                                                          [for-envt (if (empty? init-ast) lenv (ast-env init-ast))])
+                                                     (for (env-append for-envt cenv)
+                                                       init-ast
+                                                       (run-nonempty (curry _va id for-envt) clause)
+                                                       (run-nonempty (curry _va id for-envt) update)
+                                                       (block for-envt id (_va-list id for-envt bdy))))]
       
       [(block _ id bdy) (block (env-append lenv cenv)
                                id
@@ -223,22 +222,22 @@
   
   (define (_va-list block-id lenv asts)
     (cond [(empty? asts) empty]
-          [else  (define _va-statement (_va block-id lenv (first asts)))
-                 (cons _va-statement   (_va-list block-id (if (not (or (vdecl? _va-statement) 
-                                                                       (varassign? _va-statement)))
-                                                              lenv
-                                                              (ast-env _va-statement)) (rest asts)))]))
+          [else  (define _va-statement (_va block-id lenv (first asts)
+                                            ))
+                 (cons _va-statement (_va-list block-id (if (not (or (vdecl? _va-statement) 
+                                                                     (varassign? _va-statement)))
+                                                            lenv
+                                                            (ast-env _va-statement)) 
+                       (rest asts)))]))
   
   (define (_top_va id ast)
     (match ast
       [(method _ s m t decl bdy) (let ([lenv (mdecl->envs id decl)])
-                                   (method (env-append lenv cenv) s m t decl
-                                           (_va block-id lenv bdy)))]
+                                   (method (env-append lenv cenv) s m t decl (_va block-id lenv bdy)))]
       [(constructor _ id decl bdy) (let ([lenv (mdecl->envs id decl)])
-                                     (constructor (env-append lenv cenv) id decl
-                                                  (_va block-id lenv bdy)))]
-      [(vdecl _ s m t md) ast]
-      [(varassign _ id ex) ast]))
+                                     (constructor (env-append lenv cenv) id decl (_va block-id lenv bdy)))]
+      [(vdecl _ _ _ _ _) ast]
+      [(varassign _ _ _) ast]))
   
   (match ast
     [(cunit package imports bdy) (cunit package imports (va cenv bdy))]
@@ -336,3 +335,8 @@
               (printf "(")
               (funt-print (first x))
               (printf ", ~a)~n" (eval-scope (second x)))) (envs-methods e)))
+
+
+
+
+

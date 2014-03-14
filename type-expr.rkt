@@ -32,7 +32,7 @@
       [(list a b) (cond
                     [(method-check? F method-scope 'public methcall-ast rt-env) b]
                     [(and (method-check? F method-scope 'protected methcall-ast rt-env)
-                          (or (superclass? all-cinfo C (rtype-type rt))
+                          (or (superclass? all-cinfo (rtype-type rt) C)
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access method that is not public.")])]
       [_ (c-errorf "No Function of that name")]))
@@ -48,11 +48,11 @@
   (define left (methodcall-left methcall-ast))
   (cond
     [(empty? left) (cond
-                     [(and (equal? mod (list 'static)) 
+                     [(and (equal? mod '(static)) 
                            (not (method-check? F method-mod mod methcall-ast (info-env (find-info C all-cinfo))))) (c-errorf "Cannot call non-static method inside static method.")]
                      [else (type-method (rtype C))])]
     [(rtype? left) (type-static-method left)]
-    [(this? left) (c-errorf "Cannot use \"this\" inside static method/initializer.")]
+    [(and (this? left) (equal? mod '(static)))  (c-errorf "Cannot use \"this\" inside static method/initializer.")]
     [else (type-method (F left))]))
 
 ;;get-type-field
@@ -70,7 +70,7 @@
       [(list a b) (cond
                     [(field-check? F vdecl-scope 'public field-ast rt-env) b]
                     [(and (field-check? F vdecl-scope 'protected field-ast rt-env)
-                          (or (superclass? all-cinfo C (rtype-type rt))
+                          (or (superclass? all-cinfo (rtype-type rt) C)
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access field that is not public.")])]
       [_ (c-errorf "No Field of that name")]))
@@ -307,9 +307,12 @@
                                (ptype 'void)
                                (c-errorf "While test not Boolean!"))]
     
-      [(for _ init clause update body) (if (begin (type-expr C mod init) (type-expr C mod update) (type-expr C mod body)
-                                                  (type-ast=? (type-expr C mod clause) (ptype 'boolean)))
-                                         
+      [(for _ init clause update body) (if (begin (run-nonempty (curry type-expr C mod) init) 
+                                                  (run-nonempty (curry type-expr C mod) update)
+                                                  (type-expr C mod body)
+                                                  (let* ([clausecheck (run-nonempty (curry type-expr C mod) clause)]
+                                                         [clausetype (if (empty? clausecheck) (ptype 'boolean) clausecheck)])
+                                                    (type-ast=? clausetype (ptype 'boolean))))
                                            (ptype 'void)
                                            (c-errorf "For test not Boolean!"))]
      
@@ -338,10 +341,9 @@
     
       [(fieldaccess _ left field) (get-type-field C mod (curry type-expr C mod) all-cinfo ast)]
     
-      [(classcreate e class params) (let* ([confunt (funt "" (map (curry type-expr C mod) params))]
+      [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
                                       (define thing (assoc confunt class-consts))
-                                      ;(printf "SUUUUUUP: ~a~n~a~n" (first thing) (second thing))
                                       (match thing
                                         [`(,_ ,(eval _ _ (constructor _ `public _ _))) class]
                                         [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C) 
