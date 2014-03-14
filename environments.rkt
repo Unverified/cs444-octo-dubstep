@@ -21,6 +21,7 @@
 (provide (struct-out funt))
 
 (provide method-check?)
+(provide field-check?)
 
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)
@@ -42,10 +43,16 @@
 (define (method-check? F s-proc eqs methcall-ast env)
   (let* ([meth-funt (methodcall->funt methcall-ast F)]
          [meth-ast (eval-ast (second (assoc meth-funt (envs-methods env))))])
-    (printf "method-check? does ~a equal ~a~n" eqs (s-proc meth-ast))
     (cond
       [(ast? meth-ast) (equal? eqs (s-proc meth-ast))]
-      [else (error "In method-check?, could not find meth-funt in envs-method" methcall-ast)]))) 
+      [else (error "In method-check?, could not find meth-funt in envs-method" methcall-ast)])))
+
+(define (field-check? F s-proc eqs field-ast env)
+  (let* ([field (fieldaccess-field field-ast)]
+         [field-ast (eval-ast (second (assoc field (envs-vars env))))])
+    (cond
+      [(ast? field-ast) (equal? eqs (s-proc field-ast))]
+      [else (error "In field-check?, could not find field vdecl in envs-vars" field-ast)]))) 
 
 (define (mdecl->funt mdecl)
   (match-let ([(methoddecl _ id params) mdecl])

@@ -233,7 +233,7 @@
      [(ambiguous _ _) ast]
      [(this _ _) ast]
      
-     [(atype type) (F type)]
+     [(atype type) (atype (F type))]
      [(literal _ type val) (literal empty (F type) val)]
      [(block env id statements) (block env id (map F statements))]
      [_ (error "Could not match: " ast)]))
@@ -567,7 +567,7 @@
     [(binop _ op left right) (printf "binop~n")]
     [(unop _ op right) (printf "unop~n")]
     [(cast _ c expr) (printf "cast~n")]
-    [(arraycreate _ type size) (printf "arraycreate~n")]
+    [(arraycreate _ type size) (printf "arraycreate ~a~n" ast)]
     [(classcreate _ class params) (printf "classcreate~n")]
     [(fieldaccess _ left field) (printf "fieldaccess~n")]
     [(methodcall _ left id args) (printf "methodcall~n")]

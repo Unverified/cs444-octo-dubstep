@@ -8,6 +8,67 @@
 
 (provide type-check)
 
+(define (get-type-method C F all-cinfo methcall-ast)
+  (define (get-rt-env rt)
+    (match rt 
+      [(rtype t) (info-env (find-info t all-cinfo))]
+      [_ (c-errorf "Expression does not resolve to a class type.")]))
+
+  (define (type-method rt)
+    (define rt-env (get-rt-env rt))
+    (define meth-funt (methodcall->funt methcall-ast F))
+    (match (assoc meth-funt (envs-types rt-env))
+      [(list a b) (cond
+                    [(method-check? F method-scope 'public methcall-ast rt-env) b]
+                    [(and (method-check? F method-scope 'protected methcall-ast rt-env)
+                          (superclass? all-cinfo (rtype-type rt) C)) b]
+                    [else (c-errorf "Trying to access method that is not public.")])]
+      [_ (c-errorf "No Function of that name")]))
+
+  (define (type-static-method rt)
+    (define meth-ret-t (type-method rt))
+    (define rt-env (get-rt-env rt))
+    (cond
+      [(method-check? F method-mod (list 'static) methcall-ast rt-env) meth-ret-t]
+      [(method-check? F method-mod (list 'static 'native) methcall-ast rt-env) meth-ret-t]
+      [else (c-errorf "Trying to access a method in ~a that is not static. ~a" (rtype-type rt) methcall-ast)]))
+
+  (define left (methodcall-left methcall-ast))
+  (cond
+    [(empty? left) (type-method (rtype C))]
+    [(rtype? left) (type-static-method left)]
+    [else (type-method (F left))]))
+
+;;get-type-field
+(define (get-type-field C F all-cinfo field-ast)
+  (define (get-rt-env rt)
+    (match rt 
+      [(rtype t) (info-env (find-info t all-cinfo))]
+      [_ (c-errorf "Expression does not resolve to a class type.")]))
+
+  (define (type-fieldaccess rt)
+    (define rt-env (get-rt-env rt))
+    (define field (fieldaccess-field field-ast))
+    (match (assoc field (envs-types rt-env))
+      [(list a b) (cond
+                    [(field-check? F vdecl-scope 'public field-ast rt-env) b]
+                    [(and (field-check? F vdecl-scope 'protected field-ast rt-env)
+                          (superclass? all-cinfo (rtype-type rt) C)) b]
+                    [else (c-errorf "Trying to access field that is not public.")])]
+      [_ (c-errorf "No Field of that name")]))
+
+  (define (type-static-fieldaccess rt)
+    (define field-ret-t (type-fieldaccess rt))
+    (define rt-env (get-rt-env rt))
+    (cond
+      [(field-check? F vdecl-mod 'static field-ast rt-env) field-ret-t]
+      [else (c-errorf "Trying to access a field in ~a that is not static. ~a" (rtype-type rt) field-ast)]))
+
+  (define left (fieldaccess-left field-ast))
+  (define ty (if (rtype? left) left (F left)))
+  (cond
+    [(and (atype? ty) (equal? "length" (fieldaccess-field field-ast))) (ptype 'int)]
+    [else (type-fieldaccess ty)]))
 
 ;;type-check : (assoc fullq-names info) -> void
 (define (type-check all-cinfo)
@@ -90,38 +151,6 @@
       [(ptype typ) (list? (member typ valid-types))]
       [_ #f]))
   
-  (define (get-type-method C F all-cinfo methcall-ast)
-    (define (get-rt-env rt)
-      (match rt 
-        [(rtype t) (info-env (find-info t all-cinfo))]
-        [_ (c-errorf "Expression does not resolve to a class type.")]))
-    
-    (define (type-method rt)
-      (define rt-env (get-rt-env rt))
-      (define meth-funt (methodcall->funt methcall-ast F))
-      (match (assoc meth-funt (envs-types rt-env))
-        [(list a b) (cond
-                      [(method-check? F method-scope 'public methcall-ast rt-env) b]
-                      [(and (method-check? F method-scope 'protected methcall-ast rt-env)
-                            (superclass? all-cinfo (rtype-type rt) C)) b]
-                      [else (c-errorf "Trying to access method that is not public.")])]
-        [_ (c-errorf "No Function of that name")]))
-    
-    (define (type-static-method rt)
-      (define meth-funt (methodcall->funt methcall-ast F))
-      (define meth-ret-t (type-method rt))
-      (define rt-env (get-rt-env rt))
-      (cond
-        [(method-check? F method-mod (list 'static) methcall-ast rt-env) meth-ret-t]
-        [(method-check? F method-mod (list 'static 'native) methcall-ast rt-env) meth-ret-t]
-        [else (c-errorf "Trying to access a method in ~a that is not static. ~a" (rtype-type rt) methcall-ast)]))
-    
-    (define left (methodcall-left methcall-ast))
-    (cond
-      [(empty? left) (type-method (rtype C))]
-      [(rtype? left) (type-static-method left)]
-      [else (type-method (F left))]))
-  
   
   ;;class-type? rtype -> Boolean
   (define (class-type? r)
@@ -189,7 +218,6 @@
 ;;type-expr : ast -> (union ptype rtype atype)
   (define (type-expr C ast)
     (ast-print-struct ast)
-    (define env (ast-env ast))
     (define (test-specific-bin-op type left right err-string)
       (if (and (type-ast=? type (type-expr C left)) (type-ast=? type (type-expr C right))) type (error err-string)))
 
@@ -213,16 +241,16 @@
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C expr))))]
     
       [(varuse _ id)
-       (match (assoc id (envs-types env))
+       (match (assoc id (envs-types (ast-env ast)))
          [#f (c-errorf "Unbound Identifier")]
-         [(list a b) b])]
+         [(list a b) (printf "VARUSE IS: ~a~n" b) b])]
     
       [(literal _ type _) type]
       [(or
         (ptype _) (atype _ ) (rtype  _)) ast]
     
       [(cast _ c expr) 
-         (if (castable? c (type-expr C expr) env) c (c-errorf "Invalid Cast"))]
+         (if (castable? c (type-expr C expr) (ast-env ast)) c (c-errorf "Invalid Cast"))]
     
       [(iff _ test tru fls) (if (begin 
                                   (if (not (empty? tru)) (type-expr C tru) (printf "na")) 
@@ -265,10 +293,7 @@
            (interface _ _ _ _ _ body)) (type-expr C body)]
       [(cunit _ _ body) (type-expr C body)]
     
-      [(fieldaccess _ _ field) 
-       (match (assoc field (envs-types env))
-         [#f (c-errorf "Unbound Field Access ~a" field)]
-         [(list a b) b])]
+      [(fieldaccess _ left field) (get-type-field C (curry type-expr C) all-cinfo ast)]
     
       [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
