@@ -85,9 +85,9 @@
       [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
       [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) #f]
       [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) #f]
-      [(list 'plus (rtype '("java" "lang" "String")) (ptype _)) (rtype '("java" "lang" "String"))]
-      [(list 'plus (ptype _) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
-      
+      [(list 'plus (rtype '("java" "lang" "String")) (or (rtype _) (atype _) (ptype _))) (rtype '("java" "lang" "String"))]
+      [(list 'plus (or (rtype _) (atype _) (ptype _)) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+     
       ;;Can apply == and != to bool/bool:
       [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
       
@@ -175,21 +175,25 @@
   
   ;;super-interface? rtype rtype -> Boolean
   (define (super-interface? T S)
-    (define S-interfaces (info-impls (find-info (rtype-type S) all-cinfo)))
+    (printf "super-interface? T: ~a S: ~a~n" T S)
+    (define S-interfaces-1 (info-impls (find-info (rtype-type S) all-cinfo)))
+    (define S-interfaces (if (list? S-interfaces-1) S-interfaces-1 (list S-interfaces-1)))
+    (printf "S-interfaces: ~a~n" S-interfaces)
     (list? (member (rtype-type T) S-interfaces)))
   
   ;;rtype-can-assign? rtype rtype C-Lpat -> Boolean
   ;;checks to see if source rtype (S) can be assigned to target rtype (T)
   (define (rtype-can-assign? T S)
+    (printf "rtype-can-assign? ~a ~a~n" T S)
     (cond
-      [(class-type? S) (parent-of? T S)]
-      [else (if (class-type? T) 
-                (type-ast=? T (rtype '("java" "lang" "Object")))
-                (super-interface? T S))]))
+      [(class-type? S) (if (class-type? T) (parent-of? T S)  (super-interface? T S))]
+      [(class-type? T)  (printf "~a is of class type~n" T) (type-ast=? T (rtype '("java" "lang" "Object")))]
+      [else  (or (type-ast=? T S) (super-interface? T S))]))
   
   
   ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
   (define (can-assign? T S)
+    (printf "can-assign? ~a ~a~n" T S)
     (match (list T S)
       ;;can assign null to rtype
       [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
@@ -270,7 +274,7 @@
         (ptype _) (atype _ ) (rtype  _)) ast]
     
       [(cast _ c expr) 
-         (if (castable? c (type-expr C expr) (ast-env ast)) c (c-errorf "Invalid Cast"))]
+         (if (castable? (type-expr C c) (type-expr C expr) (ast-env ast)) (type-expr C c) (c-errorf "Invalid Cast ~a ~a" (type-expr C c) (type-expr C expr)))]
     
       [(iff _ test tru fls) (if (begin 
                                   (if (not (empty? tru)) (type-expr C tru) (printf "na")) 
