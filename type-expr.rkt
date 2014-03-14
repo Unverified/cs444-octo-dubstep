@@ -35,7 +35,7 @@
   
   ;;parent-of? rtype rtype envs -> Boolean
   (define (parent-of? T S)
-    (superclass? S T))
+    (superclass? all-cinfo (rtype-type S) (rtype-type T)))
   
   
   ;;num-type<? : ptype ptype -> Boolean
@@ -128,14 +128,19 @@
     (list? (info-impls (find-info (rtype-type r) all-cinfo))))
      
   
-  ;;rtype-can-assign? rtype rtype C-List -> Boolean
+  ;;super-interface? rtype rtype -> Boolean
+  (define (super-interface? T S)
+    (define S-interfaces (info-impls (find-info (rtype-type S) all-cinfo)))
+    (list? (member (rtype-type T) S-interfaces)))
+  
+  ;;rtype-can-assign? rtype rtype C-Lpat -> Boolean
   ;;checks to see if source rtype (S) can be assigned to target rtype (T)
   (define (rtype-can-assign? T S)
     (cond
-      [(class-type? S)  (parent-of? S T)]
+      [(class-type? S) (parent-of? S T)]
       [else (if (class-type? T) 
                 (type-ast=? T (rtype '("java" "lang" "Object")))
-                (parent-of? S T))]))
+                (super-interface? S T))]))
   
   
   ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
