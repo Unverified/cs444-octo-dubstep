@@ -52,9 +52,11 @@
 
 (define (field-check? F s-proc eqs field-ast env)
   (let* ([field (fieldaccess-field field-ast)]
-         [thing-ast (eval-ast (second (assoc field (envs-vars env))))])
+         [asoc (assoc field (envs-vars env))]
+         [thing-ast (if(false? asoc) #f (eval-ast (second asoc)))])
       (printf "THING: ~a~n" thing-ast)
     (cond
+      [(false? thing-ast) #f]
       [(varassign? thing-ast) (equal? eqs (s-proc (varassign-id thing-ast)))]
       [(vdecl? thing-ast) (equal? eqs (s-proc thing-ast))]
       [else (error "In field-check?, could not find field vdecl in envs-vars" thing-ast)]))) 

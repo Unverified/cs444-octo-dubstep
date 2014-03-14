@@ -34,7 +34,7 @@
       [(list a b) (cond
                     [(method-check? F method-scope 'public methcall-ast rt-env) b]
                     [(and (method-check? F method-scope 'protected methcall-ast rt-env)
-                          (or (check-protected all-cinfo C rt (envs-methods cenv) (envs-methods rt-env) meth-funt)
+                          (or (check-protected all-cinfo C rt (envs-methods cenv) (envs-methods rt-env) meth-funt (method-check? F method-mod (list 'static) methcall-ast rt-env))
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access method that is not public.")])]
       [_ (c-errorf "No Function of that name")]))
@@ -57,7 +57,7 @@
     [(and (this? left) (equal? mod '(static)))  (c-errorf "Cannot use \"this\" inside static method/initializer.")]
     [else (type-method (F left))]))
 
-(define (check-protected all-cinfo C rt cenv rt-env field)
+(define (check-protected all-cinfo C rt cenv rt-env field static?)
   (define (get-possible-scope field env)
     (define asoc (assoc field env))
     (cond
@@ -66,7 +66,7 @@
   (define is-subclass (superclass? all-cinfo (rtype-type rt) C))
   (define c-field-scope (get-possible-scope field cenv))
   (define rt-field-scope (get-possible-scope field rt-env))
-  (and is-subclass (equal? c-field-scope rt-field-scope)))
+  (and (or is-subclass static?) (equal? c-field-scope rt-field-scope)))
 
 ;;get-type-field
 (define (get-type-field C mod F all-cinfo field-ast)
@@ -82,8 +82,9 @@
     (match (assoc field (envs-types rt-env))
       [(list a b) (cond
                     [(field-check? F vdecl-scope 'public field-ast rt-env) b]
-                    [(and (field-check? F vdecl-scope 'protected field-ast rt-env) 
-                              (equal? (remove-last C) (remove-last (rtype-type rt)))) b]
+                    [(and (field-check? F vdecl-scope 'protected field-ast rt-env)
+                          (or (check-protected all-cinfo C rt (envs-vars cenv) (envs-vars rt-env) field (field-check? F vdecl-mod 'static field-ast rt-env))
+                              (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access field that is not public.")])]
       [_ (c-errorf "No Field of that name")]))
 
@@ -93,15 +94,6 @@
     (cond
       [(field-check? F vdecl-mod 'static field-ast rt-env) field-ret-t]
       [else (c-errorf "Trying to access a field in ~a that is not static. ~a" (rtype-type rt) field-ast)]))
-
-  (define (type-varuse-fieldaccess rt)
-    (define rt-env (get-rt-env rt))
-    (define field (fieldaccess-field field-ast))
-    (match (assoc field (envs-types rt-env))
-      [(list a b) (cond
-                    [(field-check? F vdecl-scope 'public field-ast rt-env) b]
-                    [else (c-errorf "Cannot access a protected field on a variable that is not itself a fieldaccess.")])]
-      [_ (c-errorf "No Field of that name")]))
 
   (define left (fieldaccess-left field-ast))
   (cond
@@ -181,6 +173,7 @@
   ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
   (define (castable? T S env)
     (match (list T S)
+      [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
       [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
       [(list (atype typ1) (atype typ2)) (castable? typ1 typ2 env)]
       [(list (or (atype _) (rtype _)) (or (atype _) (rtype _))) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
@@ -348,6 +341,7 @@
                                           (atype-type (type-expr C mod left)) 
                                           (c-errorf "Array type expected")) 
                                       (c-errorf "Array index expects type int"))]
+      [(return _ empty) (ptype 'void)]
       [(return _ expr) (type-expr C mod expr)]
       [(arraycreate _ type size) (begin (type-expr C mod type) (if (whole-number? (type-expr C mod size)) 
                                                           (atype type)   
