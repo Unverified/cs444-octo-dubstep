@@ -25,7 +25,7 @@
       [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
       
       ;;cann apply == and != to reference/reference:
-      [(list (or 'eqeq 'noteq) (or (atype _) (rtype _)) (or (atype _) (rtype _))) (ptype 'boolean)]
+      [(list (or 'eqeq 'noteq) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (ptype 'boolean)]
       
       ;;TODO: Verify that binops on two numerics behave like we think they do!
       [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
@@ -70,7 +70,7 @@
   (define (castable? T S env)
     (match (list T S)
       [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
-      [(list (atype typ1) (atype typ2)) (begin (printf "Warning: I'm not sure how to properly cast array types") (castable? typ1 typ2))]
+      [(list (atype typ1) (atype typ2)) (castable? typ1 typ2)]
       [(list (rtype _) (rtype _)) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
       [(list _ _) (c-errorf "Cast type mismatch")]))
   
