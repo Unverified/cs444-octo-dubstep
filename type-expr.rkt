@@ -32,7 +32,7 @@
       [(list a b) (cond
                     [(method-check? F method-scope 'public methcall-ast rt-env) b]
                     [(and (method-check? F method-scope 'protected methcall-ast rt-env)
-                          (or (superclass? all-cinfo (rtype-type rt) C)
+                          (or (superclass? all-cinfo C (rtype-type rt))
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access method that is not public.")])]
       [_ (c-errorf "No Function of that name")]))
@@ -70,7 +70,7 @@
       [(list a b) (cond
                     [(field-check? F vdecl-scope 'public field-ast rt-env) b]
                     [(and (field-check? F vdecl-scope 'protected field-ast rt-env)
-                          (or (superclass? all-cinfo (rtype-type rt) C)
+                          (or (superclass? all-cinfo C (rtype-type rt))
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access field that is not public.")])]
       [_ (c-errorf "No Field of that name")]))
@@ -351,10 +351,10 @@
     
       [(fieldaccess _ left field) (get-type-field C mod (curry type-expr C mod) all-cinfo ast)]
     
-      [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mod) params))]
+      [(classcreate e class params) (let* ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
                                       (define thing (assoc confunt class-consts))
-                                      (printf "~a~n~a~n" (first thing) (second thing))
+                                      ;(printf "SUUUUUUP: ~a~n~a~n" (first thing) (second thing))
                                       (match thing
                                         [`(,_ ,(eval _ _ (constructor _ `public _ _))) class]
                                         [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C) 

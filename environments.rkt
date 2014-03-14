@@ -200,7 +200,8 @@
                                  (if (empty? fls) empty (_va block-id lenv fls)))]
       
       [(for _ init clause update (block _ id bdy)) (let ([for-envt (_va id lenv init)])
-                                                     (for (env-append (ast-env for-envt) cenv)
+                                                     (for 
+                                                       (env-append (ast-env for-envt) cenv)
                                                        for-envt
                                                        (_va id (ast-env for-envt) clause)
                                                        (_va id (ast-env for-envt) update)
