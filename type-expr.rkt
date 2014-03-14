@@ -49,10 +49,11 @@
 
   (define left (methodcall-left methcall-ast))
   (cond
-    [(empty? left) (cond
-                     [(and (equal? mod (list 'static)) 
-                           (not (method-check? F method-mod mod methcall-ast (info-env (find-info C all-cinfo))))) (c-errorf "Cannot call non-static method inside static method.")]
-                     [else (type-method (rtype C))])]
+    [(empty? left) (let* ([is-static (method-check? F method-mod `(static) methcall-ast (info-env (find-info C all-cinfo)))])
+                     (cond
+                       [(and (equal? mod (list 'static)) (not is-static)) (c-errorf "Cannot call non-static method inside static method.")]
+                       [is-static (c-errorf "Calls a static method without naming the class.")]
+                       [else (type-method (rtype C))]))]
     [(rtype? left) (type-static-method left)]
     [(and (this? left) (equal? mod (list 'static))) (c-errorf "Cannot use \"this\" inside static method/initializer.")]
     [else (type-method (F left))]))
