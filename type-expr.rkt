@@ -256,7 +256,7 @@
     
       [(fieldaccess _ _ field) 
        (match (assoc field (envs-types env))
-         [#f (c-errorf "Unbound Field Access")]
+         [#f (c-errorf "Unbound Field Access ~a" field)]
          [(list a b) b])]
     
       [(classcreate e class params) (error "Classcreate not implemented")]
