@@ -97,12 +97,13 @@
     (envs-print new-env)
     new-env))
 
-(define (gen-top-ast-env senv cenv ast)
+(define (gen-top-ast-env senv cenv env ast)
   (define (_va bid cenv ast)
     (match ast
       [(varuse _ v) (varuse (env-append senv cenv) v)]
       [(vdecl _ scp mod type id) (vdecl (add-env-variable cenv id bid type ast #f) scp mod type id)]
       
+      [(varassign _ (varuse _ v) bdy) (varassign cenv (ambiguous (env-append senv env) (list v)) (_va bid cenv bdy))]
       [(varassign _ id bdy) (let* ([newid (_va bid cenv id)]
                                    [backenv (if (vdecl? newid) (ast-env newid) cenv)]
                                    [foreenv (if (vdecl? newid) (push-ftype (ast-env newid)) cenv)])
@@ -143,9 +144,9 @@
                                                        (ast-env newnode)) (rest asts))))]))
   
   (match ast
-    [(cunit pack imps body) (cunit pack imps (gen-top-ast-env senv cenv body))]
-    [(class e scp mod id ex imp bdy) (class cenv scp mod id ex imp (gen-top-ast-env senv (sanatize-vars cenv) bdy))]
-    [(interface e scp mod id ex bdy) (interface cenv scp mod id ex (gen-top-ast-env senv (sanatize-vars cenv) bdy))]
+    [(cunit pack imps body) (cunit pack imps (gen-top-ast-env senv cenv env body))]
+    [(class e scp mod id ex imp bdy) (class cenv scp mod id ex imp (gen-top-ast-env senv (sanatize-vars cenv) cenv bdy))]
+    [(interface e scp mod id ex bdy) (interface cenv scp mod id ex (gen-top-ast-env senv (sanatize-vars cenv) cenv bdy))]
     [(block e id s) (block cenv id (_top-list id cenv s))]))
 
 (define (sanatize-vars e)
