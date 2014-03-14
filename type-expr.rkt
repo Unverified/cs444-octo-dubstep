@@ -179,7 +179,7 @@
       [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
       [(list (atype typ1) (atype typ2)) (castable? typ1 typ2 env)]
       [(list (or (atype _) (rtype _)) (or (atype _) (rtype _))) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
-      [(list _ _) (c-errorf "Cast type mismatch")]))
+      [(list _ _) #f]))
   
   
   ;;type-numeric? ptype->Boolean
