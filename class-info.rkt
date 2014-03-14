@@ -6,6 +6,7 @@
 (provide find-info)
 (provide info-path)
 (provide print-info)
+(provide superclass?)
 
 (provide set-cinfo-ast)
 (provide set-cinfo-env)
@@ -61,6 +62,13 @@
         (info-links  cinfo)
         (info-supers cinfo)
         impls))
+
+; checks if B is a superclass of A
+(define (superclass? all-cinfo A B)
+  (printf "SUPERCLASS| is ~a a superclass of ~a~n" B A)
+  (define A-supers (cons A (info-supers (find-info A all-cinfo))))
+  (printf "SUPERCLASS? ~a~n" A-supers)
+  (list? (member B A-supers)))
 
 (define (print-info cinfo)
   (printf "========== CINFO FOR ~a ==========~n" (string-join (info-name cinfo) "."))
