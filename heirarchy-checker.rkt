@@ -67,45 +67,37 @@
                 [cinfo (F root cinfo subs)])]))
 
 (define (gen-full-class-info root cinfo subclasses)
-  (let ([c-ast (info-ast cinfo)])
-    (printf "Checking Class Heir of ~a~n" (c-unit-name c-ast))
-    (define classpath (extend-path (c-unit-name c-ast) subclasses))
-    (define extends (get-ast-extends c-ast))
-    (printf "----extends ~a~n" (string-join extends "."))
-    
-    (define implements (get-implements c-ast))
-    (printf "----implements ~a~n" (map (curryr string-join ".") implements))
-    
-    (define superclass-info (check-class-info classpath (lookup-cunit-env gen-full-class-info classpath root extends)))
-    (define interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements)))
-    (define interface-envs (map info-env interface-infos))
-    (printf "----got intEnvs ~a~n" interface-envs)
-    
-    (define cenv (combine-envs (info-env superclass-info) (info-env cinfo)))
-    (printf "----got cenv ~a~n" cenv)
-    
-    (define fullenv (foldr combine-envs cenv interface-envs))
-    (printf "----got fullEnv ~a~n" fullenv)
-    
-    (set-cinfo-env cinfo (check-for-abstract (info-ast cinfo) fullenv))))
+  (printf "Checking Class Heir of ~a~n" (string-join (info-name cinfo) "."))
+  (let ([classpath (extend-path (info-name cinfo) subclasses)]
+        [extends (get-ast-extends (info-ast cinfo))]
+        [implements (get-implements (info-ast cinfo))])
+    (let* ([superclass-info (check-class-info classpath (lookup-cunit-env gen-full-class-info classpath root extends))]
+           [interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements))]
+           [interface-envs (map info-env interface-infos)]
+           [cenv (combine-envs (info-env superclass-info) (info-env cinfo))])
+      ((compose1 
+        (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) (foldr combine-envs cenv interface-envs)))
+        (curryr set-cinfo-supers (filter-not empty? (info-path superclass-info)))
+        (curryr set-cinfo-impls (remove-duplicates (append (append-map info-supers interface-infos) (info-impls superclass-info)))))
+       cinfo))))
+
+(define (gen-full-interface-info root cinfo subimpls)
+  (printf "Checking Interface Heir For ~a~n" (string-join (info-name cinfo) "."))
+  (let ([implpath (extend-path (info-name cinfo) subimpls)]
+        [extends  (get-extends (info-ast cinfo))])
+    (printf "- - interface extends ~a~n" (map (curryr string-join ".") extends))
+    (define interface-infos (check-interfaces-info implpath (map (curry lookup-cunit-env gen-full-interface-info implpath root) extends)))
+
+    ((compose1
+     (curryr set-cinfo-env (foldr combine-envs (info-env cinfo) (check-empty-interface-envs root (info-env cinfo) (map info-env interface-infos))))
+     (curryr set-cinfo-impls 'Interface)
+     (curryr set-cinfo-supers (append-map info-path interface-infos)))
+     cinfo)))
 
 (define (extend-path newele sub-path)
   (printf "extending-path ~a to ~a~n" (string-join newele ".") (map (curryr string-join ".") sub-path))
   (cond [(occurs? newele sub-path) (c-errorf "Cycle detected ~a" (map (curryr string-join ".") (cons newele sub-path)))]
         [else (cons newele sub-path)]))
-
-(define (gen-full-interface-info root cinfo subimpls)
-  (let ([c-ast (info-ast cinfo)])
-    (printf "Checking Interface Heir For ~a~n" (c-unit-name c-ast))
-    (define implpath (extend-path (c-unit-name c-ast) subimpls))
-    (define extends (get-extends c-ast))
-    (printf "- - EXtends ~a~n" (map (curryr string-join ".") extends))
-    (define interface-infos (check-interfaces-info implpath (map (curry lookup-cunit-env gen-full-interface-info implpath root) extends)))
-    (define interface-envs (map info-env interface-infos))
-    (printf "- - got intEnvs ~a~n" interface-envs)
-    
-    (define fullenv (foldr combine-envs (info-env cinfo) (check-empty-interface-envs root (info-env cinfo) interface-envs)))
-    (set-cinfo-env cinfo fullenv)))
 
 (define (check-empty-interface-envs root cenv interface-envs)
   (cond
