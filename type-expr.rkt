@@ -41,6 +41,7 @@
 
 ;;get-type-field
 (define (get-type-field C F all-cinfo field-ast)
+  (printf "IS THIS A VARASUDSA: ~a~n" field-ast)
   (define (get-rt-env rt)
     (match rt 
       [(rtype t) (info-env (find-info t all-cinfo))]
@@ -66,7 +67,9 @@
 
   (define left (fieldaccess-left field-ast))
   (define ty (if (rtype? left) left (F left)))
+  (printf "ty: ~a~n" ty)
   (cond
+    [(rtype? ty) (type-static-fieldaccess ty)]
     [(and (atype? ty) (equal? "length" (fieldaccess-field field-ast))) (ptype 'int)]
     [else (type-fieldaccess ty)]))
 
@@ -304,7 +307,7 @@
     
       [_ (error "Type Checker Not Implemented")]))
 
-  (for-each (lambda (cinfo) (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) (type-expr (info-name cinfo) (cunit-body (info-ast cinfo)))) all-cinfo))
+  (for-each (lambda (cinfo) (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) (print-ast (info-ast cinfo) "") (type-expr (info-name cinfo) (cunit-body (info-ast cinfo)))) all-cinfo))
 
      
                                                 
