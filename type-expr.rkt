@@ -276,34 +276,35 @@
   
  ;;type-expr : ast -> (union ptype rtype atype)
   (define (type-expr C mrtn mod ast)
+    (printf "HERRERERE: ~n")
     (ast-print-struct ast)
 
 
      ;;perform-bin-op: symbol (union rtype ptype atype) (union rtype ptype atype) -> (union rtype ptype atype)
-  (define (perform-bin-op op t1 t2)
-    (match (list op t1 t2)
-      ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
-      [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
-      [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) #f]
-      [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) #f]
-      [(list 'plus (rtype '("java" "lang" "String")) (or (rtype _) (atype _) (ptype _))) (rtype '("java" "lang" "String"))]
-      [(list 'plus (or (rtype _) (atype _) (ptype _)) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
-     
-      ;;Can apply == and != to bool/bool:
-      [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
-      
-      ;;cann apply == and != to reference/reference:
-      [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (if (or (castable? t1 t2 (ast-env ast)) (castable? t2 t1 (ast-env ast))) (ptype 'boolean) (c-errorf "Attempt to perform equality operator ~a on non-castable types ~a ~a" op t1 t2))]
-      
-      ;;TODO: Verify that binops on two numerics behave like we think they do!
-      [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
-      [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
-      [(list (or 'bar 'amp) _ _) (c-errorf "Bitwise operation detected: ~a" op)]
-      [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
- 
+    (define (perform-bin-op op t1 t2)
+      (match (list op t1 t2)
+        ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
+        [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+        [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]
+        [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]
+        [(list 'plus (rtype '("java" "lang" "String")) (or (rtype _) (atype _) (ptype _))) (rtype '("java" "lang" "String"))]
+        [(list 'plus (or (rtype _) (atype _) (ptype _)) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+        
+        ;;Can apply == and != to bool/bool:
+        [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
+        
+        ;;cann apply == and != to reference/reference:
+        [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (if (or (castable? t1 t2 (ast-env ast)) (castable? t2 t1 (ast-env ast))) (ptype 'boolean) (c-errorf "Attempt to perform equality operator ~a on non-castable types ~a ~a" op t1 t2))]
+        
+        ;;TODO: Verify that binops on two numerics behave like we think they do!
+        [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
+        [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
+        [(list (or 'bar 'amp) _ _) (c-errorf "Bitwise operation detected: ~a" op)]
+        [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
+    
     (define (test-specific-bin-op type left right err-string)
       (if (and (type-ast=? type (type-expr C mrtn mod left)) (type-ast=? type (type-expr C mrtn mod right))) type (error err-string)))
-
+    
     (define (test-un-op op right)
       (cond
         [(symbol=? op 'not) (if (type-ast=? (type-expr C mrtn mod right) (ptype 'boolean)) (ptype 'boolean)
@@ -314,7 +315,7 @@
                       
     (match ast
       [(this _ type) type]
-      [(vdecl _ _ _ type _) (type-expr C mod type)]
+      [(vdecl _ _ _ type _) (type-expr C mrtn mod type)]
     
       
       [(varassign _ (fieldaccess _ left field) val)
@@ -330,7 +331,7 @@
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mrtn mod expr))))]
     
       [(varuse _ id)
-       (type-expr C mod (match (assoc id (envs-types (ast-env ast)))
+       (type-expr C mrtn mod (match (assoc id (envs-types (ast-env ast)))
          [#f (c-errorf "Unbound Identifier")]
          ;[(list a (ftype _)) (c-errorf "Variable used within own assign statement ~a" id)]
          [(list a b) (printf "VARUSE IS: ~a~n" b) b]))]
@@ -369,7 +370,7 @@
       [(parameter _ type _) (type-expr C mrtn mod type)]
     
     
-      [(block _ _ statements) (begin (map (curry type-expr C mod) statements) (ptype 'void))]
+      [(block _ _ statements) (begin (map (curry type-expr C mrtn mod) statements) (ptype 'void))]
       [(arrayaccess _ left index) (if (whole-number? (type-expr C mrtn mod index)) 
                                       (if (atype? (type-expr C mrtn mod left)) 
                                           (type-expr C mrtn mod (atype-type (type-expr C mrtn mod left))) 
@@ -378,13 +379,13 @@
       [(return _ expr) (let* ([rtn-type (type-expr C mrtn mod expr)])
                          (cond
                            [(equal? rtn-type (ptype 'void)) (c-errorf "Method return cannot return type void.")]
-                           [(not (equal? mrtn rtn-type)) (c-errorf "Return type of method is not equal to a return statements return type.")]
+                           [(not (can-assign? mrtn rtn-type)) (c-errorf "Return type \"~a\" of method is not equal to a return statements return type \"~a\"." mrtn rtn-type)]
                            [else rtn-type]))]
       [(return _ `()) (ptype 'void)]
       [(arraycreate _ type size) (begin (type-expr C mrtn mod type) (if (whole-number? (type-expr C mrtn mod size)) 
                                                           (atype (type-expr C mrtn mod type))   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
-      [(methodcall _ left _ args) (type-expr C mrtn mod (get-type-method C mod (curry type-expr C mod) all-cinfo ast))]
+      [(methodcall _ left _ args) (type-expr C mrtn mod (get-type-method C mod (curry type-expr C mrtn mod) all-cinfo ast))]
            
       [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
       [(method _ _ mod t _ body) (type-expr C t mod body)]
@@ -392,9 +393,9 @@
            (interface _ _ _ _ _ body)) (type-expr C mrtn mod body)]
       [(cunit _ _ body) (type-expr C mrtn mod body)]
     
-      [(fieldaccess _ left field) (type-expr C mrtn mod (get-type-field C mod (curry type-expr C mod) all-cinfo ast 'Read))]
+      [(fieldaccess _ left field) (type-expr C mrtn mod (get-type-field C mod (curry type-expr C mrtn mod) all-cinfo ast 'Read))]
     
-      [(classcreate e class params) (type-expr C mrtn mod (let ([confunt (funt "" (map (curry type-expr C mod) params))]
+      [(classcreate e class params) (type-expr C mrtn mod (let ([confunt (funt "" (map (curry type-expr C mrtn mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
                                       (define thing (assoc confunt class-consts))
                                       (match thing
