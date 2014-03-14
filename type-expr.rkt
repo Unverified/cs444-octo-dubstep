@@ -19,6 +19,8 @@
     ;;Can apply == and != to bool/bool:
     [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
     
+    ;;cann apply == and != to reference/reference:
+    [(list (or 'eqeq 'noteq) (or (atype _) (rtype _)) (or (atype _) (rtype _))) (ptype 'boolean)]
     
     ;;TODO: Verify that binops on two numerics behave like we think they do!
     [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
