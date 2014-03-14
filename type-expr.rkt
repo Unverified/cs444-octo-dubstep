@@ -110,6 +110,16 @@
       [(list 'float t) (list? (member t '(double)))]
       [_ #f]))
   
+
+  ;;num-type-min : ptype ptype -> ptype
+  ;;May be useful if numerics turn out to be more complicated than we think
+  (define (num-type-min p1 p2)
+    (if (num-type<? p1 p2) p1 p2))
+
+  ;;num-type-max : ptype ptype -> ptype
+  ;;
+  (define (num-type-max p1 p2)
+    (if (num-type<? p1 p2) p2 p1))
   
   
   
