@@ -120,7 +120,7 @@
       [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
       
       ;;cann apply == and != to reference/reference:
-      [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (ptype 'boolean)]
+      [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (printf "BinOp: ~a ~a ~a~n" t1 op t2) (ptype 'boolean)]
       
       ;;TODO: Verify that binops on two numerics behave like we think they do!
       [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
@@ -288,12 +288,12 @@
                       
     (match ast
       [(this _ type) type]
-      [(vdecl _ _ _ type _) type]
+      [(vdecl _ _ _ type _) (type-expr C mod type)]
     
       [(varassign _ id expr)
        (let ([var-type (type-expr C mod id)])
          (if (can-assign? var-type (type-expr C mod expr))
-             (if (ftype? var-type) (ftype-type var-type) var-type)
+             (type-expr C mod (if (ftype? var-type) (ftype-type var-type) var-type))
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mod expr))))]
     
       [(varuse _ id)
@@ -303,6 +303,7 @@
          [(list a b) (printf "VARUSE IS: ~a~n" b) b])]
     
       [(literal _ type _) type]
+      [(or (rtype '("java" "lang" "Integer"))) (ptype 'int)]
       [(or
         (ptype _) (atype _ ) (rtype  _)) ast]
     
@@ -330,15 +331,15 @@
                                            (ptype 'void)
                                            (c-errorf "For test not Boolean!"))]
      
-      [(unop _ op right) (test-un-op op right)]
-      [(binop _ op left right) (perform-bin-op op (type-expr C mod left) (type-expr C mod right))]
+      [(unop _ op right) (type-expr C mod (test-un-op op (type-expr C mod right)))]
+      [(binop _ op left right) (type-expr C mod (perform-bin-op op (type-expr C mod left) (type-expr C mod right)))]
       [(parameter _ type _) type]
     
     
       [(block _ _ statements) (begin (map (curry type-expr C mod) statements) (ptype 'void))]
       [(arrayaccess _ left index) (if (whole-number? (type-expr C mod index)) 
                                       (if (atype? (type-expr C mod left)) 
-                                          (atype-type (type-expr C mod left)) 
+                                          (type-expr C mod (atype-type (type-expr C mod left))) 
                                           (c-errorf "Array type expected")) 
                                       (c-errorf "Array index expects type int"))]
       [(return _ empty) (ptype 'void)]
@@ -346,7 +347,7 @@
       [(arraycreate _ type size) (begin (type-expr C mod type) (if (whole-number? (type-expr C mod size)) 
                                                           (atype type)   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
-      [(methodcall _ left _ args) (get-type-method C mod (curry type-expr C mod) all-cinfo ast)]
+      [(methodcall _ left _ args) (type-expr C mod (get-type-method C mod (curry type-expr C mod) all-cinfo ast))]
            
       [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
       [(method _ _ mod _ _ body) (type-expr C mod body)]
@@ -354,7 +355,7 @@
            (interface _ _ _ _ _ body)) (type-expr C mod body)]
       [(cunit _ _ body) (type-expr C mod body)]
     
-      [(fieldaccess _ left field) (get-type-field C mod (curry type-expr C mod) all-cinfo ast)]
+      [(fieldaccess _ left field) (type-expr C mod (get-type-field C mod (curry type-expr C mod) all-cinfo ast))]
     
       [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
