@@ -123,16 +123,34 @@
     [(ptype typ) (list? (member typ valid-types))]
     [_ #f]))
 
-(define (type-method method-funt env)
-  (match (assoc method-funt (envs-types env))
-    [(list a b) (printf "HERE: ~a~n" b) b]
-    [_ (c-errorf "No Function of that name")]))
+(define (get-type-method F all-cinfo methcall-ast)
+  (define (get-methleft-env l-type)
+    (match l-type 
+      [(rtype t) (info-env (find-info t all-cinfo))]
+      [_ (c-errorf "Expression does not resolve to a class type.")]))
 
-;;define get-expr-envs (assoc info) expr -> envs
-(define (get-methleft-env all-cinfo l-type)
-  (match l-type 
-    [(rtype t) (info-env (find-info t all-cinfo))]
-    [_ (c-errorf "Expression does not resolve to a class type.")]))
+  (define (type-method env)
+    (define meth-funt (methodcall->funt methcall-ast F))
+    (match (assoc meth-funt (envs-types env))
+      [(list a b) (cond
+                    [(method-check? F method-scope 'public methcall-ast env) b]
+                    [else (c-errorf "Trying to access method that is not public.")])]
+      [_ (c-errorf "No Function of that name")]))
+
+  (define (type-static-method env)
+    (define meth-funt (methodcall->funt methcall-ast F))
+    (match (assoc meth-funt (envs-types env))
+      [(list a b) (cond
+                    [(and (method-check? F method-scope 'public methcall-ast env)
+                          (method-check? F method-mod (list 'static) methcall-ast env)) b]
+                    [else (c-errorf "Method not public static.")])]
+      [_ (c-errorf "No Function of that name")]))
+
+  (define left (methodcall-left methcall-ast))
+  (cond
+    [(empty? left) (type-method (ast-env methcall-ast))]
+    [(rtype? left) (type-static-method (get-methleft-env left))]
+    [else (type-method (get-methleft-env (F left)))]))
 
 ;;type-check : (assoc fullq-names info) -> void
 (define (type-check all-cinfo)
@@ -202,11 +220,7 @@
       [(arraycreate _ type size) (begin (type-expr type) (if (whole-number? (type-expr size)) 
                                                           (atype type)   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
-      [(methodcall _ left _ args) (let* ([method-funt (methodcall->funt ast type-expr)])
-                                    (cond
-                                      [(empty? left) (type-method method-funt env)]
-                                      [(rtype? left) (type-method method-funt (get-methleft-env all-cinfo left))]
-                                      [else (type-method method-funt (get-methleft-env all-cinfo (type-expr left)))]))]
+      [(methodcall _ left _ args) (get-type-method type-expr all-cinfo ast)]
  ;      (let* ([left-env (cond
  ;                         [(empty? left) (envs-types env)]           ;if the left is empty, use the current class env
  ;                         [else (get-expr-envs all-cinfo left)])]    ;else use the rtype of the left to get the root env for all-cinfo 

@@ -19,6 +19,8 @@
 (provide (struct-out eval))
 (provide (struct-out envs))
 
+(provide method-check?)
+
 (struct funt (id argt)   #:prefab)
 (struct eval (scope ast) #:prefab)
 (struct envs (types vars methods constructors))
@@ -26,6 +28,22 @@
 ;======================================================================================
 ;==== Environment Generation
 ;======================================================================================
+;  (define (method-static? methcall-ast env)
+;    (let* ([meth-funt (methodcall->funt methcall-ast type-expr)]
+;           [meth-ast (eval-ast (assoc meth-funt (envs-method env)))])
+;      (equal? (list 'static) (method-mod meth-ast))))
+
+;  (define (method-public? methcall-ast env)
+;    (let* ([meth-funt (methodcall->funt methcall-ast type-expr)]
+;           [meth-ast (eval-ast (assoc meth-funt (envs-method env)))])
+;      (equal? 'public (method-scope meth-ast))))
+
+(define (method-check? F s-proc eqs methcall-ast env)
+  (let* ([meth-funt (methodcall->funt methcall-ast F)]
+         [meth-ast (eval-ast (second (assoc meth-funt (envs-methods env))))])
+    (cond
+      [(ast? meth-ast) (equal? eqs (s-proc meth-ast))]
+      [else (error "In method-check?, could not find meth-funt in envs-method" methcall-ast)]))) 
 
 (define (mdecl->funt mdecl)
   (match-let ([(methoddecl _ id params) mdecl])
