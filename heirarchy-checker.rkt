@@ -81,13 +81,14 @@
         [implements (get-implements (info-ast cinfo))])
     (let* ([superclass-info (check-class-info classpath (lookup-cunit-env gen-full-class-info classpath root extends))]
            [interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements))]
-           [linked-envs (append (list (info-env superclass-info)) (map info-env interface-infos))]
-           [cenv (foldr combine-envs (info-env cinfo) linked-envs)])
+           [linked-envs (foldr combine-envs env-empty (map info-env (cons superclass-info interface-infos)))]
+           [cenv (combine-envs linked-envs (info-env cinfo))])
 
       (printf "EXTENDS: ~a~n" extends)
       (if (empty? extends) #t (check-constructor-super (info-env superclass-info)))
 
       ((compose1 
+        (curryr set-cinfo-ast (gen-top-ast-env (info-env superclass-info) (info-env cinfo) (info-ast cinfo)))
         (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) cenv))
         (curryr set-cinfo-supers (filter-not empty? (info-path superclass-info)))
         (curryr set-cinfo-impls (remove-duplicates (append (append-map info-supers interface-infos) (info-impls superclass-info)))))
