@@ -189,7 +189,9 @@
   (define (can-assign? T S)
     (match (list T S)
       ;;can assign null to rtype
-      [(list (rtype _) (ptype 'null)) #t]
+      [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
+
+     
       
       ;;can assign bool to bool
       [(list (ptype 'boolean) (ptype 'boolean)) #t]
