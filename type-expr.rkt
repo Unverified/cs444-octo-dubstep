@@ -82,8 +82,10 @@
     (match (list op t1 t2)
       ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
       [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
-      [(list 'plus (rtype '("java" "lang" "String")) (ptype 'boolean)) (rtype '("java" "lang" "String"))]
-      [(list 'plus (ptype 'boolean) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
+      [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) #f]
+      [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) #f]
+      [(list 'plus (rtype '("java" "lang" "String")) (ptype _)) (rtype '("java" "lang" "String"))]
+      [(list 'plus (ptype _) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
       
       ;;Can apply == and != to bool/bool:
       [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
