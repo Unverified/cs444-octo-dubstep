@@ -88,7 +88,7 @@
       (if (empty? extends) (void) (check-constructor-super (info-env superclass-info)))
       
       ((compose1 
-        (curryr set-cinfo-ast (gen-top-ast-env (info-env superclass-info) (info-env cinfo) (info-ast cinfo)))
+        (curryr set-cinfo-ast (gen-top-ast-env (info-env superclass-info) (info-env cinfo) (info-env cinfo) (info-ast cinfo)))
         (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) cenv))
         (curryr set-cinfo-supers (filter-not empty? (info-path superclass-info)))
         (curryr set-cinfo-impls (remove-duplicates (append (info-impls superclass-info) (append-map info-path interface-infos)))))

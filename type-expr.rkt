@@ -55,7 +55,7 @@
                        [is-static (c-errorf "Calls a static method without naming the class.")]
                        [else (type-method (rtype C))]))]
     [(rtype? left) (type-static-method left)]
-    [(and (this? left) (equal? mod (list 'static))) (c-errorf "Cannot use \"this\" inside static method/initializer.")]
+    [(and (this? left) (equal? mod '(static)))  (c-errorf "Cannot use \"this\" inside static method/initializer.")]
     [else (type-method (F left))]))
 
 (define (check-protected all-cinfo C rt cenv rt-env field static?)
@@ -322,9 +322,12 @@
                                (ptype 'void)
                                (c-errorf "While test not Boolean!"))]
     
-      [(for _ init clause update body) (if (begin (type-expr C mod init) (type-expr C mod update) (type-expr C mod body)
-                                                  (type-ast=? (type-expr C mod clause) (ptype 'boolean)))
-                                         
+      [(for _ init clause update body) (if (begin (run-nonempty (curry type-expr C mod) init) 
+                                                  (run-nonempty (curry type-expr C mod) update)
+                                                  (type-expr C mod body)
+                                                  (let* ([clausecheck (run-nonempty (curry type-expr C mod) clause)]
+                                                         [clausetype (if (empty? clausecheck) (ptype 'boolean) clausecheck)])
+                                                    (type-ast=? clausetype (ptype 'boolean))))
                                            (ptype 'void)
                                            (c-errorf "For test not Boolean!"))]
      
@@ -354,10 +357,9 @@
     
       [(fieldaccess _ left field) (get-type-field C mod (curry type-expr C mod) all-cinfo ast)]
     
-      [(classcreate e class params) (let* ([confunt (funt "" (map (curry type-expr C mod) params))]
+      [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
                                       (define thing (assoc confunt class-consts))
-                                      ;(printf "SUUUUUUP: ~a~n~a~n" (first thing) (second thing))
                                       (match thing
                                         [`(,_ ,(eval _ _ (constructor _ `public _ _))) class]
                                         [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C) 

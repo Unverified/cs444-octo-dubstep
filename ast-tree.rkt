@@ -53,6 +53,7 @@
 (provide is-interface?)
 (provide is-class-with-mod?)
 (provide ast-transform)
+(provide run-nonempty)
 (provide ast-print-struct)
 
 ;==============================================================================================
