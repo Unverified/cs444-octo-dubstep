@@ -145,7 +145,7 @@
     (match (list T S)
       [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
       [(list (atype typ1) (atype typ2)) (castable? typ1 typ2)]
-      [(list (rtype _) (rtype _)) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
+      [(list (or (atype _) (rtype _)) (or (atype _) (rtype _))) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
       [(list _ _) (c-errorf "Cast type mismatch")]))
   
   
@@ -223,12 +223,14 @@
       ;;assigning an atype of rtypes to an atype of rtypes requires the rtypes to be assignable
       [(list (atype (rtype _)) (atype (rtype _))) (can-assign? (atype-type T) (atype-type S))]
       
+      
+      
       ;;any other assignment involving atypes is a compile-time error
       [(list (atype _) (atype _)) #f]                                                     
       
-      [_ (error "Unimplemented assignment")]))
+      [_ #f]))
   
-;;type-expr : ast -> (union ptype rtype atype)
+ ;;type-expr : ast -> (union ptype rtype atype)
   (define (type-expr C ast)
     (ast-print-struct ast)
     (define (test-specific-bin-op type left right err-string)
