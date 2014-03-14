@@ -181,10 +181,10 @@
   ;;checks to see if source rtype (S) can be assigned to target rtype (T)
   (define (rtype-can-assign? T S)
     (cond
-      [(class-type? S) (parent-of? S T)]
+      [(class-type? S) (parent-of? T S)]
       [else (if (class-type? T) 
                 (type-ast=? T (rtype '("java" "lang" "Object")))
-                (super-interface? S T))]))
+                (super-interface? T S))]))
   
   
   ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
