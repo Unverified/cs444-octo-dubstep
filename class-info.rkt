@@ -65,6 +65,7 @@
 
 ; checks if B is a superclass of A
 (define (superclass? all-cinfo A B)
+  (printf "superclass? A: ~a, B: ~a~n" A B)
   (define A-supers (cons A (info-supers (find-info A all-cinfo))))
   (list? (member B A-supers)))
 

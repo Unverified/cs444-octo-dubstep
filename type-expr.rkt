@@ -21,7 +21,8 @@
       [(list a b) (cond
                     [(method-check? F method-scope 'public methcall-ast rt-env) b]
                     [(and (method-check? F method-scope 'protected methcall-ast rt-env)
-                          (superclass? all-cinfo (rtype-type rt) C)) b]
+                          (or (superclass? all-cinfo (rtype-type rt) C)
+                              (superclass? all-cinfo C (rtype-type rt)))) b]
                     [else (c-errorf "Trying to access method that is not public.")])]
       [_ (c-errorf "No Function of that name")]))
 
