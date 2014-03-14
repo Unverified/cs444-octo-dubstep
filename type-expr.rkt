@@ -275,7 +275,7 @@
       [_ #f]))
   
  ;;type-expr : ast -> (union ptype rtype atype)
-  (define (type-expr C mod ast)
+  (define (type-expr C mrtn mod ast)
     (ast-print-struct ast)
 
 
@@ -302,13 +302,13 @@
       [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
  
     (define (test-specific-bin-op type left right err-string)
-      (if (and (type-ast=? type (type-expr C mod left)) (type-ast=? type (type-expr C mod right))) type (error err-string)))
+      (if (and (type-ast=? type (type-expr C mrtn mod left)) (type-ast=? type (type-expr C mrtn mod right))) type (error err-string)))
 
     (define (test-un-op op right)
       (cond
-        [(symbol=? op 'not) (if (type-ast=? (type-expr C mod right) (ptype 'boolean)) (ptype 'boolean)
+        [(symbol=? op 'not) (if (type-ast=? (type-expr C mrtn mod right) (ptype 'boolean)) (ptype 'boolean)
                               (c-errorf "! operator expects type boolean"))]
-        [(symbol=? op 'minus) (if (type-numeric? (type-expr C mod right)) (type-expr C mod right)
+        [(symbol=? op 'minus) (if (type-numeric? (type-expr C mrtn mod right)) (type-expr C mrtn mod right)
                               (c-errorf "- operator expects numeric type"))]))
                         
                       
@@ -318,16 +318,16 @@
     
       
       [(varassign _ (fieldaccess _ left field) val)
-       (let ([field-type (get-type-field C mod (curry type-expr C mod) all-cinfo (varassign-id ast) 'Write)])
-         (if (can-assign? field-type (type-expr C mod val))
+       (let ([field-type (get-type-field C mod (curry type-expr C mrtn mod) all-cinfo (varassign-id ast) 'Write)])
+         (if (can-assign? field-type (type-expr C mrtn mod val))
              (if (ftype? field-type) (ftype-type field-type) field-type)
-             (c-errorf "Type Mismatch in Assignment ~a ~a" field-type (type-expr C mod val))))]
+             (c-errorf "Type Mismatch in Assignment ~a ~a" field-type (type-expr C mrtn mod val))))]
       
       [(varassign _ id expr)
-       (let ([var-type (type-expr C mod id)])
-         (if (can-assign? var-type (type-expr C mod expr))
-             (type-expr C mod (if (ftype? var-type) (ftype-type var-type) var-type))
-             (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mod expr))))]
+       (let ([var-type (type-expr C mrtn mod id)])
+         (if (can-assign? var-type (type-expr C mrtn mod expr))
+             (type-expr C mrtn mod (if (ftype? var-type) (ftype-type var-type) var-type))
+             (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mrtn mod expr))))]
     
       [(varuse _ id)
        (type-expr C mod (match (assoc id (envs-types (ast-env ast)))
@@ -341,59 +341,60 @@
         (ptype _) (atype _ ) (rtype  _)) ast]
     
       [(cast _ c expr) 
-         (if (castable? (type-expr C mod c) (type-expr C mod expr) (ast-env ast)) (type-expr C mod c) (c-errorf "Invalid Cast ~a ~a" (type-expr C mod c) (type-expr C mod expr)))]
+         (if (castable? (type-expr C mrtn mod c) (type-expr C mrtn mod expr) (ast-env ast)) (type-expr C mrtn mod c) (c-errorf "Invalid Cast ~a ~a" (type-expr C mrtn mod c) (type-expr C mrtn mod expr)))]
     
       [(iff _ test tru fls) (if (begin 
-                                  (if (not (empty? tru)) (type-expr C mod tru) (printf "na")) 
-                                  (if (not (empty? fls)) (type-expr C mod fls) (printf "na")) 
-                                  (type-ast=? (type-expr C mod test) (ptype 'boolean)))
+                                  (if (not (empty? tru)) (type-expr C mrtn mod tru) (printf "na")) 
+                                  (if (not (empty? fls)) (type-expr C mrtn mod fls) (printf "na")) 
+                                  (type-ast=? (type-expr C mrtn mod test) (ptype 'boolean)))
                             (ptype 'void) 
                             (c-errorf "Type of Test not Boolean" ))]
     
     
-      [(while _ test body) (if (begin (type-expr C mod body) (type-ast=? (type-expr C mod test) (ptype 'boolean)))
+      [(while _ test body) (if (begin (type-expr C mrtn mod body) (type-ast=? (type-expr C mrtn mod test) (ptype 'boolean)))
                                (ptype 'void)
                                (c-errorf "While test not Boolean!"))]
     
-      [(for _ init clause update body) (if (begin (run-nonempty (curry type-expr C mod) init) 
-                                                  (run-nonempty (curry type-expr C mod) update)
-                                                  (type-expr C mod body)
-                                                  (let* ([clausecheck (run-nonempty (curry type-expr C mod) clause)]
+      [(for _ init clause update body) (if (begin (run-nonempty (curry type-expr C mrtn mod) init) 
+                                                  (run-nonempty (curry type-expr C mrtn mod) update)
+                                                  (type-expr C mrtn mod body)
+                                                  (let* ([clausecheck (run-nonempty (curry type-expr C mrtn mod) clause)]
                                                          [clausetype (if (empty? clausecheck) (ptype 'boolean) clausecheck)])
                                                     (type-ast=? clausetype (ptype 'boolean))))
                                            (ptype 'void)
                                            (c-errorf "For test not Boolean!"))]
      
-      [(unop _ op right) (type-expr C mod (test-un-op op (type-expr C mod right)))]
-      [(binop _ op left right) (type-expr C mod (perform-bin-op op (type-expr C mod left) (type-expr C mod right)))]
-      [(parameter _ type _) (type-expr C mod type)]
+      [(unop _ op right) (type-expr C mrtn mod (test-un-op op (type-expr C mrtn mod right)))]
+      [(binop _ op left right) (type-expr C mrtn mod (perform-bin-op op (type-expr C mrtn mod left) (type-expr C mrtn mod right)))]
+      [(parameter _ type _) (type-expr C mrtn mod type)]
     
     
       [(block _ _ statements) (begin (map (curry type-expr C mod) statements) (ptype 'void))]
-      [(arrayaccess _ left index) (if (whole-number? (type-expr C mod index)) 
-                                      (if (atype? (type-expr C mod left)) 
-                                          (type-expr C mod (atype-type (type-expr C mod left))) 
+      [(arrayaccess _ left index) (if (whole-number? (type-expr C mrtn mod index)) 
+                                      (if (atype? (type-expr C mrtn mod left)) 
+                                          (type-expr C mrtn mod (atype-type (type-expr C mrtn mod left))) 
                                           (c-errorf "Array type expected")) 
                                       (c-errorf "Array index expects type int"))]
-      [(return _ expr) (let* ([rtn-type (type-expr C mod expr)])
+      [(return _ expr) (let* ([rtn-type (type-expr C mrtn mod expr)])
                          (cond
                            [(equal? rtn-type (ptype 'void)) (c-errorf "Method return cannot return type void.")]
+                           [(not (equal? mrtn rtn-type)) (c-errorf "Return type of method is not equal to a return statements return type.")]
                            [else rtn-type]))]
       [(return _ `()) (ptype 'void)]
-      [(arraycreate _ type size) (begin (type-expr C mod type) (if (whole-number? (type-expr C mod size)) 
-                                                          (atype (type-expr C mod type))   
+      [(arraycreate _ type size) (begin (type-expr C mrtn mod type) (if (whole-number? (type-expr C mrtn mod size)) 
+                                                          (atype (type-expr C mrtn mod type))   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
-      [(methodcall _ left _ args) (type-expr C mod (get-type-method C mod (curry type-expr C mod) all-cinfo ast))]
+      [(methodcall _ left _ args) (type-expr C mrtn mod (get-type-method C mod (curry type-expr C mod) all-cinfo ast))]
            
       [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
-      [(method _ _ mod _ _ body) (type-expr C mod body)]
+      [(method _ _ mod t _ body) (type-expr C t mod body)]
       [(or (class _ _ _ _ _ _ body)
-           (interface _ _ _ _ _ body)) (type-expr C mod body)]
-      [(cunit _ _ body) (type-expr C mod body)]
+           (interface _ _ _ _ _ body)) (type-expr C mrtn mod body)]
+      [(cunit _ _ body) (type-expr C mrtn mod body)]
     
-      [(fieldaccess _ left field) (type-expr C mod (get-type-field C mod (curry type-expr C mod) all-cinfo ast 'Read))]
+      [(fieldaccess _ left field) (type-expr C mrtn mod (get-type-field C mod (curry type-expr C mod) all-cinfo ast 'Read))]
     
-      [(classcreate e class params) (type-expr C mod (let ([confunt (funt "" (map (curry type-expr C mod) params))]
+      [(classcreate e class params) (type-expr C mrtn mod (let ([confunt (funt "" (map (curry type-expr C mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
                                       (define thing (assoc confunt class-consts))
                                       (match thing
@@ -403,11 +404,11 @@
                                                                                           (c-errorf "Invalid call to protected constructor of class ~a from ~a" class C))]
                                         [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)])))]
       
-      [(constructor e scope methoddecl body) (type-expr C mod body)]
+      [(constructor e scope methoddecl body) (type-expr C mrtn mod body)]
     
       [_ (error "Type Checker Not Implemented")]))
 
-  (for-each (lambda (cinfo) (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) (print-ast (info-ast cinfo) "") (type-expr (info-name cinfo) empty (cunit-body (info-ast cinfo)))) all-cinfo))
+  (for-each (lambda (cinfo) (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) (print-ast (info-ast cinfo) "") (type-expr (info-name cinfo) empty empty (cunit-body (info-ast cinfo)))) all-cinfo))
 
      
                                                 
