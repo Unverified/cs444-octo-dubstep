@@ -209,6 +209,9 @@
   (define (can-assign? T S)
     (printf "can-assign? ~a ~a~n" T S)
     (match (list T S)
+      [(list (ftype t1) (ftype t2)) (can-assign? t1 t2)]
+      [(list (ftype t1) t2) (can-assign? t1 t2)]
+      
       ;;can assign null to rtype
       [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
    
@@ -225,7 +228,8 @@
       [(list (ptype 'short) (ptype 'byte)) #t]
       [(list (ptype 'int) (ptype 'byte)) #t]
       [(list (ptype _) (ptype 'null)) #f]
-      [(list (ptype _) (ptype _)) (type-ast=? T S)]
+      [(list (ptype _) (ptype _)) (printf "doing magic here ~a~n" (type-ast=? T S))
+                                  (type-ast=? T S)]
      ; [(list (ptype _) (ptype _)) (not (num-type<? T S))]
       ;;Cannot assign ptype to an rtype, except null
       [(list (rtype _) (ptype _)) #f]
@@ -275,30 +279,13 @@
       [(varassign _ id expr)
        (let ([var-type (type-expr C mod id)])
          (if (can-assign? var-type (type-expr C mod expr))
-             var-type
+             (if (ftype? var-type) (ftype-type var-type) var-type)
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mod expr))))]
-
-;      [(varuse _ id)
-;       (define p (assoc id (envs-vars (ast-env ast))))
-;       (cond
-;         [(list? p)
-;           (let* ([is-var-local (eval-local? (second p))]
-;                  [var-ast (eval-ast (second p))])
-;             (cond
-;               [(and (varassign? var-ast) 
-;                     (equal? mod (list 'static)) 
-;                     (not is-var-local) 
-;                     (not (equal? (vdecl-mod (varassign-id var-ast)) 'static))) (c-errorf "Cannot use a non static field in a static method.")]
-;               [else (match (assoc id (envs-types (ast-env ast)))
-;                       [#f (c-errorf "Unbound Identifier")]
-;                       [(list a b) (printf "VARUSE IS: ~a~n" b) b])]))]
-;         [else (match (assoc id (envs-types (ast-env ast)))
-;                 [#f (c-errorf "Unbound Identifier")]
-;                 [(list a b) (printf "VARUSE IS: ~a~n" b) b])])]
+    
       [(varuse _ id)
        (match (assoc id (envs-types (ast-env ast)))
          [#f (c-errorf "Unbound Identifier")]
-         [(list a (ptype 'fail)) (c-errorf "Variable used within own assign statement ~a" id)]
+         ;[(list a (ftype _)) (c-errorf "Variable used within own assign statement ~a" id)]
          [(list a b) (printf "VARUSE IS: ~a~n" b) b])]
     
       [(literal _ type _) type]

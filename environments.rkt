@@ -19,11 +19,13 @@
 (provide (struct-out eval))
 (provide (struct-out envs))
 (provide (struct-out funt))
+(provide (struct-out ftype))
 
 (provide gen-top-ast-env)
 (provide method-check?)
 (provide field-check?)
 
+(struct ftype (type) #:prefab)
 (struct funt (id argt)   #:prefab)
 (struct eval (scope local? ast) #:prefab)
 (struct envs (types vars methods constructors))
@@ -84,12 +86,16 @@
                                                        (envs (append (envs-types e) (list (list id (rtype (append package (list id)))))) (envs-vars e) (envs-methods e) (envs-constructors e)))]
     [(block _ id bdy) (_gen-class-env id bdy env-empty)]))
 
-(define (create-fail-var env)
-  (let ([failiure (list (first (first (envs-types env))) (ptype 'fail))])
-    (envs (cons failiure (rest (envs-types env)))
-          (envs-vars env) 
-          (envs-methods env) 
-          (envs-constructors env))))
+(define (push-ftype env)
+  (let* ([old-entry (first (envs-types env))]
+         [new-entry (list (first old-entry) (ftype (second old-entry)))]
+         [new-env(envs (cons new-entry (rest (envs-types env)))
+                       (envs-vars env) 
+                       (envs-methods env) 
+                       (envs-constructors env))])
+    (printf "ADDING TYPEF!~N")
+    (envs-print new-env)
+    new-env))
 
 (define (gen-top-ast-env senv cenv ast)
   (define (_va bid cenv ast)
@@ -99,7 +105,7 @@
       
       [(varassign _ id bdy) (let* ([newid (_va bid cenv id)]
                                    [backenv (if (vdecl? newid) (ast-env newid) cenv)]
-                                   [foreenv (if (vdecl? newid) (create-fail-var (ast-env newid)) cenv)])
+                                   [foreenv (if (vdecl? newid) (push-ftype (ast-env newid)) cenv)])
                               (varassign backenv newid (_va bid foreenv bdy)))]
       
       [(binop _ op left right) (binop (env-append senv cenv)
@@ -160,8 +166,10 @@
       [(vdecl _ x y type id) (let ([new-env (add-env-variable lenv id block-id type ast #t)])
                                (vdecl new-env x y type id))]
       
-      [(varassign _ id bdy) (let ([newid (_va block-id lenv id)])
-                              (varassign (if (vdecl? newid) (ast-env newid) lenv) newid (_va block-id (ast-env newid) bdy)))]
+      [(varassign _ id bdy) (let* ([newid (_va block-id lenv id)]
+                                   [backenv (if (vdecl? newid) (ast-env newid) lenv)]
+                                   [foreenv (if (vdecl? newid) (push-ftype (ast-env newid)) lenv)])
+                              (varassign backenv newid (_va block-id foreenv bdy)))]
       
       [(binop _ op left right) (binop (env-append cenv lenv)
                                       op
