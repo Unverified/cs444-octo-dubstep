@@ -315,7 +315,7 @@
                       
     (match ast
       [(this _ type) type]
-      [(vdecl _ _ _ type _) (type-expr C mrtn mod type)]
+      [(vdecl _ _ _ type _) type]
     
       
       [(varassign _ (fieldaccess _ left field) val)
@@ -327,14 +327,13 @@
       [(varassign _ id expr)
        (let ([var-type (type-expr C mrtn mod id)])
          (if (can-assign? var-type (type-expr C mrtn mod expr))
-             (type-expr C mrtn mod (if (ftype? var-type) (ftype-type var-type) var-type))
+             (if (ftype? var-type) (ftype-type var-type) var-type)
              (c-errorf "Type Mismatch in Assignment ~a ~a" var-type (type-expr C mrtn mod expr))))]
     
       [(varuse _ id)
-       (type-expr C mrtn mod (match (assoc id (envs-types (ast-env ast)))
+       (match (assoc id (envs-types (ast-env ast)))
          [#f (c-errorf "Unbound Identifier")]
-         ;[(list a (ftype _)) (c-errorf "Variable used within own assign statement ~a" id)]
-         [(list a b) (printf "VARUSE IS: ~a~n" b) b]))]
+         [`(,x ,y) y])]
     
       [(literal _ type _) type]
       ;[(or (rtype '("java" "lang" "Integer"))) (ptype 'int)]
@@ -365,27 +364,27 @@
                                            (ptype 'void)
                                            (c-errorf "For test not Boolean!"))]
      
-      [(unop _ op right) (type-expr C mrtn mod (test-un-op op (type-expr C mrtn mod right)))]
-      [(binop _ op left right) (type-expr C mrtn mod (perform-bin-op op (type-expr C mrtn mod left) (type-expr C mrtn mod right)))]
-      [(parameter _ type _) (type-expr C mrtn mod type)]
+      [(unop _ op right) (test-un-op op (type-expr C mrtn mod right))]
+      [(binop _ op left right) (perform-bin-op op (type-expr C mrtn mod left) (type-expr C mrtn mod right))]
+      [(parameter _ type _) type]
     
     
       [(block _ _ statements) (begin (map (curry type-expr C mrtn mod) statements) (ptype 'void))]
       [(arrayaccess _ left index) (if (whole-number? (type-expr C mrtn mod index)) 
                                       (if (atype? (type-expr C mrtn mod left)) 
-                                          (type-expr C mrtn mod (atype-type (type-expr C mrtn mod left))) 
+                                          (atype-type (type-expr C mrtn mod left))
                                           (c-errorf "Array type expected")) 
                                       (c-errorf "Array index expects type int"))]
+      [(return _ empty) (ptype 'void)]
       [(return _ expr) (let* ([rtn-type (type-expr C mrtn mod expr)])
                          (cond
                            [(equal? rtn-type (ptype 'void)) (c-errorf "Method return cannot return type void.")]
                            [(not (can-assign? mrtn rtn-type)) (c-errorf "Return type \"~a\" of method is not equal to a return statements return type \"~a\"." mrtn rtn-type)]
                            [else rtn-type]))]
-      [(return _ `()) (ptype 'void)]
       [(arraycreate _ type size) (begin (type-expr C mrtn mod type) (if (whole-number? (type-expr C mrtn mod size)) 
                                                           (atype (type-expr C mrtn mod type))   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
-      [(methodcall _ left _ args) (type-expr C mrtn mod (get-type-method C mod (curry type-expr C mrtn mod) all-cinfo ast))]
+      [(methodcall _ left _ args) (get-type-method C mod (curry type-expr C mrtn mod) all-cinfo ast)]
            
       [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]
       [(method _ _ mod t _ body) (type-expr C t mod body)]
@@ -393,9 +392,9 @@
            (interface _ _ _ _ _ body)) (type-expr C mrtn mod body)]
       [(cunit _ _ body) (type-expr C mrtn mod body)]
     
-      [(fieldaccess _ left field) (type-expr C mrtn mod (get-type-field C mod (curry type-expr C mrtn mod) all-cinfo ast 'Read))]
+      [(fieldaccess _ left field) (get-type-field C mod (curry type-expr C mrtn mod) all-cinfo ast 'Read)]
     
-      [(classcreate e class params) (type-expr C mrtn mod (let ([confunt (funt "" (map (curry type-expr C mrtn mod) params))]
+      [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C mrtn mod) params))]
                                           [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
                                       (define thing (assoc confunt class-consts))
                                       (match thing
@@ -403,7 +402,7 @@
                                         [`(,_ ,(eval _ _ (constructor _ `protected _ _))) (if (same-package? (rtype-type class) C) 
                                                                                           class 
                                                                                           (c-errorf "Invalid call to protected constructor of class ~a from ~a" class C))]
-                                        [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)])))]
+                                        [_ (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)]))]
       
       [(constructor e scope methoddecl body) (type-expr C mrtn mod body)]
     
