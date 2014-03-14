@@ -18,6 +18,7 @@
 (provide methodcall->funt)
 (provide (struct-out eval))
 (provide (struct-out envs))
+(provide (struct-out funt))
 
 (provide method-check?)
 
@@ -184,7 +185,7 @@
 
 ;(: add-env-const : envs methoddeclaration symbol ast -> envs )
 (define (add-env-const envt mdecl scope ast)
-  (let ([key (mdecl->funt mdecl)]
+  (let ([key  (funt "" (funt-argt (mdecl->funt mdecl)))]
         [value (eval scope ast)])
     (if (false? (assoc key (envs-constructors envt)))
         (env-append (envs empty empty empty `((,key ,value))) envt)

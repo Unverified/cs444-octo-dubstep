@@ -259,7 +259,11 @@
          [#f (c-errorf "Unbound Field Access ~a" field)]
          [(list a b) b])]
     
-      [(classcreate e class params) (error "Classcreate not implemented")]
+      [(classcreate e class params) (let ([confunt (funt "" (map (curry type-expr C) params))]
+                                          [class-consts (envs-constructors (info-env (find-info (rtype-type class) all-cinfo)))])
+                                      (cond [(pair? (assoc confunt class-consts))  class]
+                                            [else (c-errorf "~a constructor type not found ~a" (string-join (rtype-type class) ".") confunt)]))]
+      
       [(constructor e scope methoddecl body) (type-expr C body)]
     
       [_ (error "Type Checker Not Implemented")]))
