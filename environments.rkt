@@ -49,10 +49,11 @@
 
 (define (field-check? F s-proc eqs field-ast env)
   (let* ([field (fieldaccess-field field-ast)]
-         [field-ast (eval-ast (second (assoc field (envs-vars env))))])
+         [thing-ast (eval-ast (second (assoc field (envs-vars env))))])
     (cond
-      [(ast? field-ast) (equal? eqs (s-proc field-ast))]
-      [else (error "In field-check?, could not find field vdecl in envs-vars" field-ast)]))) 
+      (printf "THING: ~a~n" thing-ast)
+      [(varassign? thing-ast) (equal? eqs (s-proc (varassign-id thing-ast)))]
+      [else (error "In field-check?, could not find field vdecl in envs-vars" thing-ast)]))) 
 
 (define (mdecl->funt mdecl)
   (match-let ([(methoddecl _ id params) mdecl])
@@ -76,10 +77,10 @@
               (vdecl _ _ _ type id)) ,rst ...)       (_gen-class-env scope rst (add-env-variable envt id scope type (first asts)))]
       [`(,_ ,rst ...) (_gen-class-env scope rst envt)]))
   (match ast
-    [(cunit _ _ b) (gen-class-envs b)]
-    [(or (class _ _ _ id _ _ b)
-         (interface _ _ _ id _ b)) (let ([e (gen-class-envs b)])
-                                     (envs (cons (list id ast) (envs-types e)) (envs-vars e) (envs-methods e) (envs-constructors e)))]
+   ; [(cunit _ _ b) (gen-class-envs b)]
+    [(or (cunit package _ (class _ _ _ id _ _ b))
+         (cunit package _ (interface _ _ _ id _ b))) (let ([e (gen-class-envs b)])
+                                     (envs (append (envs-types e) (list (list id (rtype (append package (list id)))))) (envs-vars e) (envs-methods e) (envs-constructors e)))]
     [(block _ id bdy) (_gen-class-env id bdy env-empty)]))
 
 (define (mdecl->envs scope decl)
