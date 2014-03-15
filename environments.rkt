@@ -139,7 +139,7 @@
                                                        (ast-env newnode)) (rest asts))))]))
   
   (match ast
-    [(cunit pack imps body) (cunit pack imps (gen-top-ast-env cenv senv env body))]
+    [(cunit pack imps body) (cunit pack imps (gen-top-ast-env senv cenv env body))]
     [(class e scp mod id ex imp bdy) (class cenv scp mod id ex imp (gen-top-ast-env senv (sanatize-vars cenv) cenv bdy))]
     [(interface e scp mod id ex bdy) (interface cenv scp mod id ex (gen-top-ast-env senv (sanatize-vars cenv) cenv bdy))]
     [(block e id s) (block cenv id (_top-list id cenv s))]))
