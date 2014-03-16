@@ -16,6 +16,24 @@
     [`(,(atype ta) ,(atype tb)) (type-ast=? ta tb)]
     [_ #f]))
 
+(define (can-shadow-1? m1 m2)
+  (match-let ([(method _ s1 _ _ _ _) m1]
+              [(method _ s2 _ _ _ _) m2])
+    (cond
+      [(and (equal? s1 'protected) (equal? s2 'public)) (c-errorf "subclass can not lower ~a ~a" s1 s2)]
+      [else (can-shadow-2? m1 m2)])))
+
+(define (can-shadow-2? m1 m2)
+  (match-let ([(method _ _ m1 t1 _ _) m1]
+              [(method _ _ m2 t2 _ _) m2])
+    (cond
+      [(not (type-ast=? t1 t2)) (c-errorf "return types not equal ~a ~a" t1 t2)]
+      [(not (compare-method-modifier-lists m2 m1)) (c-errorf "shadowed methods mods are messed yo")]
+      [else #t])))
+
+(define (abstract? meth)
+  (equal? (list 'abstract) (method-mod meth)))
+
 ;======================================================================================
 ;==== Getter Helpers
 ;======================================================================================
@@ -81,8 +99,8 @@
         [implements (get-implements (info-ast cinfo))])
     (let* ([superclass-info (check-class-info classpath (lookup-cunit-env gen-full-class-info classpath root extends))]
            [interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements))]
-           [linked-envs (foldr combine-envs env-empty (map info-env (cons superclass-info interface-infos)))]
-           [cenv (combine-envs linked-envs (info-env cinfo))])
+           [linked-envs (foldl (curry combine-envs combine-impl-meths) env-empty (map info-env (cons superclass-info interface-infos)))]
+           [cenv (combine-envs combine-all-meths linked-envs (info-env cinfo))])
 
       (printf "EXTENDS: ~a~n" extends)
       (if (empty? extends) (void) (check-constructor-super (info-env superclass-info)))
@@ -102,7 +120,7 @@
     (define interface-infos (check-interfaces-info implpath (map (curry lookup-cunit-env gen-full-interface-info implpath root) extends)))
 
     ((compose1
-     (curryr set-cinfo-env (foldr combine-envs (info-env cinfo) (check-empty-interface-envs root (info-env cinfo) (map info-env interface-infos))))
+     (curryr set-cinfo-env (foldr (curry combine-envs combine-all-meths) (info-env cinfo) (check-empty-interface-envs root (info-env cinfo) (map info-env interface-infos))))
      (curryr set-cinfo-impls 'Interface)
      (curryr set-cinfo-supers (append-map info-path interface-infos)))
      cinfo)))
@@ -114,39 +132,55 @@
 
 (define (check-empty-interface-envs root cenv interface-envs)
   (cond
-    [(envs? (combine-envs (info-env (find-info (list "java" "lang" "Object") root)) cenv)) interface-envs]
+    [(envs? (combine-envs combine-all-meths (info-env (find-info (list "java" "lang" "Object") root)) cenv)) interface-envs]
     [else interface-envs]))
 
 
 (define (check-heirarchies class-info)
  (map (curry check-heriarchy class-info) class-info))
 
+(define (combine-all-meths take-from par env)
+  (match par
+    [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
+    [`(,x ,y) (cond
+                [(can-shadow-1? (eval-ast (second x)) (eval-ast (second y))) env]
+                [else (c-errorf "Cannot shadow method")])]))
+
+(define (combine-impl-meths take-from par env)
+  (match par
+    [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
+    [`(,c ,impl) (let ([c-ast (eval-ast (second c))]
+                       [impl-ast (eval-ast (second impl))]
+                       [p (assoc (first impl) (envs-types take-from))])
+                   (cond
+                     [(and (abstract? c-ast) (abstract? impl-ast) (can-shadow-2? c-ast impl-ast))
+                      (envs (cons p (remove p (envs-types env)))
+                            (envs-vars env)
+                            (cons impl (remove impl (envs-methods env)))
+                            (envs-constructors env))]
+                     [else (combine-all-meths take-from par env)]))]))
+
+(define (combine-fields take-from par env)
+  (match par
+    [`(,key ,value) (env-append env (envs (list (assoc key (envs-types take-from))) (list par) empty empty))]))
+
 ;combines two environments by merging in methods and fields. Checks that methods are shadowed properly
-(define (combine-envs take-from combine-in)
-  (envs-print take-from)
+(define (combine-envs combmeth-proc take-from combine-in)
   (define methods (map first (envs-methods take-from)))
   (define method-pairs (map (lambda (x) (list (assoc x (envs-methods combine-in)) (assoc x (envs-methods take-from)))) methods))
-  (define (can-shadow? m1 m2)
-    (match-let ([(method _ s1 m1 t1 _ _) m1]
-                [(method _ s2 m2 t2 _ _) m2])
-      (cond
-        [(and (equal? s1 'protected) (equal? s2 'public)) (c-errorf "subclass can not lower ~a ~a" s1 s2)]
-        [(not (type-ast=? t1 t2)) (c-errorf "return types not equal ~a ~a" t1 t2)]
-        [(not (compare-method-modifier-lists m2 m1)) (c-errorf "shadowed methods mods are messed yo")]
-        [else #t])))
   
-  (define (combine-step par env)
-    (match par
-      [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
-      [`(,x ,y)  (if (can-shadow? (eval-ast (second x)) (eval-ast (second y))) 
-                     env 
-                     (c-errorf "Cannot shadow method"))]))
+  (printf "ENVS BEFORE:~n")
+  (envs-print combine-in)
+  (define new-env (foldr (curry combine-fields take-from) 
+         (foldr (curry combmeth-proc take-from) 
+                combine-in 
+                method-pairs) 
+         (envs-vars take-from)))
 
-  (define (combine-fields par env)
-    (match par
-      [`(,key ,value) (env-append env (envs (list (assoc key (envs-types take-from))) (list par) empty empty))]))
-  
-  (foldr combine-fields (foldr combine-step combine-in method-pairs) (envs-vars take-from)))
+  (printf "ENVS AFTER:~n")
+  (envs-print new-env)
+
+  new-env)
 
 ;======================================================================================
 ;==== Error Checking Helpers 

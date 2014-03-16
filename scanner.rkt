@@ -1,5 +1,6 @@
 #lang racket
 
+(require "errorf.rkt")
 (require "machine.rkt")
 
 (provide token)
@@ -32,6 +33,44 @@
 (define (num-oct? c) (in-range? (char->integer #\0) (char->integer #\8) c))
 (define (num-0to3? c) (in-range? (char->integer #\0) (char->integer #\4) c))
 
+(define (convert-to-long original lexeme)
+  (if (member (last lexeme) '(#\l #\L))
+      (token 'long-lit (list->string (reverse (rest (reverse lexeme)))))
+      (token original (list->string lexeme))))
+
+(define (create-token tkn-sym lexeme)
+  (match tkn-sym
+    ['decimal-lit (convert-to-long 'decimal-lit (string->list lexeme))]
+    ['octal-lit (convert-to-long 'octal-lit (string->list lexeme))]
+    ['hex-lit (convert-to-long 'hex-lit (string->list lexeme))]
+    ['char-lit (token 'char-lit (list->string (escape-chars (string->list lexeme))))]
+    ['string-lit (token 'string-lit (list->string (escape-chars (string->list lexeme))))]
+    [x (token x lexeme)]))
+
+(define (scanner m char-list)
+  (define (scan cl state lexeme)
+    (let* ([next-state (if (not (empty? cl)) (process-char-hash m state (first cl)) #f)]
+           [tkn-sym (if (false? next-state) (get-md-hash m state) #f)])
+
+      (cond
+        [(empty? cl) empty]
+        [(not (ascii? (first cl))) (c-errorf "Invalid Character!")]
+        [(symbol? next-state)
+            (scan (rest cl) next-state (string-append lexeme (make-string 1 (first cl))))]
+        [(not (or (equal? tkn-sym 'whitespace) (equal? tkn-sym 'comment))) 
+            (cons (create-token tkn-sym lexeme)
+                  (scan (rest cl) (process-char-hash m (machine-start m) (first cl)) (make-string 1 (first cl))))]
+        [else (scan (rest cl) (process-char-hash m (machine-start m) (first cl)) (make-string 1 (first cl)))])))
+
+  ;(define tokens (scan char-list (machine-start m) ""))
+  ;(print-tokens tokens))
+  (scan char-list (machine-start m) ""))
+  
+  ;(define result (memf (lambda (token) (equal? TOKEN_NONE (token-type token))) tokens))
+  ;(cond
+  ;  [(list? result) #f]
+  ;  [else tokens]))
+
 ;(: escape-chars : (Listof Char) -> (Listof Char))
 (define (escape-chars cl)
   ;(: match-octal : Nat (Listof Char) -> (Listof Char))
@@ -57,43 +96,3 @@
                               [value (list->octal octal)])
                          (cons value (escape-chars (list-tail x (length octal)))))]
     [x (cons (first x) (escape-chars (rest x)))]))
-
-
-(define (convert-to-long original lex-cl)
-  (if (member (first lex-cl) '(#\l #\L))
-      (token 'long-lit (list->string (reverse (rest lex-cl))))
-      (token original (list->string (reverse lex-cl)))))
-
-(define (scanner m cl)
-  (letrec ([create-token (lambda (state lex-cl)
-                             (match (second (get-md m state))
-                               ['decimal-lit (convert-to-long 'decimal-lit lex-cl)]
-                               ['octal-lit (convert-to-long 'octal-lit lex-cl)]
-                               ['hex-lit (convert-to-long 'hex-lit lex-cl)]
-                               ['char-lit (token 'char-lit (list->string (escape-chars (reverse lex-cl))))]
-                               ['string-lit (token 'string-lit (list->string (escape-chars (reverse lex-cl))))]
-                               [x (token x (list->string (reverse lex-cl)))]))]
-           [get-token (lambda (cl state lexeme ccp)
-                        (cond 
-                          [(empty? cl) (cond
-                                         [(empty? lexeme) (ccp (list (token 'EOF "") cl))]
-                                         [(empty? state)  (ccp null)]
-                                         [(is-state-accepting m (first state)) (ccp (list (create-token (first state) lexeme) cl))]
-                                         [else (ccp null)])]
-                          [(empty? state) (ccp null)]
-                          [(not (ascii? (first cl))) (error "Invalid Character!")]
-                          [(is-state-accepting m (first state)) (let ([tok (call/cc (lambda (cc) (get-token (rest cl) (process-char m (first state) (first cl)) (cons (first cl) lexeme) cc)))])
-                                                                  (cond
-                                                                    [(and (null? tok) (empty? lexeme)) (error "invalid char")]
-                                                                    [(null? tok) (ccp (list (create-token (first state) lexeme) cl))]
-                                                                    [(pair? tok) (ccp tok)]))]
-                          [else (get-token (rest cl) (process-char m (first state) (first cl)) (cons (first cl) lexeme) ccp)]))]
-           [scan (lambda (cl)
-                   (cond [(empty? cl) empty]
-                         [else (let ([tok (call/cc (lambda (cc) (get-token cl (list (machine-start m)) empty cc)))]) 
-                                 (if (null? tok)
-                                     (error "invalid token")
-                                     (cons (first tok) (scan (second tok)))))]))]) 
-    (with-handlers ([exn:fail? (lambda (exn) #f)])
-                   (filter-not (lambda (x) (or (equal? 'whitespace (token-type x)) (equal? 'comment (token-type x)))) 
-                               (scan cl)))))

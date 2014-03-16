@@ -10,12 +10,14 @@
 (provide copy-machine)
 (provide nfa->dfa)
 (provide get-md)
+(provide get-md-hash)
 
 (provide m-add-new-start)
 (provide m-add-epsilon-transitions)
 
 (provide opt)
 (provide process-char)
+(provide process-char-hash)
 (provide dfa-process-sym)
 (provide is-state-accepting)
 (provide get-m-md-As)
@@ -26,6 +28,7 @@
 (provide m-add-transitons)
 (provide (struct-out transition))
 (provide (struct-out machine))
+(provide get-t-key)
 
 
 (define epsilon #\ε)
@@ -34,6 +37,22 @@
 ;(struct: machine ([states : (Listof Symbol)] [start : Symbol] [accepting : (Listof Symbol)] [transitions : (Listof transition)] [md : (Listof (Pair Symbol A)]))
 (struct machine (states start accepting transitions md) #:prefab)
 
+(define (get-t-key t)
+  (list (transition-from t) (transition-char t)))
+
+;(: process-char : machine Symbol Char -> Symbol)
+(define [process-char-hash m state char]
+  (define trans (hash-ref (machine-transitions m) (list state char) #f))
+  (cond
+    [(false? trans) #f]
+    [else (first trans)]))
+
+;(: get-md : machine Symbol -> A)
+(define (get-md-hash m s)
+  (define md (hash-ref (machine-md m) s #f))
+  (cond
+    [(false? md) #f]
+    [else (first md)]))
 ;==============================================================================================
 ;==== Machine Processing
 ;==============================================================================================
@@ -85,6 +104,7 @@
   (cond
     [(transition? tran) (transition-to tran)]
     [else #f]))
+
 
 ;(: process-char : machine Symbol Char -> (Listof Symbol))
 (define [process-char m state char]

@@ -39,7 +39,7 @@
                           (or (check-protected all-cinfo C rt (envs-methods cenv) (envs-methods rt-env) meth-funt )
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access method that is not public.")])]
-      [_ (c-errorf "No Function of that name")]))
+      [_ (c-errorf "No Function of that name ~a" meth-funt)]))
 
   (define (type-static-method rt)
     (define rt-env (get-rt-env rt))
@@ -54,7 +54,7 @@
                               (superclass? all-cinfo C (rtype-type rt))
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access method that is not public.")])]
-      [_ (c-errorf "No Function of that name")]))
+      [_ (c-errorf "No Function of that name~a" meth-funt)]))
 
   (define left (methodcall-left methcall-ast))
   (cond
@@ -310,7 +310,7 @@
         [(list 'plus (or (rtype _) (atype _) (ptype _)) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
         
         ;;Can apply == and != to bool/bool:
-        [(list (or 'eqeq 'noteq 'barbar 'ampamp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
+        [(list (or 'eqeq 'noteq 'barbar 'ampamp 'bar 'amp) (ptype 'boolean) (ptype 'boolean)) (ptype 'boolean)]
         
         ;;cann apply == and != to reference/reference:
         [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (if (or (castable? t1 t2 (ast-env ast)) (castable? t2 t1 (ast-env ast))) (ptype 'boolean) (c-errorf "Attempt to perform equality operator ~a on non-castable types ~a ~a" op t1 t2))]
@@ -318,7 +318,6 @@
         ;;TODO: Verify that binops on two numerics behave like we think they do!
         [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
         [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
-        [(list (or 'bar 'amp) _ _) (c-errorf "Bitwise operation detected: ~a" op)]
         [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
     
     (define (test-specific-bin-op type left right err-string)

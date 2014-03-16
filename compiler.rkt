@@ -17,6 +17,8 @@
 
 (provide (struct-out info))
 
+(define m-scanner (all-tokens-machine))
+
 ;==============================================================================================
 ;==== Parse Command Line
 ;==============================================================================================
@@ -42,7 +44,7 @@
 ;Runs the scanner, checks if the scanner properly scanned the tokens, then either calles error or
 ;returns the tokens
 (define (run-scanner chars)
-  (define tokens (scanner (all-tokens-machine) chars))
+  (define tokens (scanner m-scanner chars))
   (cond
     [(list? tokens) tokens]
     [else (c-errorf "Scanner Failed")]))
@@ -111,7 +113,6 @@
   (last (regexp-split #px"/" filepath)))
 
 (define (do-import-stuff ast)
-  (display "DONE PARSING FILE\n" (current-error-port))
   (define (same-imports x y)
     (match (list x y)
       [(or `(,(cimport x) ,(cimport y))
@@ -124,7 +125,7 @@
   (define parse-tree (run-parser (run-scanner clist)))
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
-(define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
+(define asts (append (map parse-file files-to-compile)(all-stdlib-asts)))
 ;(define asts (map parse-file files-to-compile))
 
 (printf "~n============== PRINTING ASTS ==============~n")

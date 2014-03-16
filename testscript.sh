@@ -72,7 +72,7 @@ do
 
   echo "Running compiler with files:"
   echo "$test_files"
-  echo "$STDLIB"
+#  echo "$STDLIB"
     
   racket compiler.rkt $test_files > $FAILED_TEST_DIR/temp.out
   test_output=$?

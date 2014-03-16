@@ -5,7 +5,6 @@
 (require "machine.rkt")
 
 (provide all-tokens-machine)
-(define all-tokens-regexes (append keywords operators literals separators))
 
 (define dfa-file (string->path "tokens.dfa"))
 (define (all-tokens-machine) 
@@ -13,9 +12,18 @@
       (let* ([in (open-input-file dfa-file)]
              [dfa (read in)])
         (close-input-port in)
-        dfa)
+        (dfa->hashed-dfa dfa))
       (let ([dfa (normalize-m-md (copy-machine (nfa->dfa (union (map (lambda (x) (copy-machine (opt (string->machine (second x) (first x))))) token-exps)))))]
             [out (open-output-file dfa-file)])
         (write dfa out)
         (close-output-port out)
-        dfa)))
+        (dfa->hashed-dfa dfa))))
+
+(define (dfa->hashed-dfa m)
+  (machine (machine-states m)
+           (machine-start m)
+           (machine-accepting m)
+           (make-hash (map (lambda(t) (list (get-t-key t) (transition-to t))) (machine-transitions m)))
+           (make-hash (machine-md m))))
+
+  
