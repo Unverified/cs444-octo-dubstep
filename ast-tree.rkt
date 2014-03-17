@@ -227,7 +227,7 @@
 
 (define (simplify-ast t)
   (match t
-    [`() (c-errorf "simplify-ast matched an empty list, it should not get to this point.")] 
+    [`() (error "simplify-ast matched an empty list, it should not get to this point.")] 
     [(binop e op lhs rhs) (let ([left (simplify-ast lhs)]
                                 [right (simplify-ast rhs)])
                             (if (and (literal? left) (literal? right))
@@ -238,8 +238,39 @@
                        (if (literal? right) 
                            (reduce-unop e op right) 
                            (unop e op right)))]
+
+    [(cast e ct rhs) (let ([right (simplify-ast rhs)])
+                      (if (literal? right)
+                          (cast-lit e ct (literal-value right))
+                          (cast e ct right)))]
     
     [_ (ast-transform simplify-ast t)]))
+
+(define (cast-lit e ct val)
+  (match ct
+    [(ptype 'int) (literal e ct (cast-int val))]
+    [(ptype 'short) (literal e ct (cast-short val))]
+    [(ptype 'byte) (literal e ct (cast-byte val))]
+    [(ptype 'char) (literal e ct (cast-char val))]
+    [_ (literal e ct val)]))
+
+(define (cast-int x)
+  (_truncate x -2147483648 2147483647))
+
+(define (cast-short x)
+  (_truncate x -32768 32767))
+
+(define (cast-byte x)
+  (_truncate x -128 127))
+
+(define (cast-char x)
+  (_truncate x 0 32767))
+
+(define (_truncate x _min _max)
+  (define y (bitwise-and x (+ 1 (* 2 _max))))
+  (cond
+    [(not (zero? (bitwise-and (- _min) y))) (bitwise-ior (bitwise-not (+ 1 (* 2 _max))) y)]
+    [else y]))
 
 
 (define (run-nonempty F expr)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-A=a1
+A=a4
 
 for file in in/$A/J1*
 do
