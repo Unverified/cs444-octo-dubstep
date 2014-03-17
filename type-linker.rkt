@@ -47,8 +47,6 @@
 
 (define (gen-typelink-list root ast)
   (printf "############ LINKING NAMES IN CLASS: ~a ############~n" (c-unit-name ast))
-  ;(printf "cimports ~a~n" (cunit-cimports ast))
-  ;(printf "pimports ~a~n" (cunit-pimports ast))
   (define root-nodef (filter-not (compose1 (curry equal? 1) length) root))
   (let ([root-lnk    (map (lambda (x) (pair x (const x))) root)]
         [class-lnk   (list (pair (list (get-class-name ast)) (const (c-unit-name ast))))]

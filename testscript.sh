@@ -74,7 +74,7 @@ do
   echo "$test_files"
 #  echo "$STDLIB"
     
-  racket compiler.rkt $test_files > $FAILED_TEST_DIR/temp.out
+  racket compiler.rkt $test_files  > $FAILED_TEST_DIR/temp.out
   test_output=$?
   expected_output=`cat $out_file`
 

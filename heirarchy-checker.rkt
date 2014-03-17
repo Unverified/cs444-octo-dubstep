@@ -9,7 +9,6 @@
 (provide check-heirarchies)
 
 (define (type-ast=? t1 t2)
-  (printf "type-ast=? ~a ~a~n" t1 t2)
   (match (list t1 t2)
     [`(,(ptype ta) ,(ptype tb)) (symbol=? ta tb)]
     [`(,(rtype ta) ,(rtype tb)) (equal? ta tb)]
@@ -86,14 +85,11 @@
 (define (check-constructor-super super-envs)
   (define super-cons (map first (envs-constructors super-envs)))
   (define empty-arg-cons (funt "" empty))
-  (printf "super-cons: ~a~n" super-cons )
-  (printf "empty-arg-cons: ~a~n" empty-arg-cons )
   (cond
     [(false? (member empty-arg-cons super-cons)) (c-errorf "Extends class must contain a zero argument constructor")]
     [else #f]))
 
 (define (gen-full-class-info root cinfo subclasses)
-  (printf "Checking Class Heir of ~a~n" (string-join (info-name cinfo) "."))
   (let ([classpath (extend-path (info-name cinfo) subclasses)]
         [extends (get-ast-extends (info-ast cinfo))]
         [implements (get-implements (info-ast cinfo))])
@@ -102,7 +98,6 @@
            [linked-envs (foldl (curry combine-envs combine-impl-meths) env-empty (map info-env (cons superclass-info interface-infos)))]
            [cenv (combine-envs combine-all-meths linked-envs (info-env cinfo))])
 
-      (printf "EXTENDS: ~a~n" extends)
       (if (empty? extends) (void) (check-constructor-super (info-env superclass-info)))
       
       ((compose1 
@@ -113,10 +108,8 @@
        cinfo))))
 
 (define (gen-full-interface-info root cinfo subimpls)
-  (printf "Checking Interface Heir For ~a~n" (string-join (info-name cinfo) "."))
   (let ([implpath (extend-path (info-name cinfo) subimpls)]
         [extends  (get-extends (info-ast cinfo))])
-    (printf "- - interface extends ~a~n" (map (curryr string-join ".") extends))
     (define interface-infos (check-interfaces-info implpath (map (curry lookup-cunit-env gen-full-interface-info implpath root) extends)))
 
     ((compose1
@@ -126,7 +119,6 @@
      cinfo)))
 
 (define (extend-path newele sub-path)
-  (printf "extending-path ~a to ~a~n" (string-join newele ".") (map (curryr string-join ".") sub-path))
   (cond [(occurs? newele sub-path) (c-errorf "Cycle detected ~a" (map (curryr string-join ".") (cons newele sub-path)))]
         [else (cons newele sub-path)]))
 
@@ -169,18 +161,11 @@
   (define methods (map first (envs-methods take-from)))
   (define method-pairs (map (lambda (x) (list (assoc x (envs-methods combine-in)) (assoc x (envs-methods take-from)))) methods))
   
-  (printf "ENVS BEFORE:~n")
-  (envs-print combine-in)
-  (define new-env (foldr (curry combine-fields take-from) 
+  (foldr (curry combine-fields take-from) 
          (foldr (curry combmeth-proc take-from) 
                 combine-in 
                 method-pairs) 
          (envs-vars take-from)))
-
-  (printf "ENVS AFTER:~n")
-  (envs-print new-env)
-
-  new-env)
 
 ;======================================================================================
 ;==== Error Checking Helpers 
@@ -200,7 +185,6 @@
 (define occurs? (compose list? member))
 
 (define (compare-method-modifier-lists base-list derived-list)
-  (printf "Base ~a~nDerived ~a~n" base-list derived-list)
   (not (or (occurs? 'final base-list)
            (and (occurs? 'static base-list) (not (occurs? 'static derived-list)))
            (and (occurs? 'static derived-list) (not (occurs? 'static base-list))))))

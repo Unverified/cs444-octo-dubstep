@@ -87,10 +87,7 @@
       [_ (c-errorf "Expression does not resolve to a class type.")]))
 
   (define (type-fieldaccess rt)
-    (printf "HERE AGAIN... ~a~n" rt)
-    (printf "HERE AGAIN... ~a~n" field-ast)
     (define rt-env (get-rt-env rt))
-    (printf "HERE AGAIN... ~a~n" rt-env)
     (define field (fieldaccess-field field-ast))
     (match (assoc field (envs-types rt-env))
       [(list a b) (cond
@@ -135,10 +132,6 @@
          (not (eval-local? (second asoc)))
          (not (equal? 'static (vdecl-mod id-vdecl)))))
 
-  (printf "NICK HERE!~n")
-  (print-ast ast "")
-  (printf "ENV!~n")
-  (envs-print (ast-env ast))
   (define asoc (assoc id (envs-vars (ast-env ast))))
   (cond
     [(false? asoc) #f]
@@ -155,7 +148,6 @@
   
   ;;num-type<? : ptype ptype -> Boolean
   (define (num-type<? pt1 pt2)
-    (printf "num-type<? ~a ~a~n" pt1 pt2) 
     (match (list (ptype-type pt1) (ptype-type pt2))
       [(list 'byte t) (list? (member t '(short int char long float double)))]
       [(list 'short t) (list? (member t '(int char long float double)))]
@@ -192,7 +184,6 @@
   
   ;;castable? (union ptype rtype atype) (union ptype rtype atype) envs -> Boolean
   (define (castable? T S env)
-    (printf "Castable? T: ~a S: ~a~n" T S)
     (match (list T S)
       [(list (or (atype _) (rtype _)) (ptype 'null)) #t]
       [(list (ptype sym1) (ptype sym2)) (cast-ptypes T S)]
@@ -224,25 +215,21 @@
   
   ;;super-interface? rtype rtype -> Boolean
   (define (super-interface? T S)
-    (printf "super-interface? T: ~a S: ~a~n" T S)
     (define S-interfaces-1 (info-impls (find-info (rtype-type S) all-cinfo)))
     (define S-interfaces (if (list? S-interfaces-1) S-interfaces-1 (list S-interfaces-1)))
-    (printf "S-interfaces: ~a~n" S-interfaces)
     (list? (member (rtype-type T) S-interfaces)))
   
   ;;rtype-can-assign? rtype rtype C-Lpat -> Boolean
   ;;checks to see if source rtype (S) can be assigned to target rtype (T)
   (define (rtype-can-assign? T S)
-    (printf "rtype-can-assign? ~a ~a~n" T S)
     (cond
       [(class-type? S) (if (class-type? T) (parent-of? T S)  (super-interface? T S))]
-      [(class-type? T)  (printf "~a is of class type~n" T) (type-ast=? T (rtype '("java" "lang" "Object")))]
+      [(class-type? T)  (type-ast=? T (rtype '("java" "lang" "Object")))]
       [else  (or (type-ast=? T S) (super-interface? T S))]))
   
   
   ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
   (define (can-assign? T S)
-    (printf "can-assign? ~a ~a~n" T S)
     (match (list T S)
       [(list (ftype t1) (ftype t2)) (can-assign? t1 t2)]
       [(list (ftype t1) t2) (can-assign? t1 t2)]
@@ -263,8 +250,7 @@
       [(list (ptype 'short) (ptype 'byte)) #t]
       [(list (ptype 'int) (ptype 'byte)) #t]
       [(list (ptype _) (ptype 'null)) #f]
-      [(list (ptype _) (ptype _)) (printf "doing magic here ~a~n" (type-ast=? T S))
-                                  (type-ast=? T S)]
+      [(list (ptype _) (ptype _)) (type-ast=? T S)]
      ; [(list (ptype _) (ptype _)) (not (num-type<? T S))]
       ;;Cannot assign ptype to an rtype, except null
       [(list (rtype _) (ptype _)) #f]
@@ -295,9 +281,6 @@
   
  ;;type-expr : ast -> (union ptype rtype atype)
   (define (type-expr C mrtn mod ast)
-    (printf "HERRERERE: ~n")
-    (ast-print-struct ast)
-
 
      ;;perform-bin-op: symbol (union rtype ptype atype) (union rtype ptype atype) -> (union rtype ptype atype)
     (define (perform-bin-op op t1 t2)
@@ -432,8 +415,6 @@
 
   (for-each (lambda (cinfo) 
               (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) 
-              (print-ast (info-ast cinfo) "") 
-              (envs-print (info-env cinfo)) 
               (type-expr (info-name cinfo) empty empty (cunit-body (info-ast cinfo)))) all-cinfo))
 
      
