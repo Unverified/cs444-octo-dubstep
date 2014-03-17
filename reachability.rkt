@@ -3,6 +3,7 @@
 (require "errorf.rkt")
 (require "ast-tree.rkt")
 (require "class-info.rkt")
+(require "heirarchy-checker.rkt")
 
 (provide reachability)
 
@@ -25,16 +26,19 @@
 
       [(method _ _ (not (or '(abstract) '(static native))) t md bdy) 
         (cond 
-          [(and (reach maybe bdy) (not (equal? (ptype-type t) 'void))) 
+          [(and (reach maybe bdy) (not (type-ast=? t (ptype 'void)))) 
            (c-errorf "Method: \"~a\" in class: \"~a\" does not have a return statement." (methoddecl-id md) (info-name cinfo))]
           [else no])]
 
       [(iff _ test tru '()) (reach in tru) in]
       [(iff _ test tru fls) (or (reach in tru) (reach in fls))]
 
-      [(while _ (literal _ (ptype 'boolean) "true") bdy) (reach in bdy) no]
-      [(while _ (literal _ (ptype 'boolean) "false") bdy) (c-errorf "Unreachable code in while loop.")]
-      [(while _ _ bdy) (reach in bdy) in]
+      [(or (while _ (literal _ (ptype 'boolean) "true") bdy)
+           (for _ _ (literal _ (ptype 'boolean) "true") _ bdy)) (reach in bdy) no]
+      [(or (while _ (literal _ (ptype 'boolean) "false") bdy)
+           (for _ _ (literal _ (ptype 'boolean) "false") _ bdy)) (c-errorf "Unreachable code in while(false)/for(;false;).")]
+      [(or (while _ _ bdy)
+           (for _ _ _ _ bdy)) (reach in bdy) in]
 
       [(return _ _) no]
 
