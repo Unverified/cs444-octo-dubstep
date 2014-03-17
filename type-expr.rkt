@@ -1,5 +1,6 @@
 #lang racket
 
+(require "types.rkt")
 (require "errorf.rkt")
 (require "class-info.rkt")
 (require "ast-tree.rkt")
@@ -9,8 +10,7 @@
 (provide type-check)
 
 (define (same-package? n1 n2)
-  (cond [(and (empty? n1) (empty? n2)) #t]
-        [(empty? n1) #f]
+  (cond [(empty? n1) #f]
         [(empty? n2) #f]
         [(and (empty? (rest n1)) (empty? (rest n2))) #t]
         [(equal? (first n1) (first n2)) (same-package? (rest n1) (rest n2))]
@@ -199,24 +199,7 @@
       [(list (atype typ1) (atype typ2)) (castable? typ1 typ2 env)]
       [(list (or (atype _) (rtype _)) (or (atype _) (rtype _))) (if (type-ast=? T S) #t (or (can-assign? T S) (can-assign? S T)))]
       [(list _ _) #f]))
-  
-  
-  ;;type-numeric? ptype->Boolean
-  (define (type-numeric? pt)
-    (define valid-types '(int short char byte long float double))
-    (match pt
-      [(ptype typ) (list? (member typ valid-types))]
-      [_ #f]))
-  
-  
-  ;;define whole-number? ptype-> Bool
-  (define (whole-number? pt)
-    (define valid-types '(int short char byte))
-    (match pt
-      [(ptype typ) (list? (member typ valid-types))]
-      [_ #f]))
-  
-  
+    
   ;;class-type? rtype -> Boolean
   (define (class-type? r)
     (list? (info-impls (find-info (rtype-type r) all-cinfo))))
@@ -236,7 +219,7 @@
     (printf "rtype-can-assign? ~a ~a~n" T S)
     (cond
       [(class-type? S) (if (class-type? T) (parent-of? T S)  (super-interface? T S))]
-      [(class-type? T)  (printf "~a is of class type~n" T) (type-ast=? T (rtype '("java" "lang" "Object")))]
+      [(class-type? T) (printf "~a is of class type~n" T) (type-ast=? T (rtype '("java" "lang" "Object")))]
       [else  (or (type-ast=? T S) (super-interface? T S))]))
   
   
@@ -316,7 +299,7 @@
         [(list (or 'eqeq 'noteq 'instanceof) (or (ptype 'null) (atype _) (rtype _)) (or (ptype 'null) (atype _) (rtype _))) (if (or (castable? t1 t2 (ast-env ast)) (castable? t2 t1 (ast-env ast))) (ptype 'boolean) (c-errorf "Attempt to perform equality operator ~a on non-castable types ~a ~a" op t1 t2))]
         
         ;;TODO: Verify that binops on two numerics behave like we think they do!
-        [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _)) (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
+        [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _))   (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
         [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
         [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
     
@@ -327,7 +310,7 @@
       (cond
         [(symbol=? op 'not) (if (type-ast=? (type-expr C mrtn mod right) (ptype 'boolean)) (ptype 'boolean)
                               (c-errorf "! operator expects type boolean"))]
-        [(symbol=? op 'minus) (if (type-numeric? (type-expr C mrtn mod right)) (type-expr C mrtn mod right)
+        [(symbol=? op 'minus) (if (type-numeric? (type-expr C mrtn mod right)) (ptype 'int)
                               (c-errorf "- operator expects numeric type"))]))
                         
                       
@@ -390,7 +373,7 @@
     
     
       [(block _ _ statements) (begin (map (curry type-expr C mrtn mod) statements) (ptype 'void))]
-      [(arrayaccess _ left index) (if (whole-number? (type-expr C mrtn mod index)) 
+      [(arrayaccess _ left index) (if (type-whole? (type-expr C mrtn mod index)) 
                                       (if (atype? (type-expr C mrtn mod left)) 
                                           (atype-type (type-expr C mrtn mod left))
                                           (c-errorf "Array type expected")) 
@@ -401,7 +384,7 @@
                            [(equal? rtn-type (ptype 'void)) (c-errorf "Method return cannot return type void.")]
                            [(not (can-assign? mrtn rtn-type)) (c-errorf "Return type \"~a\" of method is not equal to a return statements return type \"~a\"." mrtn rtn-type)]
                            [else rtn-type]))]
-      [(arraycreate _ type size) (begin (type-expr C mrtn mod type) (if (whole-number? (type-expr C mrtn mod size)) 
+      [(arraycreate _ type size) (begin (type-expr C mrtn mod type) (if (type-whole? (type-expr C mrtn mod size)) 
                                                           (atype (type-expr C mrtn mod type))   
                                                           (c-errorf "Array declaration expects numeric type for size")))]
       [(methodcall _ left _ args) (get-type-method C mod (curry type-expr C mrtn mod) all-cinfo ast)]

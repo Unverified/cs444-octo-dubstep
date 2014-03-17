@@ -1,20 +1,12 @@
 #lang racket
 
+(require "types.rkt")
 (require "errorf.rkt")
+(require "ast-tree.rkt")
 (require "class-info.rkt")
 (require "environments.rkt")
-(require "ast-tree.rkt")
 
-(provide type-ast=?)
 (provide check-heirarchies)
-
-(define (type-ast=? t1 t2)
-  (printf "type-ast=? ~a ~a~n" t1 t2)
-  (match (list t1 t2)
-    [`(,(ptype ta) ,(ptype tb)) (symbol=? ta tb)]
-    [`(,(rtype ta) ,(rtype tb)) (equal? ta tb)]
-    [`(,(atype ta) ,(atype tb)) (type-ast=? ta tb)]
-    [_ #f]))
 
 (define (can-shadow-1? m1 m2)
   (match-let ([(method _ s1 _ _ _ _) m1]
