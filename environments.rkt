@@ -1,6 +1,7 @@
 
 #lang racket
 
+(require "types.rkt")
 (require "errorf.rkt")
 (require "ast-tree.rkt")
 
@@ -25,7 +26,6 @@
 (provide method-check?)
 (provide field-check?)
 
-(struct ftype (type) #:prefab)
 (struct funt (id argt)   #:prefab)
 (struct eval (scope local? ast) #:prefab)
 (struct envs (types vars methods constructors))

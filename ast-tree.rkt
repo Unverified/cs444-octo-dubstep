@@ -1,5 +1,6 @@
 #lang racket
 
+(require "types.rkt")
 (require "errorf.rkt")
 (require "scanner.rkt")
 (require "parse-tree.rkt")
@@ -29,9 +30,6 @@
 (provide (struct-out for))
 (provide (struct-out return))
 (provide (struct-out literal))
-(provide (struct-out ptype))
-(provide (struct-out rtype))
-(provide (struct-out atype))
 (provide (struct-out block))
 (provide (struct-out varuse))
 (provide (struct-out ambiguous))
@@ -134,15 +132,6 @@
 ;(struct literal ([type: ptype | rtype | atype][value : Any])
 (struct literal ast (type value) #:prefab)
 
-;(struct ptype ([type : Symbol]))
-(struct ptype (type) #:prefab)
-
-;(struct rtype ([type : Symbol]))
-(struct rtype (type) #:prefab)
-
-;(struct atype ([type : Symbol]))
-(struct atype (type) #:prefab)
-
 ;(struct block ([id : Symbol] [statements : (Listof "lots of things")]))
 (struct block ast (id statements) #:prefab)
 
@@ -155,9 +144,8 @@
 ;(Struct this ([type : (Listof String)])
 (struct this ast (type) #:prefab)
 
-;;narrowing-ref-conversion: ([target: rtype] [source: rtype])
+;;narrowing-ref-coonversion: ([target: rtype] [source: rtype])
 (struct narrowing-ref-conversion ast (target source) #:prefab)
-
 
 ;==============================================================================================
 ;==== AST Generation
@@ -195,6 +183,44 @@
     ['void (ptype 'void)]
     
     [_ (ast-transform clean-ast t)]))
+
+;(: reduce-binop : environment Symbol literal literal -> literal )
+(define (reduce-binop env op lhs rhs)
+  (match (list op (literal-type lhs) (literal-type rhs))
+    [`(plus ,(rtype '("java" "lang" "String")) ,(rtype '("java" "lang" "String")))
+     (literal env (rtype '("java" "lang" "String")) (string-append (literal-value lhs) (literal-value rhs)))]
+    [`(plus ,(rtype '("java" "lang" "String")) ,(ptype type)) (error "not implemented!")]
+    [`(plus ,val ,(rtype '("java" "lang" "String"))) (error "not implemented!")]
+    
+    [`(plus ,(ptype 'int) ,(ptype 'int)) 
+     (literal env (ptype 'int) (+ (literal-value lhs) (literal-value rhs)))]
+    
+    [`(,op ,lhs ,rhs) (printf "(~a ~a ~a) unimplemented~n" op lhs rhs)
+                      (error "unimplemented!")]
+  ))
+
+;(: reduce-unop : environment Symbol literal -> literal )
+;only care about the types boolean, int, char, byte, short
+(define (reduce-unop env op rhs)
+  (match (list op (literal-type rhs))
+    [`(minus ,(or (ptype 'int) (ptype 'byte) (ptype 'short))) (literal env (ptype 'int) (- (literal-value rhs)))]
+    [`(minus ,(ptype 'char)) (literal env (ptype 'int) (- (literal-value (char->integer rhs))))]
+    [`(not ,(ptype 'boolean)) (literal env (ptype 'boolean) (false? (literal-value rhs)))]))
+
+(define (simplify-ast t)
+  (match t
+    [`() (c-errorf "simplify-ast matched an empty list, it should not get to this point.")] 
+    [(binop e op lhs rhs) (let ([left (simplify-ast lhs)]
+                                [right (simplify-ast rhs)])
+                            (if (and (literal? left) (literal? right))
+                                (reduce-binop e op left right)
+                                (binop e op left right)))]  
+    [(unop e op rhs) (let ([right (simplify-ast rhs)])
+                       (if (literal? right) 
+                           (reduce-unop e op right) 
+                           (unop e op right)))]
+    
+    [_ (ast-transform simplify-ast t)]))
 
 
 (define (run-nonempty F expr)

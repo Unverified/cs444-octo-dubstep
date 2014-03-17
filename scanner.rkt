@@ -27,11 +27,11 @@
 ;==============================================================================================
 (define (in-range? low high c)
   (and (>= (char->integer c) low)
-       (< (char->integer c) high)))
+       (<  (char->integer c) high)))
 
-(define (ascii? c) (in-range? 0 128 c))
-(define (num-oct? c) (in-range? (char->integer #\0) (char->integer #\8) c))
-(define (num-0to3? c) (in-range? (char->integer #\0) (char->integer #\4) c))
+(define ascii? (curry in-range? 0 128))
+(define num-oct?  (curry in-range? (char->integer #\0) (char->integer #\8)))
+(define num-0to3? (curry in-range? (char->integer #\0) (char->integer #\4)))
 
 (define (convert-to-long original lexeme)
   (if (member (last lexeme) '(#\l #\L))
@@ -43,7 +43,7 @@
     ['decimal-lit (convert-to-long 'decimal-lit (string->list lexeme))]
     ['octal-lit (convert-to-long 'octal-lit (string->list lexeme))]
     ['hex-lit (convert-to-long 'hex-lit (string->list lexeme))]
-    ['char-lit (token 'char-lit (list->string (escape-chars (string->list lexeme))))]
+    ['char-lit (token 'char-lit (first (escape-chars (string->list lexeme))))]
     ['string-lit (token 'string-lit (list->string (escape-chars (string->list lexeme))))]
     [x (token x lexeme)]))
 

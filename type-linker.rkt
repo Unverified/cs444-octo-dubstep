@@ -1,6 +1,7 @@
 #lang racket
 
 (require "errorf.rkt")
+(require "types.rkt")
 (require "ast-tree.rkt")
 (require "class-info.rkt")
 (require "environments.rkt")

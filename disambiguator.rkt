@@ -1,5 +1,6 @@
 #lang racket
 
+(require "types.rkt")
 (require "errorf.rkt")
 (require "ast-tree.rkt")
 (require "class-info.rkt")
