@@ -14,6 +14,7 @@
 (require "type-expr.rkt")
 (require "heirarchy-checker.rkt")
 (require "disambiguator.rkt")
+(require "reachability.rkt")
 
 (provide (struct-out info))
 
@@ -146,14 +147,16 @@
 (define class-info3 (map (lambda (cinfo)
                            (set-cinfo-ast cinfo (va (info-env cinfo) (info-ast cinfo)))) class-info2))
 (for-each print-info class-info3)
-class-info3
 
 (printf "~n~n============== Disambiguator ==========~n")
 (define disambig-cinfo (map (curryr disambiguate names) class-info3))
 
 
-(printf "~n~n===========Type Checking==========~n")
+(printf "~n~n=========== Type Checking ==========~n")
 (type-check disambig-cinfo)
+
+(printf "~n~n=========== Reachability ==========~n")
+(for-each reachability disambig-cinfo)
 
 (compiled)
 

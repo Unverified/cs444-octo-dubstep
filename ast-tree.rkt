@@ -159,9 +159,9 @@
 
 (define (clean-ast t)
   (match t
-    [`() (c-errorf "clean-ast matched an empty list, it should not get to this point.")]
+    [`() (error "clean-ast matched an empty list, it should not get to this point.")]
     [`(,var) (varuse empty var)]
-    [`(,vars ...) (printf "clean-ast `(vars ...) ids: ~a~n" vars) (ambiguous empty vars)]
+    [`(,vars ...) (ambiguous empty vars)]
     [(method _ sp md ty decl '()) (method empty sp md (clean-ast ty) decl (block empty (gensym) '()))]
     
     [(vdecl _ sp md ty (varassign _ id ex)) (varassign empty (vdecl empty sp md (clean-ast ty) id) (clean-ast ex))]
@@ -270,6 +270,11 @@
     [(list? (memf (lambda(s) (return? s)) (block-statements cons-block))) (c-errorf "Constructor cannot have return statement.")]
     [else cons-block]))
 
+(define (remove-empty-statement t)
+  (cond
+    [(empty? t) empty]
+    [(list t)]))
+
 (define (parse->ast t)
   (match t
     [(tree (node _) '()) empty]
@@ -300,7 +305,7 @@
     [(tree (node 'IABSTRACT_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'FINAL_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
     [(tree (node 'STATIC_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (list (parse->ast mod)) (parse->ast type) (parse->ast decl) (parse->ast body))]
-    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (printf "NICK LOOK HERE ~a~n~a~n"mod (parse->ast mod)) (method empty (parse->ast scope) (parse->ast mod) (ptype (parse->ast type)) (parse->ast decl) (parse->ast body))]
+    [(tree (node 'STATIC_NATIVE_METHOD_DECLARATION) `(,scope ,mod ,type ,decl ,body)) (method empty (parse->ast scope) (parse->ast mod) (ptype (parse->ast type)) (parse->ast decl) (parse->ast body))]
     [(tree (node 'NORMAL_METHOD_DECLARATION_NO_BODY) `(,scope ,type ,decl ,body)) (method empty (parse->ast scope) (list 'abstract) (parse->ast type) (parse->ast decl) (parse->ast body))]
     
     ;methoddecl
@@ -369,13 +374,16 @@
     [(tree (node 'IF_ELSE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,tru ,_ ,fls)) (iff empty (parse->ast test) (parse->ast tru) (parse->ast fls))]
     
     ;while
-    [(tree (node 'WHILE_STATEMENT) `(,_ ,_ ,test ,_ ,body)) (while empty (parse->ast test) (parse->ast body))]
-    [(tree (node 'WHILE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,body)) (while empty (parse->ast test) (parse->ast body))]
+    [(or (tree (node 'WHILE_STATEMENT) `(,_ ,_ ,test ,_ ,body)) 
+    (tree (node 'WHILE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,body))) (let* ([body-ast (parse->ast body)]
+                                                                         [body (if (block? body-ast) body-ast (block empty (gensym) (remove-empty-statement body-ast)))])
+								(printf "while body: ~a~n" body)
+                                                                    (while empty (parse->ast test) body))]
     
     ;for
     [(or (tree (node 'FOR_STATEMENT) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body))
          (tree (node 'FOR_STATEMENT_NO_IF) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body))) (let* ([body-ast (parse->ast body)]
-                                                                                                  [body (if (block? body-ast) body-ast (block empty (gensym) (list body-ast)))])
+                                                                                                  [body (if (block? body-ast) body-ast (block empty (gensym) (remove-empty-statement body-ast)))])
                                                                                              (for empty (parse->ast init) (parse->ast clause) (parse->ast update) body))]
     
     ;==============================================================================================
@@ -419,11 +427,13 @@
     
     [(tree (node 'TYPE) `(,x)) (parse->ast x)]
     
+    [(tree (node 'EMPTY_STATEMENT) `(,x)) empty]
+
     [(tree (node 'VARIABLE_DECLARATOR_OPT) `( ,x )) (parse->ast x) ]
     
     [(tree (node 'IDS) `(,id1 ,dot ,id2)) (append (parse->ast id1) (list (parse->ast id2)))]
     [(tree (node 'IDS) `(,id)) (list (parse->ast id))]
-    
+
     [(or (tree (node 'PRIMARY_NO_NEW_ARRAY) `(,_ ,x ,_))
          (tree (node 'INTERFACE_BODY) `(,_ ,x ,_))
          (tree (node 'CLASS_BODY) `(,_ ,x ,_))) (parse->ast x)]
@@ -465,8 +475,8 @@
     [(tree (node 'BLOCK_STATEMENTS_OPT) `(,x)) (parse->ast x)]
     [(tree (node 'BLOCK_STATEMENTS) `(,bss ,bs)) (append (parse->ast bss) (parse->ast bs))]
     [(tree (node 'BLOCK_STATEMENTS) `(,bs)) (parse->ast bs)]
-    [(tree (node 'BLOCK_STATEMENT) `(,x ,_)) (list (parse->ast x))]
-    [(tree (node 'BLOCK_STATEMENT) `(,x)) (list (parse->ast x))]
+    [(tree (node 'BLOCK_STATEMENT) `(,x ,_)) (remove-empty-statement (parse->ast x))]
+    [(tree (node 'BLOCK_STATEMENT) `(,x)) (remove-empty-statement (parse->ast x))]
     
     [(or (tree (node 'STATEMENT) `(,x))
          (tree (node 'STATEMENT_NO_IF) `(,x))
@@ -497,7 +507,7 @@
 
 ;(ast-recurse [ast : "anything"] [proc : procedure] [base : "anything"]) -> (Listof (proc out))
 ;What this function does is tries to match ast to any structure found in the ast, if a match is found then proc is applied to all items in the structure and the outputs of proc are appended together, this assumes that proc returns a list. To be honest, I made this for type linking, I dont even know if anyone else will use this, I might just be talking to myself.
-(define (ast-recurse ast proc comb)
+(define (ast-recurse ast proc comb base)
   (cond
     [(list? ast) (append-map (lambda(x) (proc x)) ast)]
     [else (match ast
@@ -510,6 +520,7 @@
             [(method _ scope mod type methoddecl body) (comb (proc scope) (proc mod) (proc type) (proc methoddecl) (proc body))]
             [(methoddecl _ id parameters) (comb (proc id) (proc parameters))]
             [(parameter _ type id) (comb (proc type) (proc id))]
+            [(varuse _ id) (proc id)]
             [(vdecl _ scope mod type id) (comb (proc scope) (proc mod) (proc type) (proc id))]
             [(varassign _ id expr) (comb (proc id) (proc expr))]
             [(binop _ op left right) (comb (proc op) (proc left) (proc right))]
@@ -528,7 +539,7 @@
             [(rtype type) (comb (proc type))]
             [(atype type) (comb (proc type))]
             [(block _ id statements) (comb (proc statements))]
-            [_ empty])]))
+            [_ base])]))
 
 (define (get-class-name ast)
   (match ast
