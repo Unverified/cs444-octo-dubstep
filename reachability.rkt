@@ -4,7 +4,6 @@
 (require "errorf.rkt")
 (require "ast-tree.rkt")
 (require "class-info.rkt")
-(require "heirarchy-checker.rkt")
 
 (provide reachability)
 
