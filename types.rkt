@@ -21,7 +21,7 @@
 
 ;;(: type-whole? : type -> Bool )
 (define (type-whole? type)
-  (let ([number-ptype? (compose1 list? (curryr member '(int short char byte)))])
+  (let ([number-ptype? (compose1 list? (curryr member '(int char byte short)))])
     (cond
       [(ptype? type) (number-ptype? (ptype-type type))]
       [else #f])))

@@ -184,27 +184,45 @@
     
     [_ (ast-transform clean-ast t)]))
 
+(define type-string (rtype '("java" "lang" "String")))
+(define type-string? (curry type-ast=? type-string))
+(define lit-string? (compose1 type-string? literal-type))
+
+(define (litv->slitv lit-type lit-val)
+  (cond [(type-string? lit-type) lit-val]
+        [(equal? (ptype 'boolean) lit-type) (if lit-val "true" "false")]
+        [(equal? (ptype 'char) lit-type) (string (integer->char lit-val))]
+        [(type-numeric? lit-type) (number->string lit-val)]
+        [else (error "invalid literal type casting to string")]))
+  
 ;(: reduce-binop : environment Symbol literal literal -> literal )
 (define (reduce-binop env op lhs rhs)
-  (match (list op (literal-type lhs) (literal-type rhs))
-    [`(plus ,(rtype '("java" "lang" "String")) ,(rtype '("java" "lang" "String")))
-     (literal env (rtype '("java" "lang" "String")) (string-append (literal-value lhs) (literal-value rhs)))]
-    [`(plus ,(rtype '("java" "lang" "String")) ,(ptype type)) (error "not implemented!")]
-    [`(plus ,val ,(rtype '("java" "lang" "String"))) (error "not implemented!")]
-    
-    [`(plus ,(ptype 'int) ,(ptype 'int)) 
-     (literal env (ptype 'int) (+ (literal-value lhs) (literal-value rhs)))]
-    
-    [`(,op ,lhs ,rhs) (printf "(~a ~a ~a) unimplemented~n" op lhs rhs)
-                      (error "unimplemented!")]
-  ))
+  (let ([lht (literal-type  lhs)]
+        [lhv (literal-value lhs)]
+        [rht (literal-type  rhs)]
+        [rhv (literal-value rhs)])
+    (let ([comb-lit (lambda (T F) (cond [(and (type-numeric? lht) (type-numeric? rht)) (literal env T (F (literal-value lhs) (literal-value rhs)))]
+                                        [else (error "trying to reduce 2 invalid literals")]))])
+      (match op
+        ['plus (cond [(or (type-string? lht) (type-string? rhs)) (let ([slhv (litv->slitv lht (literal-value lhs))]
+                                                                       [srhv (litv->slitv rht (literal-value rhs))])
+                                                                   (literal env type-string (string-append slhv srhv)))]
+                     [else (comb-lit (ptype 'int) +)])]
+        ['minus (comb-lit (ptype 'int) -)]
+        ['star  (comb-lit (ptype 'int) *)]
+        ['slash (comb-lit (ptype 'int) quotient)]
+        ['pct   (comb-lit (ptype 'int) remainder)]
+        
+        
+        [`(,op ,lhs ,rhs) (printf "(~a ~a ~a) unimplemented~n" op lhs rhs)
+                          (error "unimplemented!")]))))
 
 ;(: reduce-unop : environment Symbol literal -> literal )
 ;only care about the types boolean, int, char, byte, short
 (define (reduce-unop env op rhs)
   (match (list op (literal-type rhs))
     [`(minus ,(or (ptype 'int) (ptype 'byte) (ptype 'short))) (literal env (ptype 'int) (- (literal-value rhs)))]
-    [`(minus ,(ptype 'char)) (literal env (ptype 'int) (- (literal-value (char->integer rhs))))]
+    [`(minus ,(ptype 'char)) (literal env (ptype 'int) (- (literal-value rhs)))]
     [`(not ,(ptype 'boolean)) (literal env (ptype 'boolean) (false? (literal-value rhs)))]))
 
 (define (simplify-ast t)
@@ -214,7 +232,8 @@
                                 [right (simplify-ast rhs)])
                             (if (and (literal? left) (literal? right))
                                 (reduce-binop e op left right)
-                                (binop e op left right)))]  
+                                (binop e op left right)))]
+    
     [(unop e op rhs) (let ([right (simplify-ast rhs)])
                        (if (literal? right) 
                            (reduce-unop e op right) 
@@ -704,5 +723,3 @@
 
 (define (print-asts asts files)
   (for-each (lambda(ast) (printf "~n================ AST ================~n") (print-ast ast "")) asts))
-
-
