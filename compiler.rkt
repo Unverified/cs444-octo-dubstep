@@ -155,8 +155,11 @@
 (printf "~n~n=========== Type Checking ==========~n")
 (type-check disambig-cinfo)
 
+(define final-info (map (lambda (x) (set-cinfo-ast x (simplify-ast (info-ast x)))) disambig-cinfo))
+(for-each (compose1 (curryr print-ast "") info-ast) final-info)
+
 (printf "~n~n=========== Reachability ==========~n")
-(for-each reachability disambig-cinfo)
+(for-each reachability final-info)
 
 (compiled)
 

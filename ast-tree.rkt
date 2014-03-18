@@ -54,6 +54,8 @@
 (provide run-nonempty)
 (provide ast-print-struct)
 
+(provide simplify-ast)
+
 ;==============================================================================================
 ;==== AST Structures
 ;==============================================================================================
@@ -147,6 +149,18 @@
 ;;narrowing-ref-coonversion: ([target: rtype] [source: rtype])
 (struct narrowing-ref-conversion ast (target source) #:prefab)
 
+
+;(: sigend-cast : Number Number -> Number )
+(define (signed-cast mask value)
+  (let ([right (bitwise-and mask value)])
+    (cond [(zero? (bitwise-and (+ 1 (quotient mask 2)) right)) right]
+          [else (bitwise-ior (bitwise-not mask) right)])))
+
+(define cast-int (curry signed-cast #xFFFFFFFF)) ;4 bytes signed
+(define cast-short (curry signed-cast #xFFFF))   ;2 bytes signed
+(define cast-char (curry bitwise-and #xFFFF))    ;2 bytes unsigned
+(define cast-byte (curry signed-cast #xFF))      ;1 byte signed
+
 ;==============================================================================================
 ;==== AST Generation
 ;==============================================================================================
@@ -169,7 +183,7 @@
     
     [(methodcall _ `() id args) (methodcall empty empty id (map clean-ast args))]
     [(methodcall _ `(,ids ...) id args) (methodcall empty (ambiguous empty ids) id (map clean-ast args))]
-
+    
     [(arraycreate _ `(,ty ...) sz) (arraycreate empty (rtype ty) (clean-ast sz))]
     [(classcreate _ `(,cls ...) params) (classcreate empty (rtype cls) (map clean-ast params))]
     [(atype `(,ty ...)) (atype (rtype ty))]
@@ -184,38 +198,50 @@
     
     [_ (ast-transform clean-ast t)]))
 
-(define type-string (rtype '("java" "lang" "String")))
-(define type-string? (curry type-ast=? type-string))
-(define lit-string? (compose1 type-string? literal-type))
-
 (define (litv->slitv lit-type lit-val)
-  (cond [(type-string? lit-type) lit-val]
-        [(equal? (ptype 'boolean) lit-type) (if lit-val "true" "false")]
-        [(equal? (ptype 'char) lit-type) (string (integer->char lit-val))]
+  (cond [(type-string? lit-type) lit-val]    
+        [(type-ast=? (ptype 'null) lit-type) "null"]
+        [(type-bool? lit-type) (if lit-val "true" "false")]
+        [(type-ast=? (ptype 'char) lit-type) (string (integer->char lit-val))]
         [(type-numeric? lit-type) (number->string lit-val)]
         [else (error "invalid literal type casting to string")]))
-  
+
 ;(: reduce-binop : environment Symbol literal literal -> literal )
 (define (reduce-binop env op lhs rhs)
   (let ([lht (literal-type  lhs)]
         [lhv (literal-value lhs)]
         [rht (literal-type  rhs)]
         [rhv (literal-value rhs)])
-    (let ([comb-lit (lambda (T F) (cond [(and (type-numeric? lht) (type-numeric? rht)) (literal env T (F (literal-value lhs) (literal-value rhs)))]
-                                        [else (error "trying to reduce 2 invalid literals")]))])
+    (let ([comb-nlit (lambda (T F) (cond [(and (type-numeric? lht) (type-numeric? rht)) (literal env T (F lhv rhv))]
+                                         [else (error "trying to reduce 2 invalid literals - numerics")]))]
+          [comb-blit (lambda (F) (cond [(and (type-bool? lht) (type-bool? rht)) 
+                                        (literal env (ptype 'boolean) (F lhv rhv))]
+                                       [else (error "trying to reduce 2 invalid literals - bools")]))])
       (match op
-        ['plus (cond [(or (type-string? lht) (type-string? rhs)) (let ([slhv (litv->slitv lht (literal-value lhs))]
-                                                                       [srhv (litv->slitv rht (literal-value rhs))])
-                                                                   (literal env type-string (string-append slhv srhv)))]
-                     [else (comb-lit (ptype 'int) +)])]
-        ['minus (comb-lit (ptype 'int) -)]
-        ['star  (comb-lit (ptype 'int) *)]
-        ['slash (comb-lit (ptype 'int) quotient)]
-        ['pct   (comb-lit (ptype 'int) remainder)]
+        ['plus 
+         (printf "adding ~a ~a~n" lht rht)
+         (cond [(or (type-string? lht) (type-string? rht)) (let ([slhv (litv->slitv lht lhv)]
+                                                                 [srhv (litv->slitv rht rhv)])
+                                                             (literal env type-string (string-append slhv srhv)))]
+               [else (comb-nlit (ptype 'int) (compose cast-int +))])]
+        ['minus (comb-nlit (ptype 'int) (compose cast-int -))]
+        ['star  (comb-nlit (ptype 'int) (compose cast-int *))]
+        ['slash (comb-nlit (ptype 'int) (compose cast-int quotient))]
+        ['pct   (comb-nlit (ptype 'int) (compose cast-int remainder))]
         
+        ['gt    (comb-nlit (ptype 'boolean) >)]
+        ['gteq  (comb-nlit (ptype 'boolean) >=)]
+        ['lt    (comb-nlit (ptype 'boolean) <)]
+        ['lteq  (comb-nlit (ptype 'boolean) <=)]
         
-        [`(,op ,lhs ,rhs) (printf "(~a ~a ~a) unimplemented~n" op lhs rhs)
-                          (error "unimplemented!")]))))
+        ['eqeq  (cond [(and (type-bool? lht) (type-bool? rht)) (comb-blit equal?)]
+                      [else (comb-nlit (ptype 'boolean) =)])]                
+        ['noteq (cond [(and (type-bool? lht) (type-bool? rht)) (comb-blit (compose not equal?))]
+                      [else (comb-nlit (ptype 'boolean) (compose not =))])]
+        ['barbar (comb-blit (lambda (x y) (or x y)))]
+        ['ampamp (comb-blit (lambda (x y) (and x y)))]     
+        [_      (printf "~a unimplemented~n" op)
+                (error "unimplemented!")]))))
 
 ;(: reduce-unop : environment Symbol literal -> literal )
 ;only care about the types boolean, int, char, byte, short
@@ -223,7 +249,9 @@
   (match (list op (literal-type rhs))
     [`(minus ,(or (ptype 'int) (ptype 'byte) (ptype 'short))) (literal env (ptype 'int) (- (literal-value rhs)))]
     [`(minus ,(ptype 'char)) (literal env (ptype 'int) (- (literal-value rhs)))]
-    [`(not ,(ptype 'boolean)) (literal env (ptype 'boolean) (false? (literal-value rhs)))]))
+    [`(not ,(ptype 'boolean)) (literal env (ptype 'boolean) (false? (literal-value rhs)))]
+    [`(,op ,rht) (printf "(~a ~a)" op rht)
+                 (error "unimplemented!")]))
 
 (define (simplify-ast t)
   (match t
@@ -238,82 +266,64 @@
                        (if (literal? right) 
                            (reduce-unop e op right) 
                            (unop e op right)))]
-
+    
     [(cast e ct rhs) (let ([right (simplify-ast rhs)])
-                      (if (literal? right)
-                          (cast-lit e ct (literal-value right))
-                          (cast e ct right)))]
+                       (if (literal? right)
+                           (cast-lit e ct right)
+                           (cast e ct right)))]
     
     [_ (ast-transform simplify-ast t)]))
 
-(define (cast-lit e ct val)
-  (match ct
-    [(ptype 'int) (literal e ct (cast-int val))]
-    [(ptype 'short) (literal e ct (cast-short val))]
-    [(ptype 'byte) (literal e ct (cast-byte val))]
-    [(ptype 'char) (literal e ct (cast-char val))]
-    [_ (literal e ct val)]))
-
-(define (cast-int x)
-  (_truncate x -2147483648 2147483647))
-
-(define (cast-short x)
-  (_truncate x -32768 32767))
-
-(define (cast-byte x)
-  (_truncate x -128 127))
-
-(define (cast-char x)
-  (_truncate x 0 32767))
-
-(define (_truncate x _min _max)
-  (define y (bitwise-and x (+ 1 (* 2 _max))))
-  (cond
-    [(not (zero? (bitwise-and (- _min) y))) (bitwise-ior (bitwise-not (+ 1 (* 2 _max))) y)]
-    [else y]))
-
+(define (cast-lit e ct lit)
+  (let ([val (literal-value lit)])
+    (match ct
+      [(ptype 'int) (literal e ct (cast-int val))]
+      [(ptype 'short) (literal e ct (cast-short val))]
+      [(ptype 'byte) (literal e ct (cast-byte val))]
+      [(ptype 'char) (literal e ct (cast-char val))]
+      [_ (cast e ct lit)])))
 
 (define (run-nonempty F expr)
   (cond [(empty? expr) expr]
         [else (F expr)]))
 
 (define (ast-transform F ast)
-   (match ast
-     [(cunit package imports body) (cunit package imports (F body))]
-     [(class env sp md id ex im bd) (class env sp md id ex im (F bd))]  
-     [(interface env sp md id ex bd) (interface env sp md id ex (F bd))]
-     
-     [(constructor env sp decl bd) (constructor env sp (F decl) (F bd))]
-     [(method env sp md ty decl bd) (method env sp md (F ty) (F decl) (F bd))]
-     [(methoddecl env id params) (methoddecl env id (map F params))]
-     [(parameter env type id) (parameter env (F type) id)]
-     
-     [(varassign env id ex) (varassign env (F id) (F ex))]
-     [(vdecl env sp md ty id) (vdecl env sp md (F ty) id)]
-     [(binop env op ls rs) (binop env op (F ls) (F rs))]
-     [(unop env op rs) (unop env op (F rs))]
-     [(cast env c ex) (cast env (F c) (F ex))]
-     [(arraycreate env ty sz) (arraycreate env (F ty) (F sz))]
-     [(classcreate env cls params) (classcreate env (F cls) (map F params))]
-     [(fieldaccess env left field) (fieldaccess env (F left) field)]
-     [(arrayaccess env left index) (arrayaccess env (F left) (F index))]
-     [(while env test body) (while env (F test) (F body))]
-     
-     [(methodcall env left id args) (methodcall env (run-nonempty F left) id (map F args))]
-     [(iff env test tru fls) (iff env (F test) (run-nonempty F tru) (run-nonempty F fls))]
-     [(return env expr) (return env (run-nonempty F expr))]
-     [(for env init clause update body) (for env (run-nonempty F init) (run-nonempty F clause) (run-nonempty F update) (F body))]
-     
-     [(ptype _) ast]
-     [(rtype _) ast]
-     [(varuse _ _) ast]
-     [(ambiguous _ _) ast]
-     [(this _ _) ast]
-     
-     [(atype type) (atype (F type))]
-     [(literal _ type val) (literal empty (F type) val)]
-     [(block env id statements) (block env id (map F statements))]
-     [_ (error "Could not match: " ast)]))
+  (match ast
+    [(cunit package imports body) (cunit package imports (F body))]
+    [(class env sp md id ex im bd) (class env sp md id ex im (F bd))]  
+    [(interface env sp md id ex bd) (interface env sp md id ex (F bd))]
+    
+    [(constructor env sp decl bd) (constructor env sp (F decl) (F bd))]
+    [(method env sp md ty decl bd) (method env sp md (F ty) (F decl) (F bd))]
+    [(methoddecl env id params) (methoddecl env id (map F params))]
+    [(parameter env type id) (parameter env (F type) id)]
+    
+    [(varassign env id ex) (varassign env (F id) (F ex))]
+    [(vdecl env sp md ty id) (vdecl env sp md (F ty) id)]
+    [(binop env op ls rs) (binop env op (F ls) (F rs))]
+    [(unop env op rs) (unop env op (F rs))]
+    [(cast env c ex) (cast env (F c) (F ex))]
+    [(arraycreate env ty sz) (arraycreate env (F ty) (F sz))]
+    [(classcreate env cls params) (classcreate env (F cls) (map F params))]
+    [(fieldaccess env left field) (fieldaccess env (F left) field)]
+    [(arrayaccess env left index) (arrayaccess env (F left) (F index))]
+    [(while env test body) (while env (F test) (F body))]
+    
+    [(methodcall env left id args) (methodcall env (run-nonempty F left) id (map F args))]
+    [(iff env test tru fls) (iff env (F test) (run-nonempty F tru) (run-nonempty F fls))]
+    [(return env expr) (return env (run-nonempty F expr))]
+    [(for env init clause update body) (for env (run-nonempty F init) (run-nonempty F clause) (run-nonempty F update) (F body))]
+    
+    [(ptype _) ast]
+    [(rtype _) ast]
+    [(varuse _ _) ast]
+    [(ambiguous _ _) ast]
+    [(this _ _) ast]
+    
+    [(atype type) (atype (F type))]
+    [(literal _ type val) (literal empty (F type) val)]
+    [(block env id statements) (block env id (map F statements))]
+    [_ (error "Could not match: " ast)]))
 
 (define (check-for-returns cons-block)
   (cond
@@ -425,10 +435,10 @@
     
     ;while
     [(or (tree (node 'WHILE_STATEMENT) `(,_ ,_ ,test ,_ ,body)) 
-    (tree (node 'WHILE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,body))) (let* ([body-ast (parse->ast body)]
-                                                                         [body (if (block? body-ast) body-ast (block empty (gensym) (remove-empty-statement body-ast)))])
-								(printf "while body: ~a~n" body)
-                                                                    (while empty (parse->ast test) body))]
+         (tree (node 'WHILE_STATEMENT_NO_IF) `(,_ ,_ ,test ,_ ,body))) (let* ([body-ast (parse->ast body)]
+                                                                              [body (if (block? body-ast) body-ast (block empty (gensym) (remove-empty-statement body-ast)))])
+                                                                         (printf "while body: ~a~n" body)
+                                                                         (while empty (parse->ast test) body))]
     
     ;for
     [(or (tree (node 'FOR_STATEMENT) `(,_ ,_ ,init ,_ ,clause ,_ ,update ,_ ,body))
@@ -478,12 +488,12 @@
     [(tree (node 'TYPE) `(,x)) (parse->ast x)]
     
     [(tree (node 'EMPTY_STATEMENT) `(,x)) empty]
-
+    
     [(tree (node 'VARIABLE_DECLARATOR_OPT) `( ,x )) (parse->ast x) ]
     
     [(tree (node 'IDS) `(,id1 ,dot ,id2)) (append (parse->ast id1) (list (parse->ast id2)))]
     [(tree (node 'IDS) `(,id)) (list (parse->ast id))]
-
+    
     [(or (tree (node 'PRIMARY_NO_NEW_ARRAY) `(,_ ,x ,_))
          (tree (node 'INTERFACE_BODY) `(,_ ,x ,_))
          (tree (node 'CLASS_BODY) `(,_ ,x ,_))) (parse->ast x)]
@@ -621,7 +631,7 @@
     [_ #f]))
 
 (define (is-interface? ast)
-    (match ast
+  (match ast
     [(cunit _ _ body) (is-interface? body)]
     [(interface _ _ _ _ _ _)  #t]
     [_ #f]))

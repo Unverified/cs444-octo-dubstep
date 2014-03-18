@@ -8,6 +8,10 @@
 (provide type-whole?)
 (provide type-numeric?)
 (provide type-ast=?)
+(provide type-string?)
+(provide type-bool?)
+
+(provide type-string)
 
 ;;(define-type type (ptype rtype atype ftype))
 ;(struct ptype ([type : Symbol]))
@@ -41,3 +45,9 @@
     [`(,(rtype ta) ,(rtype tb)) (equal? ta tb)]
     [`(,(atype ta) ,(atype tb)) (type-ast=? ta tb)]
     [_ #f]))
+
+(define type-string (rtype '("java" "lang" "String")))
+(define type-string? (curry type-ast=? type-string))
+
+(define type-bool (ptype 'boolean))
+(define type-bool? (curry type-ast=? type-bool))

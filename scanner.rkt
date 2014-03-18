@@ -45,6 +45,7 @@
     ['hex-lit (convert-to-long 'hex-lit (string->list lexeme))]
     ['char-lit (token 'char-lit (char->integer (first (escape-chars (string->list lexeme)))))]
     ['string-lit (token 'string-lit (list->string (escape-chars (string->list lexeme))))]
+    ['bool-lit (token 'bool-lit (equal? lexeme "true"))]
     [x (token x lexeme)]))
 
 (define (scanner m char-list)
