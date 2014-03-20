@@ -12,7 +12,7 @@ https://docs.google.com/document/d/1Xj1OAgKdJNSMbYoc4cHyMHV6wG1j4NEhSkIp_TK5bs0/
 <br>
 
 <strong>Assignment 4 written</strong><br>
-link to be created
+https://docs.google.com/document/d/1wV_jODaORTP2pLpCLQSXW1TffoUt-E1LFd3h4P-pFqc/edit?usp=sharing
 <br>
 
 <strong>Assignment 5 Written</Strong><br>
