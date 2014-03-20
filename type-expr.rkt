@@ -1,3 +1,4 @@
+
 #lang racket
 
 (require "types.rkt")
@@ -214,6 +215,7 @@
   ;;can-assign? (union ptype rtype atype) (union ptype rtype atype) -> Boolean
   (define (can-assign? T S)
     (match (list T S)
+      
       [(list (ftype t1) (ftype t2)) (can-assign? t1 t2)]
       [(list (ftype t1) t2) (can-assign? t1 t2)]
       
@@ -233,6 +235,8 @@
       [(list (ptype 'short) (ptype 'byte)) #t]
       [(list (ptype 'int) (ptype 'byte)) #t]
       [(list (ptype _) (ptype 'null)) #f]
+      [(list (ptype 'void) _) #f]
+      [(list _ (ptype 'void)) #f]
       [(list (ptype _) (ptype _)) (type-ast=? T S)]
      ; [(list (ptype _) (ptype _)) (not (num-type<? T S))]
       ;;Cannot assign ptype to an rtype, except null
@@ -268,6 +272,10 @@
      ;;perform-bin-op: symbol (union rtype ptype atype) (union rtype ptype atype) -> (union rtype ptype atype)
     (define (perform-bin-op op t1 t2)
       (match (list op t1 t2)
+        
+        [(or (list _ (ptype 'void) _)
+             (list _ _ (ptype 'void))) (c-errorf "not allowed to perform binary operation on void type! ~a" (list op t1 t2))]
+        
         ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
         [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
         [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]
@@ -287,7 +295,8 @@
         [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
     
     (define (test-specific-bin-op type left right err-string)
-      (if (and (type-ast=? type (type-expr C mrtn mod left)) (type-ast=? type (type-expr C mrtn mod right))) type (error err-string)))
+      (if (and (type-ast=? type (type-expr C mrtn mod left)) 
+               (type-ast=? type (type-expr C mrtn mod right))) type (error err-string)))
     
     (define (test-un-op op right)
       (cond
