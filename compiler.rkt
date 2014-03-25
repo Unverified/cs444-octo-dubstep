@@ -15,6 +15,7 @@
 (require "heirarchy-checker.rkt")
 (require "disambiguator.rkt")
 (require "reachability.rkt")
+(require "gen-code.rkt")
 
 (provide (struct-out info))
 
@@ -94,7 +95,7 @@
 
 (define stdlib-files (list "stdlib/java/io/OutputStream.java" "stdlib/java/io/PrintStream.java" "stdlib/java/io/Serializable.java" "stdlib/java/lang/Boolean.java" "stdlib/java/lang/Byte.java" "stdlib/java/lang/Character.java" "stdlib/java/lang/Class.java" "stdlib/java/lang/Cloneable.java" "stdlib/java/lang/Integer.java" "stdlib/java/lang/Number.java" "stdlib/java/lang/Object.java" "stdlib/java/lang/Short.java" "stdlib/java/lang/String.java" "stdlib/java/lang/System.java" "stdlib/java/util/Arrays.java"))
 (define stdlib-file (string->path "stdlib.asts"))
-(define (all-stdlib-asts) 
+(define (all-stdlib-asts)
   (if (file-exists? stdlib-file)
       (call-with-input-file stdlib-file read)
       (let ([stdlib (map parse-file stdlib-files)]
@@ -126,7 +127,7 @@
   (define parse-tree (run-parser (run-scanner clist)))
   (do-import-stuff (run-weeder (remove-dot-java (get-file-name file)) parse-tree)))
 
-(define asts (append (map parse-file files-to-compile)(all-stdlib-asts)))
+(define asts (append (map parse-file files-to-compile) (all-stdlib-asts)))
 ;(define asts (map parse-file files-to-compile))
 
 (printf "~n============== PRINTING ASTS ==============~n")
@@ -160,6 +161,9 @@
 
 (printf "~n~n=========== Reachability ==========~n")
 (for-each reachability final-info)
+
+(printf "~n~n=========== Code Generation ==========~n")
+(for-each gen-code final-info)
 
 (compiled)
 

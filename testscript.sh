@@ -73,7 +73,9 @@ do
   echo "Running compiler with files:"
   echo "$test_files"
 #  echo "$STDLIB"
-    
+
+  rm -f output/*
+
   racket compiler.rkt $test_files  > $FAILED_TEST_DIR/temp.out
   test_output=$?
   expected_output=`cat $out_file`
