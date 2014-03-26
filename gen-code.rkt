@@ -10,7 +10,7 @@
   (string-append "output/" (foldr string-append "" (info-name cinfo)) ".s"))
 
 (define (gen-code cinfo)
-  (gen-code-recurse (open-output-file (get-outfile cinfo)) (info-ast cinfo)))
+  (gen-code-recurse (open-output-file (get-outfile cinfo) #:exists 'replace) (info-ast cinfo)))
 
 (define (gen-code-recurse out t)
   (match t
@@ -57,8 +57,14 @@
 (define (gen-code-start-method out bd)
   (display "global _start\n" out)
   (display "_start:\n" out)
+  (display "push ebp\n" out)
+  (display "mov ebp, esp\n" out)
+  (display "call test\n" out)
+  (display "pop ebp\n" out)
   (display "mov eax, 1\n" out)
   (display "int 0x80\n" out)
+  (display "int 3\n" out)
+  (display "test:\n" out)
   (gen-code-method out bd))
 
 (define (gen-code-method out bd)
@@ -99,7 +105,26 @@
   (comment out "TODO: generate methodcall assembly"))
 
 (define (gen-code-iff out test tru fls)
-  (comment out "TODO: generate if assembly"))
+  (let  ([label-tru (gensym)]
+	[label-fls (gensym)]
+	[label-end-of-if (gensym)])
+  (comment out "Evaluating test")
+  (gen-code-recurse out test)
+  (comment out "Done evaluating test")
+
+  (comment out "Code to execute on true")
+  (display (string-append (symbol->string label-tru) ":\n") out) 
+  (gen-code-recurse out tru)
+  (comment out "End of true code")
+  (comment out "TODO: Branch on true/false")
+  (comment out "On true, skip fls code")
+  (display (string-append "jmp " (symbol->string label-end-of-if) "\n") out)
+  (comment out "Code to execute on false")
+  (display (string-append (symbol->string label-fls) ":\n") out)
+ 
+  (gen-code-recurse out fls)
+  (comment out "End of false code") 
+  (display (string-append (symbol->string label-end-of-if) ":\n") out)))
 
 (define (gen-code-return out expr)
   (comment out "TODO: generate return assembly"))
