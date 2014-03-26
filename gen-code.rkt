@@ -55,8 +55,10 @@
   (gen-code-recurse out bd))
 
 (define (gen-code-start-method out bd)
-  (display "global_start\n" out)
+  (display "global _start\n" out)
   (display "_start:\n" out)
+  (display "mov eax, 1\n" out)
+  (display "int 0x80\n" out)
   (gen-code-method out bd))
 
 (define (gen-code-method out bd)
