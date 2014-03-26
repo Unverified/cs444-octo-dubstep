@@ -69,8 +69,10 @@
   (gen-code-recurse out vdecls bd))
 
 (define (gen-code-start-method out vdecls bd)
-  (display "global_start\n" out)
+  (display "global _start\n" out)
   (display "_start:\n" out)
+  (display "mov eax, 1\n" out)
+  (display "int 0x80\n" out)
   (gen-code-method out vdecls bd))
 
 (define (gen-code-method out vdecls bd)
