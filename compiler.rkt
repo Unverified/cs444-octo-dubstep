@@ -163,7 +163,7 @@
 (for-each reachability final-info)
 
 (printf "~n~n=========== Code Generation ==========~n")
-(for-each gen-code final-info)
+(gen-code (first final-info))
 
 (compiled)
 
