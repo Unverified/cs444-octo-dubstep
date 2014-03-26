@@ -131,15 +131,15 @@
   (let  ([label-tru (gensym)]
 	[label-fls (gensym)]
 	[label-end-of-if (gensym)])
- 	(comment out "Evaluating test")
-	(gen-code-recurse out vdecls test)
-	(comment out "Done evaluating test")
-
+  (comment out "Evaluating test")
+  (gen-code-recurse out vdecls test)
+  (comment out "Done evaluating test")
+  (comment out "TODO: Branch on true/false")
   (comment out "Code to execute on true")
   (display (string-append (symbol->string label-tru) ":\n") out) 
   (gen-code-recurse out vdecls tru)
   (comment out "End of true code")
-  (comment out "TODO: Branch on true/false")
+
   (comment out "On true, skip fls code")
   (display (string-append "jmp " (symbol->string label-end-of-if) "\n") out)
   (comment out "Code to execute on false")
