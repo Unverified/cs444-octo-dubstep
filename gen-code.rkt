@@ -8,13 +8,14 @@
 
 (struct decl (id value soff) #:transparent)
 
-(define stack-off 0)
+(define ebp-off 0)
 
 (define (get-outfile cinfo)
   (string-append "output/" (foldr string-append "" (info-name cinfo)) ".s"))
 
 (define (gen-code cinfo)
-  (gen-code-recurse (open-output-file (get-outfile cinfo)) empty (info-ast cinfo)))
+  (gen-code-recurse (open-output-file (get-outfile cinfo) #:exists 'replace) empty (info-ast cinfo)))
+
 
 (define (gen-code-recurse out vdecls t)
   ;(ast-print-struct t)
@@ -68,9 +69,15 @@
 (define (gen-code-start-method out vdecls bd)
   (display "global _start\n" out)
   (display "_start:\n" out)
-  (gen-code-method out vdecls bd)
+  (display "push ebp\n" out)
+  (display "mov ebp, esp\n" out)
+  (display "call test\n" out)
+  (display "pop ebp\n" out)
   (display "mov eax, 1\n" out)
-  (display "int 0x80\n" out))
+  (display "int 0x80\n" out)
+  (display "int 3\n" out)
+  (display "test:\n" out)
+  (gen-code-method out vdecls bd))
 
 (define (gen-code-method out vdecls bd)
   (comment out "TODO: generate method assembly")
@@ -82,7 +89,7 @@
   (comment out "varassign")
   (cond
     [(vdecl? id) (push out "ebx")	;push the result form above onto the stack
-                 (cons (list (vdecl-id id) (- stack-off 32)) vdecls)]
+                 (cons (list (vdecl-id id) (- ebp-off 32)) vdecls)]	;-32 since push above inc sp
     [else (gen-code-recurse out vdecls id) 
            vdecls]))
 
@@ -128,7 +135,26 @@
   (comment out "TODO: generate methodcall assembly"))
 
 (define (gen-code-iff out vdecls test tru fls)
-  (comment out "TODO: generate if assembly"))
+  (let  ([label-tru (gensym)]
+	[label-fls (gensym)]
+	[label-end-of-if (gensym)])
+  (comment out "Evaluating test")
+  (gen-code-recurse out vdecls test)
+  (comment out "Done evaluating test")
+  (comment out "TODO: Branch on true/false")
+  (comment out "Code to execute on true")
+  (display (string-append (symbol->string label-tru) ":\n") out) 
+  (gen-code-recurse out vdecls tru)
+  (comment out "End of true code")
+
+  (comment out "On true, skip fls code")
+  (display (string-append "jmp " (symbol->string label-end-of-if) "\n") out)
+  (comment out "Code to execute on false")
+  (display (string-append (symbol->string label-fls) ":\n") out)
+ 
+  (gen-code-recurse out vdecls fls)
+  (comment out "End of false code") 
+  (display (string-append (symbol->string label-end-of-if) ":\n") out)))
 
 (define (gen-code-return out vdecls expr)
   (comment out "TODO: generate return assembly"))
@@ -138,7 +164,7 @@
 
 (define (gen-code-varuse out vdecls id)
   (comment out "varuse id: " id)
-  (mov-stk out "ebx" (get-stack-offset id vdecls 0)))
+  (mov-stk out "ebx" (get-ebp-offset id vdecls 0)))
 
 (define (gen-code-this out vdecls type)
   (comment out "TODO: generate this assembly")) 
@@ -147,13 +173,12 @@
   (comment out "literal val " (number->string val))
   (movi out "ebx" val))
 
-(define (get-stack-offset id decls soff)
-  (define idsoff (second (assoc id decls)))
-  (- stack-off idsoff))
+(define (get-ebp-offset id decls soff)
+  (second (assoc id decls)))
   ;(cond
   ;  [(empty? decls) (error "Use of variable defore its declared")]
   ;  [(equal? id (first decls)) (+ 32 soff)]
-  ;  [else (get-stack-offset id (rest decls) (+ 32 soff))]))
+  ;  [else (get-ebp-offset id (rest decls) (+ 32 soff))]))
 
 ;==============================================================================================
 ;==== Conditions
@@ -172,18 +197,18 @@
   (display (foldr string-append "" (append (cons ";" m) (list "\n"))) out))
 
 (define (push out reg)
-  (set! stack-off (+ stack-off 32))
-  (display (string-append "\tpush " reg "\t;stack-off " (number->string stack-off) "\n") out))
+  (set! ebp-off (+ ebp-off 32))
+  (display (string-append "\tpush " reg "\t;ebp-off " (number->string ebp-off) "\n") out))
 
 (define (reset-stack out n)
   (cond
     [(> n 0) (addi out "esp" (* 32 n))
-             (set! stack-off (- stack-off (* 32 n)))]
+             (set! ebp-off (- ebp-off (* 32 n)))]
     [else (printf "")]))
 
 (define (pop out reg)
-  (set! stack-off (- stack-off 32))
-  (display (string-append "\tpop " reg "\t;stack-off " (number->string stack-off) "\n") out))
+  (set! ebp-off (- ebp-off 32))
+  (display (string-append "\tpop " reg "\t;ebp-off " (number->string ebp-off) "\n") out))
 
 (define (mov out reg1 reg2)
   (display (string-append "\tmov " reg1 "," reg2 "\n") out))
@@ -192,7 +217,9 @@
   (display (string-append "\tmov " reg "," (number->string i) "\n") out))
 
 (define (mov-stk out reg soff)
-  (display (string-append "\tmov " reg ",[esp+" (number->string soff) "]" "\n") out))
+  (display (string-append "\tmov " reg ",[ebp" (if [> soff 0] 
+                                                   (string-append "-" (number->string soff)) 
+                                                   "") "]" "\n") out))
 
 (define (sub out reg1 reg2)
   (display (string-append "\tsub " reg1 "," reg2 "\n") out))
