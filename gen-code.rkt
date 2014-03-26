@@ -84,13 +84,13 @@
   (gen-code-recurse out vdecls bd))
 
 (define (gen-code-varassign out vdecls id ex)
+  (comment out "varassign")
   (gen-code-recurse out vdecls ex)	;puts result in eax
 
-  (comment out "varassign")
   (cond
     [(vdecl? id) (push out "ebx")	;push the result form above onto the stack
                  (cons (list (vdecl-id id) (- ebp-off 32)) vdecls)]	;-32 since push above inc sp
-    [else (gen-code-recurse out vdecls id) 
+    [else (mtm out "ebx" (get-ebp-offset (varuse-id id) vdecls 0))
            vdecls]))
 
 (define (gen-code-vdecl out vdecls id)
@@ -164,7 +164,7 @@
 
 (define (gen-code-varuse out vdecls id)
   (comment out "varuse id: " id)
-  (mov-stk out "ebx" (get-ebp-offset id vdecls 0)))
+  (mfm out "ebx" (get-ebp-offset id vdecls 0)))
 
 (define (gen-code-this out vdecls type)
   (comment out "TODO: generate this assembly")) 
@@ -216,10 +216,13 @@
 (define (movi out reg i)
   (display (string-append "\tmov " reg "," (number->string i) "\n") out))
 
-(define (mov-stk out reg soff)
-  (display (string-append "\tmov " reg ",[ebp" (if [> soff 0] 
-                                                   (string-append "-" (number->string soff)) 
-                                                   "") "]" "\n") out))
+;mov from mem (like lw)
+(define (mfm out reg soff)
+  (display (string-append "\tmov " reg ",[ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]" "\n") out))
+
+;mov to mem (like sw)
+(define (mtm out reg soff)
+  (display (string-append "\tmov [ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]," reg "\n") out))
 
 (define (sub out reg1 reg2)
   (display (string-append "\tsub " reg1 "," reg2 "\n") out))
