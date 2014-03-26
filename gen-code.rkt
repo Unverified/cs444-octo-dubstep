@@ -51,7 +51,6 @@
     [`() (comment out vdecls "EMPTY STATEMENT")]))
 
 (define (gen-code-block out vdecls id statements)
-  (comment out "block " (symbol->string id))
   (define (gen-code-block-helper vdecls statements)
     (cond
       [(empty? statements) vdecls] ;TODO: pop local vars off stack
@@ -60,9 +59,7 @@
             (gen-code-block-helper vdecls (rest statements))]))
 
   (define bvdecls (gen-code-block-helper vdecls statements))
-  (define popn (- (length bvdecls) (length vdecls)))
-  (if (> popn 0) (addi out "esp" (* 32 popn)) (printf ""))
-  (comment out "end " (symbol->string id)))
+  (reset-stack out (- (length bvdecls) (length vdecls))))
 
 (define (gen-code-constructor out vdecls bd)
   (comment out "TODO: generate constructor assembly")
@@ -71,30 +68,40 @@
 (define (gen-code-start-method out vdecls bd)
   (display "global _start\n" out)
   (display "_start:\n" out)
+  (gen-code-method out vdecls bd)
   (display "mov eax, 1\n" out)
-  (display "int 0x80\n" out)
-  (gen-code-method out vdecls bd))
+  (display "int 0x80\n" out))
 
 (define (gen-code-method out vdecls bd)
   (comment out "TODO: generate method assembly")
   (gen-code-recurse out vdecls bd))
 
 (define (gen-code-varassign out vdecls id ex)
-(printf "vdecls: ~a id: ~a~n" vdecls id)
   (gen-code-recurse out vdecls ex)	;puts result in eax
+
+  (comment out "varassign")
   (cond
-    [(vdecl? id) (push out "eax")	;push the result form above onto the stack
-                 (comment out "pushing vdecl " (vdecl-id id))
-                 (cons (vdecl-id id) vdecls)]
-    [else (mov-stk out "eax" (get-stack-offset (varuse-id id) vdecls 0)) 
-          (comment out "assign eax to " (varuse-id id))
+    [(vdecl? id) (push out "ebx")	;push the result form above onto the stack
+                 (cons (list (vdecl-id id) (- stack-off 32)) vdecls)]
+    [else (gen-code-recurse out vdecls id) 
            vdecls]))
 
 (define (gen-code-vdecl out vdecls id)
   (comment out "TODO: generate vdecl assembly"))
   
 (define (gen-code-binop out vdecls op ls rs)
-  (comment out "TODO: generate binop assembly"))
+  (comment out "binop " (symbol->string op))
+  (push out "eax")			;save eax (cause we gonna use it)
+
+  (gen-code-recurse out vdecls rs)	;get result of rhs
+  (mov out "eax" "ebx")			;move result from above into eax
+  (gen-code-recurse out vdecls ls)	;get result of lhs
+
+  (match op
+    ['plus (add out "ebx" "eax")]
+    ['minus (sub out "ebx" "eax")])
+
+  (pop out "eax"))			;restore eax
 
 (define (gen-code-unop out vdecls op rs)
   (comment out "TODO: generate unop assembly"))
@@ -130,20 +137,23 @@
   (comment out "TODO: generate for assembly"))
 
 (define (gen-code-varuse out vdecls id)
-  (comment out "TODO: generate varuse assembly"))  
+  (comment out "varuse id: " id)
+  (mov-stk out "ebx" (get-stack-offset id vdecls 0)))
 
 (define (gen-code-this out vdecls type)
   (comment out "TODO: generate this assembly")) 
 
 (define (gen-code-literal out vdecls type val)
-  (movi out "eax" val) 
-  (comment out "movi " (number->string val) " into eax"))
+  (comment out "literal val " (number->string val))
+  (movi out "ebx" val))
 
 (define (get-stack-offset id decls soff)
-  (cond
-    [(empty? decls) (error "Use of variable defore its declared")]
-    [(equal? id (first decls)) (+ 32 soff)]
-    [else (get-stack-offset id (rest decls) (+ 32 soff))]))
+  (define idsoff (second (assoc id decls)))
+  (- stack-off idsoff))
+  ;(cond
+  ;  [(empty? decls) (error "Use of variable defore its declared")]
+  ;  [(equal? id (first decls)) (+ 32 soff)]
+  ;  [else (get-stack-offset id (rest decls) (+ 32 soff))]))
 
 ;==============================================================================================
 ;==== Conditions
@@ -162,19 +172,36 @@
   (display (foldr string-append "" (append (cons ";" m) (list "\n"))) out))
 
 (define (push out reg)
-  (display (string-append "push " reg) out))
+  (set! stack-off (+ stack-off 32))
+  (display (string-append "\tpush " reg "\t;stack-off " (number->string stack-off) "\n") out))
+
+(define (reset-stack out n)
+  (cond
+    [(> n 0) (addi out "esp" (* 32 n))
+             (set! stack-off (- stack-off (* 32 n)))]
+    [else (printf "")]))
 
 (define (pop out reg)
-  (display (string-append "pop " reg) out))
+  (set! stack-off (- stack-off 32))
+  (display (string-append "\tpop " reg "\t;stack-off " (number->string stack-off) "\n") out))
+
+(define (mov out reg1 reg2)
+  (display (string-append "\tmov " reg1 "," reg2 "\n") out))
 
 (define (movi out reg i)
-  (display (string-append "mov " reg "," (number->string i)) out))
+  (display (string-append "\tmov " reg "," (number->string i) "\n") out))
 
 (define (mov-stk out reg soff)
-  (display (string-append "mov " reg ",[esp+" (number->string soff) "]") out))
+  (display (string-append "\tmov " reg ",[esp+" (number->string soff) "]" "\n") out))
+
+(define (sub out reg1 reg2)
+  (display (string-append "\tsub " reg1 "," reg2 "\n") out))
+
+(define (add out reg1 reg2)
+  (display (string-append "\tadd " reg1 "," reg2 "\n") out))
 
 (define (addi out reg i)
-  (display (string-append "add " reg "," (number->string i)) out))
+  (display (string-append "\tadd " reg "," (number->string i) "\n") out))
 
 
 
