@@ -77,7 +77,8 @@
   (display "int 0x80\n" out)
   (display "int 3\n" out)
   (display "test:\n" out)
-  (gen-code-method out vdecls bd))
+  (gen-code-method out vdecls bd)
+  (display "ret\n" out))
 
 (define (gen-code-method out vdecls bd)
   (comment out "TODO: generate method assembly")
@@ -89,7 +90,7 @@
 
   (cond
     [(vdecl? id) (push out "ebx")	;push the result form above onto the stack
-                 (cons (list (vdecl-id id) (- ebp-off 32)) vdecls)]	;-32 since push above inc sp
+                 (cons (list (vdecl-id id) (- ebp-off 4)) vdecls)]	;-32 since push above inc sp
     [else (mtm out "ebx" (get-ebp-offset (varuse-id id) vdecls 0))
            vdecls]))
 
@@ -197,17 +198,17 @@
   (display (foldr string-append "" (append (cons ";" m) (list "\n"))) out))
 
 (define (push out reg)
-  (set! ebp-off (+ ebp-off 32))
+  (set! ebp-off (+ ebp-off 4))
   (display (string-append "\tpush " reg "\t;ebp-off " (number->string ebp-off) "\n") out))
 
 (define (reset-stack out n)
   (cond
-    [(> n 0) (addi out "esp" (* 32 n))
-             (set! ebp-off (- ebp-off (* 32 n)))]
+    [(> n 0) (addi out "esp" (* 4 n))
+             (set! ebp-off (- ebp-off (* 4 n)))]
     [else (printf "")]))
 
 (define (pop out reg)
-  (set! ebp-off (- ebp-off 32))
+  (set! ebp-off (- ebp-off 4))
   (display (string-append "\tpop " reg "\t;ebp-off " (number->string ebp-off) "\n") out))
 
 (define (mov out reg1 reg2)
@@ -233,6 +234,15 @@
 (define (addi out reg i)
   (display (string-append "\tadd " reg "," (number->string i) "\n") out))
 
+;will output asm code to print a char based on the value in reg. Just fyi, 14357 will dispaly 'A' for some reason.
+(define (print-reg out reg)
+  (display (string-append "mov eax," reg) out)
+  (display "push ebp" out)
+  (display "mov ebp,esp" out)
+  (display "push [ebp]" out)
+  (display "call NATIVEjava.io.OutputStream.nativeWrite" out)
+  (display "add esp,4" out)
+  (display "pop ebp" out))
 
 
 
