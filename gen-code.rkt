@@ -16,6 +16,7 @@
 
 (define (gen-code cinfo)
   (define out (open-output-file (get-outfile cinfo) #:exists 'replace))
+  (gen-debug-externs out)
   (match (info-ast cinfo)
     [(or (cunit _ _ (class _ _ _ _ _ _ bd))
          (cunit _ _ (interface _ _ _ _ _ bd))) (gen-code-recurse out empty-stackinfo bd)]))
@@ -71,6 +72,8 @@
   (display "global _start\n" out)
   (display "_start:\n" out)
   (gen-code-methodcall out empty-stackinfo empty "test" empty)
+  (nl out)
+  (gen-debug-print-eax out)
   (nl out)
   (display "mov eax, 1\n" out)
   (display "int 0x80\n" out)
@@ -323,12 +326,22 @@
   (display (string-append "" cj " " label) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
+(define (gen-debug-print-eax out)
+  (comment out "print eax")
+  (display "push ebp\n" out)
+  (display "mov ebp,esp\n" out)
+  (display "call NATIVEjava.io.OutputStream.nativeWrite\n" out)
+  (display "pop ebp\n\n" out)
 
-;mov eax,reg
-;push ebp
-;mov ebp,esp
-;call NATIVEjava.io.OutputStream.nativeWrite
-;pop ebp
+  (comment out "print newline")
+  (display "mov eax,14302")
+  (display "push ebp\n" out)
+  (display "mov ebp,esp\n" out)
+  (display "call NATIVEjava.io.OutputStream.nativeWrite\n" out)
+  (display "pop ebp\n" out))
+
+(define (gen-debug-externs out)
+  (display "extern NATIVEjava.io.OutputStream.nativeWrite\n" out))
 
 
 
