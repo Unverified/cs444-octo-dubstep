@@ -75,16 +75,19 @@
   (gen-code-method out "test" empty bd))
 
 (define (gen-code-method out id params bd)
-  (define sinfo (stackinfo (get-method-arg-decls params 0) (* WORD (length params))))
+  (define sinfo (stackinfo (get-method-arg-decls params 4) (* WORD (+ 1 (length params)))))
+  
+  (nl out)
   (comment out "METHOD " id)
-  (label out id)				;TODO: set the label for this method
+  (label out id "TODO: set the label for this method")
+  (mov out "ebp" "esp" "a must, ebp changes inbetween call and here")
   (gen-code-recurse out sinfo bd)	;gen methods code
   (display "ret\n" out))		;ret from method
 
 (define (gen-code-varassign out sinfo id ex)
+  (nl out)
   (comment out "varassign")
   (gen-code-recurse out sinfo ex)	;puts result in eax
-
   (cond
     [(vdecl? id) (push out "eax")		;push the result form above onto the stack
                  (stackinfo-add-decl sinfo (vdecl-id id))]	;-32 since push above inc sp
@@ -95,9 +98,10 @@
   (comment out "TODO: generate vdecl assembly"))
   
 (define (gen-code-binop out sinfo op ls rs)
+  (nl out)
   (comment out "binop " (symbol->string op))
 
-  (push out "ebx")			;save ebx (cause we gonna use it)
+  (push out "ebx" "saving")			;save ebx (cause we gonna use it)
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
 
   (gen-code-recurse out temp-sinfo rs)	;get result of rhs
@@ -125,7 +129,7 @@
          (movi out "eax" 1)				;if condition was true set eax to 1
          (label out label-end-of-if))])	
 
-  (pop out "ebx"))			;restore ebx
+  (pop out "ebx" "restoring"))			;restore ebx
 
 (define (gen-code-unop out sinfo op rs)
   (comment out "TODO: generate unop assembly"))
@@ -160,7 +164,7 @@
 (define (gen-code-iff out sinfo test tru fls)
   (let  ([label-fls (symbol->string (gensym))]
 	[label-end-of-if (symbol->string (gensym))])
-    (push out "ebx")			;save ebx (cause we gonna use it)
+    (push out "ebx" "saving")			;save ebx (cause we gonna use it)
     (comment out "Evaluating test")
     (gen-code-recurse out sinfo test)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
@@ -175,7 +179,7 @@
     (gen-code-recurse out sinfo fls)		;fls code
     (comment out "End of false code") 
     (label out label-end-of-if)			;end of if statement
-    (pop out "ebx")))			;restore ebx
+    (pop out "ebx" "restoring")))			;restore ebx
 
 (define (gen-code-return out sinfo expr)
   (comment out "TODO: generate return assembly"))
@@ -234,6 +238,9 @@
     [(empty? params) empty]
     [else (cons (list (parameter-id (first params)) ebpoff) (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
 
+(define (nl out)
+  (display "\n" out))
+
 ;==============================================================================================
 ;==== Conditions
 ;==============================================================================================
@@ -250,52 +257,70 @@
 (define (comment out . m)
   (display (foldr string-append "" (append (cons ";" m) (list "\n"))) out))
 
-(define (push out reg)
-  (display (string-append "\tpush " reg "\n") out))
+(define (cmt out lm)
+  (display (foldr string-append "" (append (cons "\t;" lm) (list "\n"))) out))
 
-(define (pop out reg)
-  (display (string-append "\tpop " reg "\n") out))
+(define (push out reg . comment)
+  (display (string-append "\tpush " reg) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (label out l)
-  (display (string-append "\t" l ":\n") out))
+(define (pop out reg . comment)
+  (display (string-append "\tpop " reg) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (call out label)
-  (display (string-append "\tcall " label "\n") out))
+(define (label out l . comment)
+  (display (string-append "\t" l ":") out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (mov out reg1 reg2)
-  (display (string-append "\tmov " reg1 "," reg2 "\n") out))
+(define (call out label . comment)
+  (display (string-append "\tcall " label) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (movi out reg i)
-  (display (string-append "\tmov " reg "," (number->string i) "\n") out))
+(define (mov out reg1 reg2 . comment)
+  (display (string-append "\tmov " reg1 "," reg2 ) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
+
+(define (movi out reg i . comment)
+  (display (string-append "\tmov " reg "," (number->string i)) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 ;mov from mem (like lw)
-(define (mfm out reg soff)
-  (display (string-append "\tmov " reg ",[ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]" "\n") out))
+(define (mfm out reg soff . comment)
+  (display (string-append "\tmov " reg ",[ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]") out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 ;mov to mem (like sw)
-(define (mtm out reg soff)
-  (display (string-append "\tmov [ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]," reg "\n") out))
+(define (mtm out reg soff . comment)
+  (display (string-append "\tmov [ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]," reg) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (sub out reg1 reg2)
-  (display (string-append "\tsub " reg1 "," reg2 "\n") out))
+(define (sub out reg1 reg2 . comment)
+  (display (string-append "\tsub " reg1 "," reg2) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (add out reg1 reg2)
-  (display (string-append "\tadd " reg1 "," reg2 "\n") out))
+(define (add out reg1 reg2 . comment)
+  (display (string-append "\tadd " reg1 "," reg2) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (addi out reg i)
-  (display (string-append "\tadd " reg "," (number->string i) "\n") out))
+(define (addi out reg i . comment)
+  (display (string-append "\tadd " reg "," (number->string i)) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (imult out reg1 reg2)
-  (display (string-append "\timult " reg1 "," reg2 "\n") out))
+(define (imult out reg1 reg2 . comment)
+  (display (string-append "\timult " reg1 "," reg2) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (cmp out reg1 reg2)
-  (display (string-append "\tcmp " reg1 "," reg2 "\n") out))
+(define (cmp out reg1 reg2 . comment)
+  (display (string-append "\tcmp " reg1 "," reg2) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (jmp out label)
-  (display (string-append "\tjmp " label "\n") out))
+(define (jmp out label . comment)
+  (display (string-append "\tjmp " label) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (cjmp out cj label)
-  (display (string-append "\t" cj " " label "\n") out))
+(define (cjmp out cj label . comment)
+  (display (string-append "\t" cj " " label) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 
 ;mov eax,reg
