@@ -66,48 +66,51 @@
   (comment out "TODO: generate constructor assembly"))
 
 (define (gen-code-start-method out bd)
+  (nl out)
+  (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
   (gen-code-methodcall out empty-stackinfo empty "test" empty)
+  (nl out)
   (display "mov eax, 1\n" out)
   (display "int 0x80\n" out)
   (display "int 3\n" out)
+  (comment out "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
   (gen-code-method out "test" empty bd))
 
 (define (gen-code-method out id params bd)
-  (define sinfo (stackinfo (get-method-arg-decls params 4) (* WORD (+ 1 (length params)))))
+  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 8) (* WORD (+ 1 (length params)))))
   
   (nl out)
-  (comment out "METHOD " id)
+  (comment out "######## METHOD " id " ########")
   (label out id "TODO: set the label for this method")
-  (mov out "ebp" "esp" "a must, ebp changes inbetween call and here")
+  (push out "ebp")			;save frame pointer
+  (mov out "ebp" "esp")			;set new frame pointer to stack pointer
   (gen-code-recurse out sinfo bd)	;gen methods code
-  (display "ret\n" out))		;ret from method
+  (nl out)
+  (pop out "ebp")
+  (display "ret\n" out)			;ret from method
+  (comment out "#############METHOD############"))
 
 (define (gen-code-varassign out sinfo id ex)
-  (nl out)
-  (comment out "varassign")
+  (comment out "varassign " (if[vdecl? id](vdecl-id id)(varuse-id id)))
   (gen-code-recurse out sinfo ex)	;puts result in eax
   (cond
-    [(vdecl? id) (push out "eax")		;push the result form above onto the stack
-                 (stackinfo-add-decl sinfo (vdecl-id id))]	;-32 since push above inc sp
-    [else (mtm out "eax" (get-ebp-offset (varuse-id id) sinfo 0))
+    [(vdecl? id) (push out "eax" "assign " (vdecl-id id) " to eax")
+                 (stackinfo-add-decl sinfo (vdecl-id id))]
+    [else (mtm out "eax" (get-ebp-offset (varuse-id id) sinfo 0) "assign " (varuse-id id) " to eax")
            sinfo]))
 
 (define (gen-code-vdecl out sinfo id)
   (comment out "TODO: generate vdecl assembly"))
   
 (define (gen-code-binop out sinfo op ls rs)
-  (nl out)
-  (comment out "binop " (symbol->string op))
-
-  (push out "ebx" "saving")			;save ebx (cause we gonna use it)
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
-
+  (comment out "binop " (symbol->string op))
+  (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (gen-code-recurse out temp-sinfo rs)	;get result of rhs
-  (mov out "ebx" "eax")			;move result from above into eax
+  (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
   (gen-code-recurse out temp-sinfo ls)	;get result of lhs
-
   (match op
     ['plus (add out "eax" "ebx")]
     ['minus (sub out "eax" "ebx")]
@@ -153,13 +156,12 @@
   (comment out "TODO: generate while assembly"))
 
 (define (gen-code-methodcall out sinfo left id args)
-  (comment out "methodcall to " id)
-  (push out "ebp")			;save frame pointer
-  (mov out "ebp" "esp")			;set new frame pointer to stack pointer
+  (nl out)
+  (comment out "=== METHODCALL TO " id " ===")
   (push-method-args out sinfo args)	;push all method args onto stack
   (call out id)				;TODO: call right label
   (reset-stack out (length args))	;"pop" off all the args from the stack
-  (pop out "ebp"))			;restore frame pointer
+  (comment out "===methodcall end==="))
 
 (define (gen-code-iff out sinfo test tru fls)
   (let  ([label-fls (symbol->string (gensym))]
@@ -195,20 +197,19 @@
   (comment out "TODO: generate this assembly")) 
 
 (define (gen-code-literal out sinfo type val)
-  (comment out "literal val " (number->string val))
-  (movi out "eax" val))
-
-(define (get-ebp-offset id sinfo soff)
-  (second (assoc id (stackinfo-decls sinfo))))
+  (movi out "eax" val "literal val " (number->string val)))
 
 ;==============================================================================================
 ;==== Helpers
 ;==============================================================================================
 
+(define (get-ebp-offset id sinfo soff)
+  (second (assoc id (stackinfo-decls sinfo))))
+
 (define (stackinfo-add-decl sinfo id)
   (define decls (stackinfo-decls sinfo))
   (define ebpoff (stackinfo-ebpoff sinfo))
-  (stackinfo (cons (list id ebpoff) decls)
+  (stackinfo (cons (list id (string-append "-" (number->string ebpoff))) decls)
              (+ ebpoff WORD)))
 
 (define (stackinfo-inc-ebpoff sinfo n)
@@ -236,7 +237,7 @@
 (define (get-method-arg-decls params ebpoff)
   (cond
     [(empty? params) empty]
-    [else (cons (list (parameter-id (first params)) ebpoff) (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
+    [else (cons (list (parameter-id (first params)) (string-append "+" (number->string ebpoff))) (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
 
 (define (nl out)
   (display "\n" out))
@@ -261,65 +262,65 @@
   (display (foldr string-append "" (append (cons "\t;" lm) (list "\n"))) out))
 
 (define (push out reg . comment)
-  (display (string-append "\tpush " reg) out)
+  (display (string-append "push " reg) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (pop out reg . comment)
-  (display (string-append "\tpop " reg) out)
+  (display (string-append "pop " reg) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (label out l . comment)
-  (display (string-append "\t" l ":") out)
+  (display (string-append "" l ":") out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (call out label . comment)
-  (display (string-append "\tcall " label) out)
+  (display (string-append "call " label) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (mov out reg1 reg2 . comment)
-  (display (string-append "\tmov " reg1 "," reg2 ) out)
+  (display (string-append "mov " reg1 "," reg2 ) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (movi out reg i . comment)
-  (display (string-append "\tmov " reg "," (number->string i)) out)
+  (display (string-append "mov " reg "," (number->string i)) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 ;mov from mem (like lw)
 (define (mfm out reg soff . comment)
-  (display (string-append "\tmov " reg ",[ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]") out)
+  (display (string-append "mov " reg ",[ebp" (string-append soff) "]") out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 ;mov to mem (like sw)
 (define (mtm out reg soff . comment)
-  (display (string-append "\tmov [ebp" (if [> soff 0] (string-append "-" (number->string soff)) "") "]," reg) out)
+  (display (string-append "mov [ebp" (string-append soff) "]," reg) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (sub out reg1 reg2 . comment)
-  (display (string-append "\tsub " reg1 "," reg2) out)
+  (display (string-append "sub " reg1 "," reg2) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (add out reg1 reg2 . comment)
-  (display (string-append "\tadd " reg1 "," reg2) out)
+  (display (string-append "add " reg1 "," reg2) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (addi out reg i . comment)
-  (display (string-append "\tadd " reg "," (number->string i)) out)
+  (display (string-append "add " reg "," (number->string i)) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (imult out reg1 reg2 . comment)
-  (display (string-append "\timult " reg1 "," reg2) out)
+  (display (string-append "imult " reg1 "," reg2) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (cmp out reg1 reg2 . comment)
-  (display (string-append "\tcmp " reg1 "," reg2) out)
+  (display (string-append "cmp " reg1 "," reg2) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (jmp out label . comment)
-  (display (string-append "\tjmp " label) out)
+  (display (string-append "jmp " label) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (cjmp out cj label . comment)
-  (display (string-append "\t" cj " " label) out)
+  (display (string-append "" cj " " label) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 
