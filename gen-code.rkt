@@ -75,9 +75,10 @@
   (gen-code-method out "test" empty bd))
 
 (define (gen-code-method out id params bd)
-  (define sinfo (stackinfo (get-method-arg-decls params 0) (* WORD (length params))))
+  (define sinfo (stackinfo (get-method-arg-decls params 4) (* WORD (+ 1 (length params)))))
   (comment out "METHOD " id)
-  (label out id)				;TODO: set the label for this method
+  (label out id)			;TODO: set the label for this method
+  (mov out "ebp" "esp")			;a must, ebp changes inbetween call and here
   (gen-code-recurse out sinfo bd)	;gen methods code
   (display "ret\n" out))		;ret from method
 
