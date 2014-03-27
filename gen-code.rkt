@@ -6,7 +6,7 @@
 
 (provide gen-code)
 
-(struct stackinfo (decls edpoff))
+(struct stackinfo (decls ebpoff))
 
 (define WORD 4)
 (define empty-stackinfo (stackinfo empty 0))
@@ -98,7 +98,7 @@
   (comment out "binop " (symbol->string op))
 
   (push out "eax")			;save eax (cause we gonna use it)
-  (define temp-sinfo (stackinfo-inc-edpoff sinfo 1))
+  (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
 
   (gen-code-recurse out temp-sinfo rs)	;get result of rhs
   (mov out "eax" "ebx")			;move result from above into eax
@@ -117,7 +117,7 @@
   (comment out "TODO: generate cast assembly"))
 
 (define (gen-code-arraycreate out sinfo ty sz)
-  (comment out "TODO: generate arraycget-method-arg-decls params edpoffreate assembly"))
+  (comment out "TODO: generate arraycget-method-arg-decls params ebpoffreate assembly"))
 
 (define (gen-code-classcreate out sinfo cls params)
   (comment out "TODO: generate classcreate assembly"))
@@ -134,11 +134,11 @@
 (define (gen-code-methodcall out sinfo left id args)
   (comment out "methodcall to " id)
   (push out "ebp")			;save frame pointer
-  (mov out "edp" "esp")			;set new frame pointer to stack pointer
+  (mov out "ebp" "esp")			;set new frame pointer to stack pointer
   (push-method-args out sinfo args)	;push all method args onto stack
   (call out id)				;TODO: call right label
   (reset-stack out (length args))	;"pop" off all the args from the stack
-  (pop out "edp"))			;restore frame pointer
+  (pop out "ebp"))			;restore frame pointer
 
 (define (gen-code-iff out sinfo test tru fls)
   (let  ([label-tru (gensym)]
@@ -188,19 +188,19 @@
 
 (define (stackinfo-add-decl sinfo id)
   (define decls (stackinfo-decls sinfo))
-  (define edpoff (stackinfo-edpoff sinfo))
-  (stackinfo (cons (list id edpoff) decls)
-             (+ edpoff WORD)))
+  (define ebpoff (stackinfo-ebpoff sinfo))
+  (stackinfo (cons (list id ebpoff) decls)
+             (+ ebpoff WORD)))
 
-(define (stackinfo-inc-edpoff sinfo n)
+(define (stackinfo-inc-ebpoff sinfo n)
   (define decls (stackinfo-decls sinfo))
-  (define edpoff (stackinfo-edpoff sinfo))
-  (stackinfo decls (+ edpoff (* WORD n))))
+  (define ebpoff (stackinfo-ebpoff sinfo))
+  (stackinfo decls (+ ebpoff (* WORD n))))
 
-(define (stackinfo-dec-edpoff sinfo n)
+(define (stackinfo-dec-ebpoff sinfo n)
   (define decls (stackinfo-decls sinfo))
-  (define edpoff (stackinfo-edpoff sinfo))
-  (stackinfo decls (- edpoff (* WORD n))))
+  (define ebpoff (stackinfo-ebpoff sinfo))
+  (stackinfo decls (- ebpoff (* WORD n))))
 
 (define (reset-stack out n)
   (cond
@@ -214,10 +214,10 @@
           (push out "ebx")
           (push-method-args out sinfo (rest args))]))
 
-(define (get-method-arg-decls params edpoff)
+(define (get-method-arg-decls params ebpoff)
   (cond
     [(empty? params) empty]
-    [else (cons (list (parameter-id (first params)) edpoff) (get-method-arg-decls (rest params) (+ WORD edpoff)))]))
+    [else (cons (list (parameter-id (first params)) ebpoff) (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
 
 ;==============================================================================================
 ;==== Conditions
