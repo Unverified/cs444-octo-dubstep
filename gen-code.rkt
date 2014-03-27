@@ -86,9 +86,9 @@
   (gen-code-recurse out sinfo ex)	;puts result in eax
 
   (cond
-    [(vdecl? id) (push out "ebx")		;push the result form above onto the stack
+    [(vdecl? id) (push out "eax")		;push the result form above onto the stack
                  (stackinfo-add-decl sinfo (vdecl-id id))]	;-32 since push above inc sp
-    [else (mtm out "ebx" (get-ebp-offset (varuse-id id) sinfo 0))
+    [else (mtm out "eax" (get-ebp-offset (varuse-id id) sinfo 0))
            sinfo]))
 
 (define (gen-code-vdecl out sinfo id)
@@ -97,18 +97,35 @@
 (define (gen-code-binop out sinfo op ls rs)
   (comment out "binop " (symbol->string op))
 
-  (push out "eax")			;save eax (cause we gonna use it)
+  (push out "ebx")			;save ebx (cause we gonna use it)
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
 
   (gen-code-recurse out temp-sinfo rs)	;get result of rhs
-  (mov out "eax" "ebx")			;move result from above into eax
+  (mov out "ebx" "eax")			;move result from above into eax
   (gen-code-recurse out temp-sinfo ls)	;get result of lhs
 
   (match op
-    ['plus (add out "ebx" "eax")]
-    ['minus (sub out "ebx" "eax")])
+    ['plus (add out "eax" "ebx")]
+    ['minus (sub out "eax" "ebx")]
+    ['star (imult out "eax" "ebx")]
+    ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (movi "eax" 1)]
+    [_ (let ([label-tru (symbol->string (gensym))]	;else we have a conditional binop which requires more work
+	     [label-end-of-if (symbol->string (gensym))])
+         (cmp out "eax" "ebx")				;first compare the 2 operations
+         (match op					;then put the correct comditional jmp to a tru label 
+           ['eqeq (cjmp out "je" label-tru)]
+           ['noteq (cjmp out "jne" label-tru)]
+           ['gt (cjmp out "jg" label-tru)]
+           ['lt (cjmp out "jl" label-tru)]
+           ['gteq (cjmp out "jge" label-tru)]
+           ['lteq (cjmp out "jle" label-tru)])
+         (movi out "eax" 0)				;if the condition was false set eax to 0
+         (jmp out label-end-of-if)
+         (label out label-tru)				;and skip passed true code
+         (movi out "eax" 1)				;if condition was true set eax to 1
+         (label out label-end-of-if))])	
 
-  (pop out "eax"))			;restore eax
+  (pop out "ebx"))			;restore ebx
 
 (define (gen-code-unop out sinfo op rs)
   (comment out "TODO: generate unop assembly"))
@@ -141,26 +158,24 @@
   (pop out "ebp"))			;restore frame pointer
 
 (define (gen-code-iff out sinfo test tru fls)
-  (let  ([label-tru (gensym)]
-	[label-fls (gensym)]
-	[label-end-of-if (gensym)])
-  (comment out "Evaluating test")
-  (gen-code-recurse out sinfo test)
-  (comment out "Done evaluating test")
-  (comment out "TODO: Branch on true/false")
-  (comment out "Code to execute on true")
-  (display (string-append (symbol->string label-tru) ":\n") out) 
-  (gen-code-recurse out sinfo tru)
-  (comment out "End of true code")
-
-  (comment out "On true, skip fls code")
-  (display (string-append "jmp " (symbol->string label-end-of-if) "\n") out)
-  (comment out "Code to execute on false")
-  (display (string-append (symbol->string label-fls) ":\n") out)
- 
-  (gen-code-recurse out sinfo fls)
-  (comment out "End of false code") 
-  (display (string-append (symbol->string label-end-of-if) ":\n") out)))
+  (let  ([label-fls (symbol->string (gensym))]
+	[label-end-of-if (symbol->string (gensym))])
+    (push out "ebx")			;save ebx (cause we gonna use it)
+    (comment out "Evaluating test")
+    (gen-code-recurse out sinfo test)		;eval test, eax will contain 0 or 1 (false or true)
+    (comment out "Done evaluating test")
+    (movi out "ebx" 0)				;mov false into ebx
+    (cmp out "eax" "ebx")				;cmp test to ebx (false)
+    (cjmp out "je" label-fls)			;if test is eqaul to false then jump to the false code
+    (gen-code-recurse out sinfo tru)		;else the test was true so run tru code
+    (jmp out label-end-of-if)			;done tru code so jump passed fls code
+    (comment out "End of true code")		
+    (label out label-fls)				;start of false code
+    (comment out "Code to execute on false")
+    (gen-code-recurse out sinfo fls)		;fls code
+    (comment out "End of false code") 
+    (label out label-end-of-if)			;end of if statement
+    (pop out "ebx")))			;restore ebx
 
 (define (gen-code-return out sinfo expr)
   (comment out "TODO: generate return assembly"))
@@ -170,14 +185,14 @@
 
 (define (gen-code-varuse out sinfo id)
   (comment out "varuse id: " id)
-  (mfm out "ebx" (get-ebp-offset id sinfo 0)))
+  (mfm out "eax" (get-ebp-offset id sinfo 0)))
 
 (define (gen-code-this out sinfo type)
   (comment out "TODO: generate this assembly")) 
 
 (define (gen-code-literal out sinfo type val)
   (comment out "literal val " (number->string val))
-  (movi out "ebx" val))
+  (movi out "eax" val))
 
 (define (get-ebp-offset id sinfo soff)
   (second (assoc id (stackinfo-decls sinfo))))
@@ -211,7 +226,7 @@
   (cond
     [(empty? args) (printf "")]
     [else (gen-code-recurse out sinfo (first args))
-          (push out "ebx")
+          (push out "eax")
           (push-method-args out sinfo (rest args))]))
 
 (define (get-method-arg-decls params ebpoff)
@@ -270,15 +285,25 @@
 (define (addi out reg i)
   (display (string-append "\tadd " reg "," (number->string i) "\n") out))
 
-;will output asm code to print a char based on the value in reg. Just fyi, 14357 will dispaly 'A' for some reason.
-(define (print-reg out reg)
-  (display (string-append "mov eax," reg) out)
-  (display "push ebp" out)
-  (display "mov ebp,esp" out)
-  (display "push [ebp]" out)
-  (display "call NATIVEjava.io.OutputStream.nativeWrite" out)
-  (display "add esp,4" out)
-  (display "pop ebp" out))
+(define (imult out reg1 reg2)
+  (display (string-append "\timult " reg1 "," reg2 "\n") out))
+
+(define (cmp out reg1 reg2)
+  (display (string-append "\tcmp " reg1 "," reg2 "\n") out))
+
+(define (jmp out label)
+  (display (string-append "\tjmp " label "\n") out))
+
+(define (cjmp out cj label)
+  (display (string-append "\t" cj " " label "\n") out))
+
+
+;mov eax,reg
+;push ebp
+;mov ebp,esp
+;call NATIVEjava.io.OutputStream.nativeWrite
+;pop ebp
+
 
 
 
