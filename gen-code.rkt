@@ -17,6 +17,7 @@
 (define (gen-code cinfo)
   (define out (open-output-file (get-outfile cinfo) #:exists 'replace))
   (gen-debug-externs out)
+  (gen-debug-print-eax out)
   (match (info-ast cinfo)
     [(or (cunit _ _ (class _ _ _ _ _ _ bd))
          (cunit _ _ (interface _ _ _ _ _ bd))) (gen-code-recurse out empty-stackinfo bd)]))
@@ -73,7 +74,7 @@
   (display "_start:\n" out)
   (gen-code-methodcall out empty-stackinfo empty "test" empty)
   (nl out)
-  (gen-debug-print-eax out)
+  (gen-debug-print out)
   (nl out)
   (display "mov eax, 1\n" out)
   (display "int 0x80\n" out)
@@ -82,7 +83,7 @@
   (gen-code-method out "test" empty bd))
 
 (define (gen-code-method out id params bd)
-  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 8) (* WORD (+ 1 (length params)))))
+  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 8) 4))
   
   (nl out)
   (comment out "######## METHOD " id " ########")
@@ -117,7 +118,7 @@
   (match op
     ['plus (add out "eax" "ebx")]
     ['minus (sub out "eax" "ebx")]
-    ['star (imult out "eax" "ebx")]
+    ['star (imul out "eax" "ebx")]
     ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (movi "eax" 1)]
     [_ (let ([label-tru (symbol->string (gensym))]	;else we have a conditional binop which requires more work
 	     [label-end-of-if (symbol->string (gensym))])
@@ -167,27 +168,31 @@
   (comment out "===methodcall end==="))
 
 (define (gen-code-iff out sinfo test tru fls)
+  (comment out "IFF")
   (let  ([label-fls (symbol->string (gensym))]
 	[label-end-of-if (symbol->string (gensym))])
-    (push out "ebx" "saving")			;save ebx (cause we gonna use it)
     (comment out "Evaluating test")
     (gen-code-recurse out sinfo test)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
-    (movi out "ebx" 0)				;mov false into ebx
-    (cmp out "eax" "ebx")				;cmp test to ebx (false)
-    (cjmp out "je" label-fls)			;if test is eqaul to false then jump to the false code
-    (gen-code-recurse out sinfo tru)		;else the test was true so run tru code
-    (jmp out label-end-of-if)			;done tru code so jump passed fls code
+    (nl out)
+    (movi out "ecx" 1)				;mov 1 into ebx
+    (cmp out "eax" "ecx")			;cmp test to ebx (true)
+    (cjmp out "jne" label-fls)			;if test is eqaul to false then jump to the false code
+    (nl out)
+    (comment out "TRUE CODE")
+    (gen-code-recurse out sinfo tru)		;else the test was false so run false code
+    (jmp out label-end-of-if)			;done fls code so jump passed tru code
     (comment out "End of true code")		
-    (label out label-fls)				;start of false code
-    (comment out "Code to execute on false")
-    (gen-code-recurse out sinfo fls)		;fls code
+    (nl out)
+    (label out label-fls)
+    (comment out "FALSE CODE")
+    (gen-code-recurse out sinfo fls)		;tru code
     (comment out "End of false code") 
-    (label out label-end-of-if)			;end of if statement
-    (pop out "ebx" "restoring")))			;restore ebx
+    (label out label-end-of-if)))		;end of if statement
 
 (define (gen-code-return out sinfo expr)
-  (comment out "TODO: generate return assembly"))
+  (comment out ";RETURN")
+  (gen-code-recurse out sinfo expr))
   
 (define (gen-code-for out sinfo init clause update body)
   (comment out "TODO: generate for assembly"))
@@ -310,8 +315,8 @@
   (display (string-append "add " reg "," (number->string i)) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (imult out reg1 reg2 . comment)
-  (display (string-append "imult " reg1 "," reg2) out)
+(define (imul out reg1 reg2 . comment)
+  (display (string-append "imul " reg1 "," reg2) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (cmp out reg1 reg2 . comment)
@@ -326,7 +331,13 @@
   (display (string-append "" cj " " label) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
+(define (gen-debug-print out)
+  (push out "eax")
+  (call out "write")
+  (pop out "eax"))
+
 (define (gen-debug-print-eax out)
+  (label out "write")
   (comment out "print eax")
   (display "push ebp\n" out)
   (display "mov ebp,esp\n" out)
@@ -334,11 +345,12 @@
   (display "pop ebp\n\n" out)
 
   (comment out "print newline")
-  (display "mov eax,14302")
+  (display "mov eax,14602\n" out)
   (display "push ebp\n" out)
   (display "mov ebp,esp\n" out)
   (display "call NATIVEjava.io.OutputStream.nativeWrite\n" out)
-  (display "pop ebp\n" out))
+  (display "pop ebp\n" out)
+  (display "ret\n" out))
 
 (define (gen-debug-externs out)
   (display "extern NATIVEjava.io.OutputStream.nativeWrite\n" out))
