@@ -18,8 +18,13 @@
 (define (gen-static out cenv)
   (let ([sect-label (apply string-append (codeenv-name cenv))]
         [inter-label "_INTERFACE"])
+    
+    (for-each (lambda (x) (for-each (curryr display out)
+                                    (list "extern " (mangle-names (codemeth-id x)) "\n")))
+     (filter-not codemeth-ref? (codeenv-methods cenv)))
+    
     ;; want to write in a data section
-    (display "\n\n\n\nsection .data\n\n" out)
+    (display "\nsection .data\n\n" out)
     ;; write the table header so we can find stuff
     (for-each (curryr display out)
               (list           
@@ -29,7 +34,9 @@
                "dw " inter-label "\t ; where valid interfaces are declared\n"))
     ;; method pointers go here
     (for-each (lambda (x) (for-each (curryr display out)
-                                    (list "dw " (mangle-names (codemeth-id x)) "\t; scope" "\n" )))
+                                    (list "dw " (mangle-names (codemeth-id x)) "\t; scope" "\n" )
+                                        
+                                        ))
               (reverse (codeenv-methods cenv)))
     
     ;; layout static vars here

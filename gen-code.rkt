@@ -5,7 +5,9 @@
 (require "types.rkt")
 
 (require "gen-headers.rkt")
+(require "environments.rkt")
 (require "generation-structures.rkt")
+(require "mangle-names.rkt")
 
 (provide gen-code)
 
@@ -20,12 +22,13 @@
 (define (gen-code cinfo cenvs)
   (define out (open-output-file (get-outfile cinfo) #:exists 'replace))
   (define cenv (find-codeenv (info-name cinfo) cenvs))
+  (gen-static out cenv)
+  (display "\n\n\nsection .text\n" out)
   (gen-debug-externs out)
   (gen-debug-print-eax out)
-  (match (info-ast cinfo)
-    [(or (cunit _ _ (class _ _ _ _ _ _ bd))
-         (cunit _ _ (interface _ _ _ _ _ bd))) (gen-code-recurse out empty-stackinfo #f bd)])
-  (gen-static out cenv))
+  (for-each(lambda (x)
+             (for-each (curryr display out) (list  (mangle-names (codemeth-id x)) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
+             (gen-code-recurse out empty-stackinfo #f (codemeth-def x))) (filter codemeth-ref? (codeenv-methods cenv))))
 
 
 (define (gen-code-recurse out sinfo rtnaddr t)
@@ -54,7 +57,7 @@
 ;    [(rtype _) ast]
 ;    [(atype type) (atype (F type))]
     [(varuse _ id) (gen-code-varuse out sinfo rtnaddr id)]
-    [(this _ type) (gen-code-varuse out sinfo rtnaddr type)]
+    [(this _ type) (thunk (gen-code-varuse out sinfo rtnaddr "this"))]
     [(literal _ type val) (gen-code-literal out sinfo rtnaddr type val)]
     [(block env id statements)  (gen-code-block out sinfo rtnaddr id statements) ]
     [`() (comment out "EMPTY STATEMENT")]))

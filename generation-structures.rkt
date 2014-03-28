@@ -29,7 +29,7 @@
 ;; tag depends on how static is set, 
 ;; true means its the origin class, false is an offset
 (struct codevar (id ref? static? tag val) #:transparent)
-(struct codemeth (id origin off def) #:transparent)
+(struct codemeth (id ref? origin off def) #:transparent)
 ;; type is either 'inter or 'class
 (struct codeenv (name guid class? vars methods casts) #:transparent)
 
@@ -38,10 +38,11 @@
         [else (for/list ([key (remove-duplicates (map first (reverse asoc)))])
                 (assoc key asoc))]))
   
-(define (assoclst->codemeth lookup lst)
+(define (assoclst->codemeth local lookup lst)
   (reverse (for/list ([off (range 1 (add1 (length lst)))]
                       [asc (reverse-normalize lst)])
-             (codemeth (first asc) 
+             (codemeth (first asc)
+                       (equal? local (eval-scope (second asc)))
                        (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup")))
                        (* 4 off) 
                        (eval-ast (second asc))))))
@@ -80,8 +81,8 @@
            [(is-interface? (info-ast cinfo)) #f]
            [else (error "info->codeenv givencinfo of a improper compilation unit")])
      (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))
-     (assoclst->codemeth lookup (append (envs-constructors (info-env cinfo))
-                                        (envs-methods (info-env cinfo))))
+     (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup (append (envs-constructors (info-env cinfo))
+                                                                       (envs-methods (info-env cinfo))))
      (append (for/list ([name  (map info-name all-info)]
                         [supers (map info-supers all-info)]
                         #:when (list? (member (info-name cinfo) supers)))
