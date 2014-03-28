@@ -409,6 +409,7 @@
   ;;need to:
   ;;put content of reg2 into eax
   ;;put 0 into edx
+  ;;put content of reg1 into ebx
   ;;do an idiv
   (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
 							   (mov "ebx" reg2))
