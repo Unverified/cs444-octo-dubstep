@@ -24,11 +24,11 @@
   (gen-debug-print-eax out)
   (match (info-ast cinfo)
     [(or (cunit _ _ (class _ _ _ _ _ _ bd))
-         (cunit _ _ (interface _ _ _ _ _ bd))) (gen-code-recurse out empty-stackinfo bd)])
-  (gen-static out cenv)
-  )
+         (cunit _ _ (interface _ _ _ _ _ bd))) (gen-code-recurse out empty-stackinfo #f bd)])
+  (gen-static out cenv))
 
-(define (gen-code-recurse out vdecls t)
+
+(define (gen-code-recurse out sinfo rtnaddr t)
   ;(ast-print-struct t)
   (match t
     [(constructor env sp decl bd) (gen-code-constructor out bd)]
@@ -36,39 +36,39 @@
     [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out id params bd)]
  ;   [(methoddecl env id params) (methoddecl env id (map F params))]
  ;   [(parameter env type id) (parameter env (F type) id)]
-    [(varassign env id ex) (gen-code-varassign out vdecls id ex)]
-    [(vdecl env sp md ty id) (gen-code-vdecl out vdecls id)]
-    [(binop env op ls rs) (gen-code-binop out vdecls op ls rs)]
-    [(unop env op rs) (gen-code-unop out vdecls op rs)]
-    [(cast env c ex) (gen-code-cast out vdecls c ex)]
-    [(arraycreate env ty sz) (gen-code-arraycreate out vdecls ty sz)]
-    [(classcreate env cls params) (gen-code-classcreate out vdecls cls params)]
-    [(fieldaccess env left field) (gen-code-fieldaccess out vdecls left field)]
-    [(arrayaccess env left index) (gen-code-arrayaccess out vdecls left index)]
-    [(while env test body) (gen-code-while out vdecls test body)]
-    [(methodcall env left id args) (gen-code-methodcall out vdecls left id args)]
-    [(iff env test tru fls) (gen-code-iff out vdecls test tru fls)]
-    [(return env expr) (gen-code-return out vdecls expr)]
-    [(for env init clause update body) (gen-code-for out vdecls init clause update body)]
+    [(varassign env id ex) (gen-code-varassign out sinfo rtnaddr id ex)]
+    [(vdecl env sp md ty id) (gen-code-vdecl out sinfo rtnaddr id)]
+    [(binop env op ls rs) (gen-code-binop out sinfo rtnaddr op ls rs)]
+    [(unop env op rs) (gen-code-unop out sinfo rtnaddr op rs)]
+    [(cast env c ex) (gen-code-cast out sinfo rtnaddr c ex)]
+    [(arraycreate env ty sz) (gen-code-arraycreate out sinfo rtnaddr ty sz)]
+    [(classcreate env cls params) (gen-code-classcreate out sinfo rtnaddr cls params)]
+    [(fieldaccess env left field) (gen-code-fieldaccess out sinfo rtnaddr left field)]
+    [(arrayaccess env left index) (gen-code-arrayaccess out sinfo rtnaddr left index)]
+    [(while env test body) (gen-code-while out sinfo rtnaddr test body)]
+    [(methodcall env left id args) (gen-code-methodcall out sinfo rtnaddr left id args)]
+    [(iff env test tru fls) (gen-code-iff out sinfo rtnaddr test tru fls)]
+    [(return env expr) (gen-code-return out sinfo rtnaddr expr)]
+    [(for env init clause update body) (gen-code-for out sinfo rtnaddr init clause update body)]
 ;    [(ptype _) ast]
 ;    [(rtype _) ast]
 ;    [(atype type) (atype (F type))]
-    [(varuse _ id) (gen-code-varuse out vdecls id)]
-    [(this _ type) (gen-code-varuse out vdecls type)]
-    [(literal _ type val) (gen-code-literal out vdecls type val)]
-    [(block env id statements)  (gen-code-block out vdecls id statements) ]
+    [(varuse _ id) (gen-code-varuse out sinfo rtnaddr id)]
+    [(this _ type) (gen-code-varuse out sinfo rtnaddr type)]
+    [(literal _ type val) (gen-code-literal out sinfo rtnaddr type val)]
+    [(block env id statements)  (gen-code-block out sinfo rtnaddr id statements) ]
     [`() (comment out "EMPTY STATEMENT")]))
 
-(define (gen-code-block out vdecls id statements)
-  (define (gen-code-block-helper vdecls statements)
+(define (gen-code-block out sinfo rtnaddr id statements)
+  (define (gen-code-block-helper sinfo statements)
     (cond
-      [(empty? statements) vdecls] ;TODO: pop local vars off stack
-      [(varassign? (first statements)) (gen-code-block-helper (gen-code-recurse out vdecls (first statements)) (rest statements))]
-      [else (gen-code-recurse out vdecls (first statements))
-            (gen-code-block-helper vdecls (rest statements))]))
+      [(empty? statements) sinfo] ;TODO: pop local vars off stack
+      [(varassign? (first statements)) (gen-code-block-helper (gen-code-recurse out sinfo rtnaddr (first statements)) (rest statements))]
+      [else (gen-code-recurse out sinfo rtnaddr (first statements))
+            (gen-code-block-helper sinfo (rest statements))]))
 
-  (define bvdecls (gen-code-block-helper vdecls statements))
-  (reset-stack out (- (length (stackinfo-decls bvdecls)) (length (stackinfo-decls vdecls)))))
+  (define bsinfo (gen-code-block-helper sinfo statements))
+  (reset-stack out (- (length (stackinfo-decls bsinfo)) (length (stackinfo-decls sinfo)))))
 
 (define (gen-code-constructor out bd)
   (comment out "TODO: generate constructor assembly"))
@@ -78,7 +78,7 @@
   (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
-  (gen-code-methodcall out empty-stackinfo empty "test" empty)
+  (gen-code-methodcall out empty-stackinfo #f empty "test" empty)
   (nl out)
   (gen-debug-print out)
   (nl out)
@@ -96,46 +96,55 @@
   (label out id "TODO: set the label for this method")
   (push out "ebp")			;save frame pointer
   (mov out "ebp" "esp")			;set new frame pointer to stack pointer
-  (gen-code-recurse out sinfo bd)	;gen methods code
+  (gen-code-recurse out sinfo #f bd)	;gen methods code
   (nl out)
   (pop out "ebp")
   (display "ret\n" out)			;ret from method
-  (comment out "#############METHOD############"))
+  (comment out "#############METHOsaD############"))
 
-(define (gen-code-varassign out sinfo id ex)
-  (comment out "varassign " (if[vdecl? id](vdecl-id id)(varuse-id id)))
-  (gen-code-recurse out sinfo ex)	;puts result in eax
+(define (gen-code-varassign out sinfo rtnaddr id ex)
+  (nl out)
+  (comment out "VARASSIGN")
+
+  (gen-code-recurse out sinfo #f ex)	;puts result in eax
   (cond
-    [(vdecl? id) (push out "eax" "assign " (vdecl-id id) " to eax")
-                 (stackinfo-add-decl sinfo (vdecl-id id))]
-    [else (mtm out "eax" (get-ebp-offset (varuse-id id) sinfo) "assign " (varuse-id id) " to eax")
-           sinfo]))
+    [(vdecl? id)  (push out "eax" "assign " (vdecl-id id) " to eax")
+                  (stackinfo-add-decl sinfo (vdecl-id id))]
+    [(varuse? id) (movt out "ebp" "eax" (get-ebp-offset (varuse-id id) sinfo) "assign " (varuse-id id) " to eax")
+                   sinfo]
+    [(arrayaccess? id) (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
+                       (push out "ebx" "saving")
+                       (mov out "ebx" "eax")
+                       (gen-code-recurse out sinfo #t id)
+                       (movt out "eax" "ebx" "")
+                       (pop out "ebx")
+                        sinfo]))
 
-(define (gen-code-vdecl out sinfo id)
+(define (gen-code-vdecl out sinfo rtnaddr id)
   (comment out "TODO: generate vdecl assembly"))
   
-(define (gen-code-binop out sinfo op ls rs)
+(define (gen-code-binop out sinfo rtnaddr op ls rs)
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (comment out "binop " (symbol->string op))
 
   (cond
-    [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs)]
+    [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo rtnaddr op ls rs)]
     [else
-      (gen-code-recurse out temp-sinfo rs)	;get result of rhs
+      (gen-code-recurse out temp-sinfo rtnaddr rs)	;get result of rhs
       (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
-      (gen-code-recurse out temp-sinfo ls)	;get result of lhs
+      (gen-code-recurse out temp-sinfo rtnaddr ls)	;get result of lhs
       (match op
         ['plus (add out "eax" "ebx")]
         ['minus (sub out "eax" "ebx")]
         ['star (imul out "eax" "ebx")]
         ['slash (divide out "eax" "ebx")]
 	['pct (rem out "eax" "ebx")]
-        [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo op ls rs)])])
+        [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo rtnaddr op ls rs)])])
 
   (pop out "ebx" "restoring"))			;restore ebx
 
-(define (gen-code-conditional out sinfo op ls rs)
+(define (gen-code-conditional out sinfo rtnaddr op ls rs)
   (let ([label-tru (symbol->string (gensym))]	
         [label-end-of-if (symbol->string (gensym))])
     (cmp out "eax" "ebx")				;first compare the 2 operations
@@ -152,55 +161,85 @@
     (movi out "eax" 1)				;if condition was true set eax to 1
     (label out label-end-of-if)))
 
-(define (gen-code-logical out sinfo op ls rs)
+(define (gen-code-logical out sinfo rtnaddr op ls rs)
   (let ([label-end (symbol->string (gensym))])
     (movi out "ebx" 1)
-    (gen-code-recurse out sinfo ls)
+    (gen-code-recurse out sinfo rtnaddr ls)
     (cmp out "eax" "ebx")
     (match op
       ['barbar (cjmp out "je" label-end)
-               (gen-code-recurse out sinfo rs)
+               (gen-code-recurse out sinfo rtnaddr rs)
                (label out label-end)]
       ['ampamp (cjmp out "jne" label-end)
-               (gen-code-recurse out sinfo rs)
+               (gen-code-recurse out sinfo rtnaddr rs)
                (label out label-end)])))
 
-(define (gen-code-unop out sinfo op rs)
-  (gen-code-recurse out sinfo rs)
+(define (gen-code-unop out sinfo rtnaddr op rs)
+  (gen-code-recurse out sinfo rtnaddr rs)
   (match op
     ['minus (display "neg eax\n" out)]
     ['not   (display "not eax\n" out)
             (display "and eax,1\n" out)]))
 
-(define (gen-code-cast out sinfo c ex)
+(define (gen-code-cast out sinfo rtnaddr c ex)
   (comment out "TODO: generate cast assembly"))
 
-(define (gen-code-arraycreate out sinfo ty sz)
-  (comment out "TODO: generate arraycget-method-arg-decls params ebpoffreate assembly"))
+(define (gen-code-arraycreate out sinfo rtnaddr ty sz)
+  (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
+  (push out "ebx")
 
-(define (gen-code-classcreate out sinfo cls params)
+  (nl out)
+  (comment out "ARRAY CREATE")
+  (gen-code-recurse out sinfo rtnaddr sz)
+  (mov out "ebx" "eax")		;save the size of the array in ebx
+  (addi out "eax" 2)		;add 1 to size so we can store the size
+  (call out "__malloc")		;address will be in eax
+  (movt out "eax" "ebx" "")	;move the size of the array to the first element
+  (nl out)
+
+  (pop out "ebx"))
+
+(define (gen-code-arrayaccess out sinfo rtnaddr left index)
+  (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
+  (push out "ebx")
+
+  (nl out)
+  (comment out "ARRAY ACCESS")
+  (gen-code-recurse out sinfo rtnaddr index)
+  (add out "eax" "2")
+  (imul out "eax" "4")
+  (mov out "ebx" "eax")			;ebx now holds the index offset
+  (gen-code-recurse out sinfo rtnaddr left)	;eax now holds the array address
+
+  (cond
+    [rtnaddr (add out "eax" "ebx")]
+    [else (movf out "eax" "eax" "+ebx")])
+
+  (nl out)
+
+  (pop out "ebx"))  
+
+(define (gen-code-classcreate out sinfo rtnaddr cls params)
   (comment out "TODO: generate classcreate assembly"))
 
-(define (gen-code-fieldaccess out sinfo left field)
+(define (gen-code-fieldaccess out sinfo rtnaddr left field)
   (comment out "TODO: generate fieldaccess assembly"))
 
-(define (gen-code-arrayaccess out sinfo left index)
-  (comment out "TODO: generate arrayaccess assembly"))
-
-(define (gen-code-methodcall out sinfo left id args)
+(define (gen-code-methodcall out sinfo rtnaddr left id args)
   (nl out)
   (comment out "=== METHODCALL TO " id " ===")
-  (push-method-args out sinfo args)	;push all method args onto stack
+  (push-method-args out sinfo rtnaddr args)	;push all method args onto stack
   (call out id)				;TODO: call right label
   (reset-stack out (length args))	;"pop" off all the args from the stack
   (comment out "===methodcall end==="))
 
-(define (gen-code-iff out sinfo test tru fls)
+(define (gen-code-iff out sinfo rtnaddr test tru fls)
+  (nl out)
   (comment out "IFF")
   (let  ([label-fls (symbol->string (gensym))]
 	[label-end-of-if (symbol->string (gensym))])
     (comment out "Evaluating test")
-    (gen-code-recurse out sinfo test)		;eval test, eax will contain 0 or 1 (false or true)
+    (gen-code-recurse out sinfo rtnaddr test)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
     (nl out)
     (movi out "ecx" 1)				;mov 1 into ecx
@@ -208,67 +247,71 @@
     (cjmp out "jne" label-fls)			;if test is eqaul to false then jump to the false code
     (nl out)
     (comment out "TRUE CODE")
-    (gen-code-recurse out sinfo tru)		;else the test was false so run false code
+    (gen-code-recurse out sinfo rtnaddr tru)		;else the test was false so run false code
     (jmp out label-end-of-if)			;done fls code so jump passed tru code
     (comment out "End of true code")		
     (nl out)
     (label out label-fls)
     (comment out "FALSE CODE")
-    (gen-code-recurse out sinfo fls)		;tru code
+    (gen-code-recurse out sinfo rtnaddr fls)		;tru code
     (comment out "End of false code") 
-    (label out label-end-of-if)))		;end of if statement
+    (label out label-end-of-if)
+    (nl out)))		;end of if statement
 
-(define (gen-code-while out sinfo test body)
+(define (gen-code-while out sinfo rtnaddr test body)
+  (nl out)
+  (comment out "WHILE")
   (let  ([label-cond (symbol->string (gensym))]
          [label-end (symbol->string (gensym))])
     (label out label-cond)
-    (gen-code-recurse out sinfo test)
+    (gen-code-recurse out sinfo rtnaddr test)
     (movi out "ecx" 1)				
     (cmp out "eax" "ecx")			
     (cjmp out "jne" label-end)			
-    (gen-code-recurse out sinfo body)
+    (gen-code-recurse out sinfo rtnaddr body)
     (jmp out label-cond)
-    (label out label-end)))
+    (label out label-end)
+    (nl out)))
 
-(define (gen-code-for out sinfo init clause update body)
+(define (gen-code-for out sinfo rtnaddr init clause update body)
   (let  ([label-cond (symbol->string (gensym))]
          [label-update (symbol->string (gensym))]
          [label-end (symbol->string (gensym))])
 
     (nl out)
-    (nl out)
     (comment out "FOR")
-    (define new-sinfo (if [varassign? init] (gen-code-recurse out sinfo init) sinfo))
+    (define new-sinfo (if [varassign? init] (gen-code-recurse out sinfo rtnaddr init) sinfo))
     (jmp out label-cond)
     (label out label-update)
-    (gen-code-recurse out new-sinfo update)
+    (gen-code-recurse out new-sinfo rtnaddr update)
     (label out label-cond)
-    (gen-code-recurse out new-sinfo clause)
+    (gen-code-recurse out new-sinfo rtnaddr clause)
     (movi out "ecx" 1)				
     (cmp out "eax" "ecx")			
     (cjmp out "jne" label-end)			
-    (gen-code-recurse out new-sinfo body)
+    (gen-code-recurse out new-sinfo rtnaddr body)
     (jmp out label-update)
     (label out label-end)
     (reset-stack out (- (length (stackinfo-decls new-sinfo)) (length (stackinfo-decls sinfo))))
-    (nl out)
     (nl out)))
 
-(define (gen-code-return out sinfo expr)
+(define (gen-code-return out sinfo rtnaddr expr)
+  (nl out)
   (comment out ";RETURN")
-  (gen-code-recurse out sinfo expr)
+  (gen-code-recurse out sinfo rtnaddr expr)
   (reset-stack out (length (stackinfo-decls sinfo)))
   (pop out "ebp")
-  (display "ret\n" out))			;ret from method
+  (display "ret\n" out)
+  (nl out))			;ret from method
 
-(define (gen-code-varuse out sinfo id)
+(define (gen-code-varuse out sinfo rtnaddr id)
   (comment out "varuse id: " id)
-  (mfm out "eax" (get-ebp-offset id sinfo)))
+  (movf out "eax" "ebp" (get-ebp-offset id sinfo)))
 
-(define (gen-code-this out sinfo type)
+(define (gen-code-this out sinfo rtnaddr type)
   (comment out "TODO: generate this assembly")) 
 
-(define (gen-code-literal out sinfo type val)
+(define (gen-code-literal out sinfo rtnaddr type val)
   (match type
     [(ptype 'int) (movi out "eax" val "literal val " (number->string val))]
     [(ptype 'null) (movi out "eax" 0 "literal val null")]
@@ -304,12 +347,12 @@
     [(> n 0) (addi out "esp" (* WORD n))]
     [else (printf "")]))
 
-(define (push-method-args out sinfo args)
+(define (push-method-args out sinfo rtnaddr args)
   (cond
     [(empty? args) (printf "")]
-    [else (gen-code-recurse out sinfo (first args))
+    [else (gen-code-recurse out sinfo rtnaddr (first args))
           (push out "eax")
-          (push-method-args out sinfo (rest args))]))
+          (push-method-args out sinfo rtnaddr (rest args))]))
 
 (define (get-method-arg-decls params ebpoff)
   (cond
@@ -318,6 +361,10 @@
 
 (define (nl out)
   (display "\n" out))
+
+(define (malloc out nbytes)
+  (movi out "eax" nbytes)
+  (call out "__malloc"))
 
 ;==============================================================================================
 ;==== Conditions
@@ -363,13 +410,13 @@
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 ;mov from mem (like lw)
-(define (mfm out reg soff . comment)
-  (display (string-append "mov " reg ",[ebp" (string-append soff) "]") out)
+(define (movf out dst src off . comment)
+  (display (string-append "mov " dst ",["src off "]") out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 ;mov to mem (like sw)
-(define (mtm out reg soff . comment)
-  (display (string-append "mov [ebp" (string-append soff) "]," reg) out)
+(define (movt out dst src off . comment)
+  (display (string-append "mov ["dst off "]," src) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (sub out reg1 reg2 . comment)
@@ -458,6 +505,7 @@
   (display "ret\n" out))
 
 (define (gen-debug-externs out)
+  (display "extern __malloc\n" out)
   (display "extern NATIVEjava.io.OutputStream.nativeWrite\n" out))
 
 
