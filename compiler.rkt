@@ -17,6 +17,8 @@
 (require "reachability.rkt")
 (require "gen-code.rkt")
 
+(require "generation-structures.rkt")
+
 (provide (struct-out info))
 
 (define m-scanner (all-tokens-machine))
@@ -159,11 +161,15 @@
 (define final-info (map (lambda (x) (set-cinfo-ast x (simplify-ast (info-ast x)))) disambig-cinfo))
 (for-each (compose1 (curryr print-ast "") info-ast) final-info)
 
+
 (printf "~n~n=========== Reachability ==========~n")
 (for-each reachability final-info)
+(map info->codeenv final-info)
 
 (printf "~n~n=========== Code Generation ==========~n")
 (gen-code (first final-info))
+
+
 
 (compiled)
 

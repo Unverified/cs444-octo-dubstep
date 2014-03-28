@@ -53,7 +53,9 @@
 (provide ast-transform)
 (provide run-nonempty)
 (provide ast-print-struct)
+(provide is-static?)
 
+(provide cunit-scope)
 (provide simplify-ast)
 
 ;==============================================================================================
@@ -612,6 +614,13 @@
     [(cunit package _ _) package]
     [_ (error "Something went terribly wrong in get-package-name")]))
 
+(define (cunit-scope ast)
+  (match ast
+    [(or (cunit _ _ bdy)
+         (class _ _ _ _ _ _ bdy)
+         (interface _ _ _ _ _ bdy)) (cunit-scope bdy)]
+    [(block _ id _) id]))
+
 (define (c-unit-name ast)
   (match ast
     [(or (cunit package _ (class _ _ _ id _ _ _)) 
@@ -649,6 +658,19 @@
     [(class _ _ _ _ _ i _) i]
     [(interface _ _ _ _ _ _) empty]
     [_ (error "Something went terribly wrong in get-implements")]))
+
+(define (is-static? ast)
+  (match ast
+    [(method _ _ mod _ _ _) (list? (member 'static mod))]
+    [(vdecl _ _ mod _ _) (if (empty? mod) #f (symbol=? mod 'static))]
+    [(varassign _ lft _) (is-static? lft)]
+            
+    [_ (let-values ([(type _) (struct-info ast)]
+                    [(err)  (open-output-string)])
+         (display "is-static undefined for case " err)
+         (display type err)
+         (error (get-output-string err)))]
+  ))
 
 ;==============================================================================================
 ;==== Print

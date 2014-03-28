@@ -20,7 +20,6 @@
 (provide (struct-out eval))
 (provide (struct-out envs))
 (provide (struct-out funt))
-(provide (struct-out ftype))
 
 (provide gen-top-ast-env)
 (provide method-check?)
@@ -29,7 +28,7 @@
 (struct funt (id argt)   #:prefab)
 (struct eval (scope local? ast) #:prefab)
 (struct envs (types vars methods constructors))
-
+  
 ;======================================================================================
 ;==== Environment Generation
 ;======================================================================================
@@ -263,7 +262,7 @@
 ;(: add-env-const : envs methoddeclaration symbol ast -> envs )
 (define (add-env-const envt mdecl scope ast)
   (let ([key  (funt "" (funt-argt (mdecl->funt mdecl)))]
-        [value (eval scope #f ast)])
+        [value (eval scope #t ast)])
     (if (false? (assoc key (envs-constructors envt)))
         (env-append (envs empty empty empty `((,key ,value))) envt)
         (c-errorf "adding constructor to enviroment that contains same type ~a" key))))
@@ -271,7 +270,7 @@
 ;(: add-env-method : envs methoddeclaration symbol type ast -> envs )
 (define (add-env-method envt mdecl scope return-type ast)
   (let ([key (mdecl->funt mdecl)]
-        [value (eval scope #f ast)])
+        [value (eval scope #t ast)])
     (if (false? (assoc key (envs-methods envt)))
         (env-append (envs `((,key ,return-type)) empty `((,key ,value)) empty) envt)
         (c-errorf "adding method to enviroment that contains same method ~a" key))))
@@ -331,8 +330,3 @@
               (printf "(")
               (funt-print (first x))
               (printf ", ~a)~n" (eval-scope (second x)))) (envs-methods e)))
-
-
-
-
-

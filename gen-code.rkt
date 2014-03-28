@@ -119,8 +119,8 @@
   
 (define (gen-code-binop out sinfo rtnaddr op ls rs)
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
-  (comment out "binop " (symbol->string op))
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
+  (comment out "binop " (symbol->string op))
 
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo rtnaddr op ls rs)]
@@ -132,7 +132,8 @@
         ['plus (add out "eax" "ebx")]
         ['minus (sub out "eax" "ebx")]
         ['star (imul out "eax" "ebx")]
-        ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (movi "eax" 1)]
+        ['slash (divide out "eax" "ebx")]
+	['pct (rem out "eax" "ebx")]
         [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo rtnaddr op ls rs)])])
 
   (pop out "ebx" "restoring"))			;restore ebx
@@ -439,6 +440,42 @@
 (define (cjmp out cj label . comment)
   (display (string-append "" cj " " label) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
+
+
+(define (divide out reg1 reg2)
+  (comment out "divide")
+
+ 
+ 
+  ;;need to:
+  ;;put content of reg2 into eax
+  ;;put 0 into edx
+  ;;do an idiv
+  (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
+							   (mov out "ebx" reg2))
+			    (begin (mov out "eax" reg2)
+			       (mov out "ebx" reg1)))
+  (mov out "edx" "0")
+  (display (string-append "idiv " "ebx" "\n") out)
+  (mov out "eax" "eax"))
+  
+
+(define (rem out reg1 reg2)
+  (comment out "remainder")
+
+  ;;need to:
+  ;;put content of reg2 into eax
+  ;;put 0 into edx
+  ;;put content of reg1 into ebx
+  ;;do an idiv
+  (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
+							   (mov out "ebx" reg2))
+			    (begin (mov out "eax" reg2)
+			       (mov out "ebx" reg1)))
+  (mov out "edx" "0")
+  (display (string-append "idiv " "ebx" "\n") out)
+  (mov out "eax" "edx"))
+
 
 (define (gen-debug-print out)
   (push out "eax")
