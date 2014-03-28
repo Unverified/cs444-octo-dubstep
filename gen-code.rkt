@@ -244,6 +244,7 @@
 (define (gen-code-return out sinfo expr)
   (comment out ";RETURN")
   (gen-code-recurse out sinfo expr)
+  (reset-stack out (length (stackinfo-decls sinfo)))
   (pop out "ebp")
   (display "ret\n" out))			;ret from method
 
@@ -258,7 +259,7 @@
   (match type
     [(ptype 'int) (movi out "eax" val "literal val " (number->string val))]
     [(ptype 'null) (movi out "eax" 0 "literal val null")]
-    [(ptype 'boolean) (movi out "eax" (if [equal? val 'true] 1 0) "literal val null")]))
+    [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val null")]))
     ;[(rtype '("java" "lang" "String")) (movi out "eax" val "literal val null")]
     ;[(ptype 'char) (movi out "eax" val "literal val null")]
 

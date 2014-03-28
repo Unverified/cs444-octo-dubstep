@@ -5,12 +5,14 @@ public class first {
     int y = 0;
     boolean x = true;
 
-    x = x || false;
+    x = ((y == 1) || x) && x;
 
     if(x == true) {
       y = 14657;
     } else if (x == false) {
       y = 14658;
+    } else {
+      y = 14659;
     }
 
     return y;
