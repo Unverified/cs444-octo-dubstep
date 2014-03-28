@@ -10,34 +10,43 @@
 (provide (struct-out codeenv))
 
 (provide info->codeenv)
+(provide find-codeenv)
+(provide find-codemeth)
+(provide find-codevar)
 
+
+(define counter
+  (let ([count -1]) (lambda () (set! count (add1 count)) count)))
+(define store (make-hash))
+
+(define (name->id name)
+  (hash-ref! store name (thunk (counter))))
 
 ;======================================================================================
 ;==== Code Environment Generation
 ;======================================================================================
 
 ;; tag depends on how static is set, 
-;; true means its a label id, false is an offset
-(struct codevar (id static? tag val) #:transparent)
-(struct codemeth (id scope off def) #:transparent)
+;; true means its the origin class, false is an offset
+(struct codevar (id ref? static? tag val) #:transparent)
+(struct codemeth (id origin off def) #:transparent)
 ;; type is either 'inter or 'class
-(struct codeenv (name class? vars methods) #:transparent
-  #:guard (lambda (name cls vars meths type-name)
-            (cond [(not (list? name)) (error type-name "invalid class/interface name ~e" name)]
-                  [(not (boolean? cls)) (error type-name "invalid class indicator ~e" class?)]
-                  [else (values name class vars meths)])))
+(struct codeenv (name guid class? vars methods casts) #:transparent)
 
 (define (reverse-normalize asoc)
   (cond [(empty? asoc) empty]
         [else (for/list ([key (remove-duplicates (map first (reverse asoc)))])
                 (assoc key asoc))]))
   
-(define (assoclst->codemeth lst)
+(define (assoclst->codemeth lookup lst)
   (reverse (for/list ([off (range 1 (add1 (length lst)))]
                       [asc (reverse-normalize lst)])
-             (codemeth (first asc) (eval-scope (second asc)) (* 4 off) (eval-ast (second asc))))))
+             (codemeth (first asc) 
+                       (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup")))
+                       (* 4 off) 
+                       (eval-ast (second asc))))))
 
-(define (assoclst->codevars lst)
+(define (assoclst->codevars local lookup lst)
   (define (get-assignment ast)
     (cond [(varassign? ast) (varassign-expr ast)]
           [(vdecl? ast) empty]
@@ -46,24 +55,43 @@
                   (display "gen-strctrs:assoclst->codevars:get-assignent no case " err)
                   (display ast err)
                   (error (get-output-string err)))]))
+  
   (let-values ([(static instance) (partition (compose1 is-static? eval-ast second) lst)])
     (append 
-     (map (lambda (x) (codevar (first x) #t (eval-scope (second x)) (get-assignment (eval-ast (second x))))) static)
+     (map (lambda (x) (codevar (first x)
+                               (equal? local (eval-scope (second x)))
+                               #t                         
+                               (hash-ref lookup (eval-scope (second x)) (thunk (error (eval-scope (second x)) " not in lookup"))) 
+                               (get-assignment (eval-ast (second x))))) static)
      (reverse (for/list ([off (range 1 (add1 (length instance)))]
                          [asc  (reverse instance)])
-                (codevar (first asc) #f (* 4 off) (get-assignment (eval-ast (second asc)))))))))
+                (codevar (first asc)
+                         #t
+                         #f 
+                         (* 4 off)
+                         (get-assignment (eval-ast (second asc)))))))))
 
-(define (info->codeenv cinfo)
-  (codeenv
-   (info-name cinfo)
-   (cond [(is-class? (info-ast cinfo)) #t]
-         [(is-interface? (info-ast cinfo)) #f]
-         [else (error "info->codeenv givencinfo of a improper compilation unit")])
-   (assoclst->codevars (envs-vars (info-env cinfo)))
-   (append (assoclst->codemeth (append (envs-constructors (info-env cinfo))
-                                       (envs-methods (info-env cinfo)))))))
-
-
+(define (info->codeenv all-info cinfo)
+  (let ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))])
+    (codeenv
+     (info-name cinfo)
+     (name->id (info-name cinfo))
+     (cond [(is-class? (info-ast cinfo)) #t]
+           [(is-interface? (info-ast cinfo)) #f]
+           [else (error "info->codeenv givencinfo of a improper compilation unit")])
+     (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))
+     (assoclst->codemeth lookup (append (envs-constructors (info-env cinfo))
+                                        (envs-methods (info-env cinfo))))
+     (append (for/list ([name  (map info-name all-info)]
+                        [supers (map info-supers all-info)]
+                        #:when (list? (member (info-name cinfo) supers)))
+               (name->id name))
+             (for/list ([name  (map info-name all-info)]
+                        [impls (map info-impls all-info)]
+                        #:when (and (list? impls) (list? (member (info-name cinfo) impls))))
+               (name->id name))))))
+  
+  
 ;======================================================================================
 ;==== Code Environment Lookup
 ;======================================================================================

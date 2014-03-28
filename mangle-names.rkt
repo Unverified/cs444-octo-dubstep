@@ -6,17 +6,14 @@
 
 
 ;;mangling names
-
-
 (define (mangle-names thing)
-	(match thing
-		[(funt id params) (string-append id (foldr string-append "" (map get-mangled-type-name params)))]
-		[names (foldr (lambda (s y) (string-append s "_" y)) "var" names)]))
+  (cond [(funt? thing) (apply string-append (cons (funt-id thing) (map get-mangled-type-name (funt-argt thing))))]
+        [(list? thing) (string-join thing "_")]))
 
 (define (get-mangled-type-name ast)
   (match ast
     [(ptype name) (string-append "_" (symbol->string name))]
-    [(rtype name) (string-append "_r_" (foldr string-append "" name))]
+    [(rtype name) (string-append "_r_" (apply string-append name))]
     [(atype t) (string-append "_a_" (get-mangled-type-name t))]))
 
 
