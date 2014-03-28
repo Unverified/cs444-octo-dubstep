@@ -6,10 +6,10 @@
 
 (provide gen-code)
 
-(struct stackinfo (decls ebpoff))
+(struct stackinfo (mdecls ldecls ebpoff))
 
 (define WORD 4)
-(define empty-stackinfo (stackinfo empty 0))
+(define empty-stackinfo (stackinfo empty empty 0))
 
 (define (get-outfile cinfo)
   (string-append "output/" (foldr string-append "" (info-name cinfo)) ".s"))
@@ -62,7 +62,7 @@
             (gen-code-block-helper sinfo (rest statements))]))
 
   (define bsinfo (gen-code-block-helper sinfo statements))
-  (reset-stack out (- (length (stackinfo-decls bsinfo)) (length (stackinfo-decls sinfo)))))
+  (reset-stack out (- (length (stackinfo-ldecls bsinfo)) (length (stackinfo-ldecls sinfo)))))
 
 (define (gen-code-constructor out bd)
   (comment out "TODO: generate constructor assembly"))
@@ -83,7 +83,7 @@
   (gen-code-method out "test" empty bd))
 
 (define (gen-code-method out id params bd)
-  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 8) 4))
+  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 8) empty 4))
   
   (nl out)
   (comment out "######## METHOD " id " ########")
@@ -286,14 +286,14 @@
     (gen-code-recurse out new-sinfo rtnaddr body)
     (jmp out label-update)
     (label out label-end)
-    (reset-stack out (- (length (stackinfo-decls new-sinfo)) (length (stackinfo-decls sinfo))))
+    (reset-stack out (- (length (stackinfo-ldecls new-sinfo)) (length (stackinfo-ldecls sinfo))))
     (nl out)))
 
 (define (gen-code-return out sinfo rtnaddr expr)
   (nl out)
   (comment out ";RETURN")
   (gen-code-recurse out sinfo rtnaddr expr)
-  (reset-stack out (length (stackinfo-decls sinfo)))
+  (reset-stack out (length (stackinfo-ldecls sinfo)))
   (pop out "ebp")
   (display "ret\n" out)
   (nl out))			;ret from method
@@ -318,23 +318,30 @@
 ;==============================================================================================
 
 (define (get-ebp-offset id sinfo)
-  (second (assoc id (stackinfo-decls sinfo))))
+  (define mdecl (assoc id (stackinfo-mdecls sinfo)))
+  (define ldecl (assoc id (stackinfo-ldecls sinfo)))
+  (cond
+    [(and (list? mdecl) (list? ldecl)) (error "We have clashing decls in m and l")]
+    [(list? mdecl) (second mdecl)]
+    [(list? ldecl) (second ldecl)]
+    [else (error "Could find a declaration for a variable? No test should be like that.")]))
 
 (define (stackinfo-add-decl sinfo id)
-  (define decls (stackinfo-decls sinfo))
+  (define ldecls (stackinfo-ldecls sinfo))
   (define ebpoff (stackinfo-ebpoff sinfo))
-  (stackinfo (cons (list id (string-append "-" (number->string ebpoff))) decls)
+  (stackinfo (stackinfo-mdecls sinfo)
+             (cons (list id (string-append "-" (number->string ebpoff))) ldecls)
              (+ ebpoff WORD)))
 
 (define (stackinfo-inc-ebpoff sinfo n)
-  (define decls (stackinfo-decls sinfo))
+  (define ldecls (stackinfo-ldecls sinfo))
   (define ebpoff (stackinfo-ebpoff sinfo))
-  (stackinfo decls (+ ebpoff (* WORD n))))
+  (stackinfo (stackinfo-mdecls sinfo) ldecls (+ ebpoff (* WORD n))))
 
 (define (stackinfo-dec-ebpoff sinfo n)
-  (define decls (stackinfo-decls sinfo))
+  (define ldecls (stackinfo-ldecls sinfo))
   (define ebpoff (stackinfo-ebpoff sinfo))
-  (stackinfo decls (- ebpoff (* WORD n))))
+  (stackinfo (stackinfo-mdecls sinfo) ldecls (- ebpoff (* WORD n))))
 
 (define (reset-stack out n)
   (cond
@@ -410,7 +417,7 @@
 
 ;mov to mem (like sw)
 (define (movt out dst src off . comment)
-  (display (string-append "mov ["dst off "]," src) out)
+  (display (string-append "mov [" dst off "]," src) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (sub out reg1 reg2 . comment)
