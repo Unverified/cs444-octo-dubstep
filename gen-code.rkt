@@ -51,7 +51,7 @@
     [(this _ type) (gen-code-varuse out vdecls type)]
     [(literal _ type val) (gen-code-literal out vdecls type val)]
     [(block env id statements)  (gen-code-block out vdecls id statements) ]
-    [`() (comment out vdecls "EMPTY STATEMENT")]))
+    [`() (comment out "EMPTY STATEMENT")]))
 
 (define (gen-code-block out vdecls id statements)
   (define (gen-code-block-helper vdecls statements)
@@ -102,7 +102,7 @@
   (cond
     [(vdecl? id) (push out "eax" "assign " (vdecl-id id) " to eax")
                  (stackinfo-add-decl sinfo (vdecl-id id))]
-    [else (mtm out "eax" (get-ebp-offset (varuse-id id) sinfo 0) "assign " (varuse-id id) " to eax")
+    [else (mtm out "eax" (get-ebp-offset (varuse-id id) sinfo) "assign " (varuse-id id) " to eax")
            sinfo]))
 
 (define (gen-code-vdecl out sinfo id)
@@ -112,34 +112,59 @@
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
   (comment out "binop " (symbol->string op))
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
-  (gen-code-recurse out temp-sinfo rs)	;get result of rhs
-  (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
-  (gen-code-recurse out temp-sinfo ls)	;get result of lhs
-  (match op
-    ['plus (add out "eax" "ebx")]
-    ['minus (sub out "eax" "ebx")]
-    ['star (imul out "eax" "ebx")]
-    ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (movi "eax" 1)]
-    [_ (let ([label-tru (symbol->string (gensym))]	;else we have a conditional binop which requires more work
-	     [label-end-of-if (symbol->string (gensym))])
-         (cmp out "eax" "ebx")				;first compare the 2 operations
-         (match op					;then put the correct comditional jmp to a tru label 
-           ['eqeq (cjmp out "je" label-tru)]
-           ['noteq (cjmp out "jne" label-tru)]
-           ['gt (cjmp out "jg" label-tru)]
-           ['lt (cjmp out "jl" label-tru)]
-           ['gteq (cjmp out "jge" label-tru)]
-           ['lteq (cjmp out "jle" label-tru)])
-         (movi out "eax" 0)				;if the condition was false set eax to 0
-         (jmp out label-end-of-if)
-         (label out label-tru)				;and skip passed true code
-         (movi out "eax" 1)				;if condition was true set eax to 1
-         (label out label-end-of-if))])	
+
+  (cond
+    [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs)]
+    [else
+      (gen-code-recurse out temp-sinfo rs)	;get result of rhs
+      (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
+      (gen-code-recurse out temp-sinfo ls)	;get result of lhs
+      (match op
+        ['plus (add out "eax" "ebx")]
+        ['minus (sub out "eax" "ebx")]
+        ['star (imul out "eax" "ebx")]
+        ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (movi "eax" 1)]
+        [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo op ls rs)])])
 
   (pop out "ebx" "restoring"))			;restore ebx
 
+(define (gen-code-conditional out sinfo op ls rs)
+  (let ([label-tru (symbol->string (gensym))]	
+        [label-end-of-if (symbol->string (gensym))])
+    (cmp out "eax" "ebx")				;first compare the 2 operations
+    (match op					;then put the correct comditional jmp to a tru label 
+      ['eqeq (cjmp out "je" label-tru)]
+      ['noteq (cjmp out "jne" label-tru)]
+      ['gt (cjmp out "jg" label-tru)]
+      ['lt (cjmp out "jl" label-tru)]
+      ['gteq (cjmp out "jge" label-tru)]
+      ['lteq (cjmp out "jle" label-tru)])
+    (movi out "eax" 0)				;if the condition was false set eax to 0
+    (jmp out label-end-of-if)
+    (label out label-tru)				;and skip passed true code
+    (movi out "eax" 1)				;if condition was true set eax to 1
+    (label out label-end-of-if)))
+
+(define (gen-code-logical out sinfo op ls rs)
+  (let ([label-end (symbol->string (gensym))])
+    (movi out "ebx" 1)
+    (gen-code-recurse out sinfo ls)
+    (cmp out "eax" "ebx")
+    (match op
+      ['barbar (cjmp out "je" label-end)
+               (gen-code-recurse out sinfo rs)
+               (label out label-end)]
+      ['ampamp (cjmp out "jne" label-end)
+               (gen-code-recurse out sinfo rs)
+               (label out label-end)])))
+
 (define (gen-code-unop out sinfo op rs)
   (comment out "TODO: generate unop assembly"))
+;  (gen-code-recurse out sinfo rs)
+;  (mov out "ecx" 0)
+;  (match op
+;    ['minus (sub out "ecx" "eax")]
+;    ['not (sub out "eax" "ebx")]
 
 (define (gen-code-cast out sinfo c ex)
   (comment out "TODO: generate cast assembly"))
@@ -155,9 +180,6 @@
 
 (define (gen-code-arrayaccess out sinfo left index)
   (comment out "TODO: generate arrayaccess assembly"))
-
-(define (gen-code-while out sinfo test body)
-  (comment out "TODO: generate while assembly"))
 
 (define (gen-code-methodcall out sinfo left id args)
   (nl out)
@@ -175,8 +197,8 @@
     (gen-code-recurse out sinfo test)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
     (nl out)
-    (movi out "ecx" 1)				;mov 1 into ebx
-    (cmp out "eax" "ecx")			;cmp test to ebx (true)
+    (movi out "ecx" 1)				;mov 1 into ecx
+    (cmp out "eax" "ecx")			;cmp test to ecx (true)
     (cjmp out "jne" label-fls)			;if test is eqaul to false then jump to the false code
     (nl out)
     (comment out "TRUE CODE")
@@ -190,28 +212,61 @@
     (comment out "End of false code") 
     (label out label-end-of-if)))		;end of if statement
 
+(define (gen-code-while out sinfo test body)
+  (let  ([label-cond (symbol->string (gensym))]
+         [label-end (symbol->string (gensym))])
+    (label out label-cond)
+    (gen-code-recurse out sinfo test)
+    (movi out "ecx" 1)				
+    (cmp out "eax" "ecx")			
+    (cjmp out "jne" label-end)			
+    (gen-code-recurse out sinfo body)
+    (jmp out label-cond)
+    (label out label-end)))
+
+(define (gen-code-for out sinfo init clause update body)
+  (let  ([label-cond (symbol->string (gensym))]
+         [label-update (symbol->string (gensym))]
+         [label-end (symbol->string (gensym))])
+    (define new-sinfo (if [varassign? init] (gen-code-recurse out sinfo init) sinfo))
+    (jmp out label-cond)
+    (label out label-update)
+    (gen-code-recurse out new-sinfo update)
+    (label out label-cond)
+    (gen-code-recurse out new-sinfo clause)
+    (movi out "ecx" 1)				
+    (cmp out "eax" "ecx")			
+    (cjmp out "jne" label-end)			
+    (gen-code-recurse out new-sinfo body)
+    (jmp out label-update)
+    (label out label-end)))
+
 (define (gen-code-return out sinfo expr)
   (comment out ";RETURN")
-  (gen-code-recurse out sinfo expr))
-  
-(define (gen-code-for out sinfo init clause update body)
-  (comment out "TODO: generate for assembly"))
+  (gen-code-recurse out sinfo expr)
+  (pop out "ebp")
+  (display "ret\n" out))			;ret from method
 
 (define (gen-code-varuse out sinfo id)
   (comment out "varuse id: " id)
-  (mfm out "eax" (get-ebp-offset id sinfo 0)))
+  (mfm out "eax" (get-ebp-offset id sinfo)))
 
 (define (gen-code-this out sinfo type)
   (comment out "TODO: generate this assembly")) 
 
 (define (gen-code-literal out sinfo type val)
-  (movi out "eax" val "literal val " (number->string val)))
+  (match type
+    [(ptype 'int) (movi out "eax" val "literal val " (number->string val))]
+    [(ptype 'null) (movi out "eax" 0 "literal val null")]
+    [(ptype 'boolean) (movi out "eax" (if [equal? val 'true] 1 0) "literal val null")]))
+    ;[(rtype '("java" "lang" "String")) (movi out "eax" val "literal val null")]
+    ;[(ptype 'char) (movi out "eax" val "literal val null")]
 
 ;==============================================================================================
 ;==== Helpers
 ;==============================================================================================
 
-(define (get-ebp-offset id sinfo soff)
+(define (get-ebp-offset id sinfo)
   (second (assoc id (stackinfo-decls sinfo))))
 
 (define (stackinfo-add-decl sinfo id)
@@ -333,11 +388,11 @@
 
 (define (gen-debug-print out)
   (push out "eax")
-  (call out "write")
+  (call out "debugwrite")
   (pop out "eax"))
 
 (define (gen-debug-print-eax out)
-  (label out "write")
+  (label out "debugwrite")
   (comment out "print eax")
   (display "push ebp\n" out)
   (display "mov ebp,esp\n" out)

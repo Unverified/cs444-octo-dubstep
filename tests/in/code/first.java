@@ -1,22 +1,18 @@
 public class first {
   public first(){}
 
-  public static int m1(int x){
-    int test = 243;
+  public static int test() {
+    int y = 0;
+    boolean x = true;
 
-    if(test == 0) {
-      x = x + 3;
-    } else if (test == 1) {
-      x = x + 2;
-    } else {
-      x = x + 1;
+    x = x || false;
+
+    if(x == true) {
+      y = 14657;
+    } else if (x == false) {
+      y = 14658;
     }
 
-    return x;
-  }
-
-  public static int test() {
-    int x = first.m1(14656);
-    return x;
+    return y;
   }
 }
