@@ -10,7 +10,7 @@
 
 (define (mangle-names thing)
 	(match thing
-		[(funt id params) (string-append id (foldr string-append "" (map get-mangled-type-name params))))]
+		[(funt id params) (string-append id (foldr string-append "" (map get-mangled-type-name params)))]
 		[names (foldr (lambda (s y) (string-append s "_" y)) "var" names)]))
 
 (define (get-mangled-type-name ast)
