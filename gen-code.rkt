@@ -81,22 +81,22 @@
   (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
-  (gen-code-methodcall out empty-stackinfo #f empty "test" empty)
+  (nl out)
+  (gen-code-method out "test" empty bd)
   (nl out)
   (gen-debug-print out)
   (nl out)
   (display "mov eax, 1\n" out)
   (display "int 0x80\n" out)
   (display "int 3\n" out)
-  (comment out "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-  (gen-code-method out "test" empty bd))
+  (comment out "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
 
 (define (gen-code-method out id params bd)
   (define sinfo (stackinfo (get-method-arg-decls (reverse params) 8) empty 4))
   
   (nl out)
   (comment out "######## METHOD " id " ########")
-  (label out id "TODO: set the label for this method")
+  ;:(label out id "TODO: set the label for this method")
   (push out "ebp")			;save frame pointer
   (mov out "ebp" "esp")			;set new frame pointer to stack pointer
   (gen-code-recurse out sinfo #f bd)	;gen methods code
