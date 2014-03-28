@@ -7,7 +7,7 @@
 
 ;;mangling names
 (define (mangle-names thing)
-  (cond [(funt? thing) (apply string-append (cons (funt-id funt) (map get-mangled-type-name (funt-argt funt))))]
+  (cond [(funt? thing) (apply string-append (cons (funt-id thing) (map get-mangled-type-name (funt-argt thing))))]
         [(list? thing) (string-join thing "_")]))
 
 (define (get-mangled-type-name ast)
