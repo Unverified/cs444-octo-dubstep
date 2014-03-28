@@ -123,7 +123,7 @@
         ['plus (add out "eax" "ebx")]
         ['minus (sub out "eax" "ebx")]
         ['star (imul out "eax" "ebx")]
-        ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (divide out "eax" "ebx" 'char)]
+        ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (divide out "eax" "ebx")]
         [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo op ls rs)])])
 
   (pop out "ebx" "restoring"))			;restore ebx
@@ -401,12 +401,12 @@
   ;;put 0 into edx
   ;;do an idiv
   (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
-							   (mov "ebx" reg2))
-			    (begin (mov "eax" reg2)
-			       (mov "ebx" reg1)))
-  (mov "edx" "0")
-  (display (string-append "idiv " "ebx") out)
-  (mov "eax" "eax"))
+							   (mov out "ebx" reg2))
+			    (begin (mov out "eax" reg2)
+			       (mov out "ebx" reg1)))
+  (mov out "edx" "0")
+  (display (string-append "idiv " "ebx" "\n") out)
+  (mov out "eax" "eax"))
   
 
 (define (rem out reg1 reg2)
@@ -418,12 +418,12 @@
   ;;put content of reg1 into ebx
   ;;do an idiv
   (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
-							   (mov "ebx" reg2))
-			    (begin (mov "eax" reg2)
-			       (mov "ebx" reg1)))
-  (mov "edx" "0")
-  (display (string-append "idiv " "ebx") out)
-  (mov "eax" "edx"))
+							   (mov out "ebx" reg2))
+			    (begin (mov out "eax" reg2)
+			       (mov out "ebx" reg1)))
+  (mov out "edx" "0")
+  (display (string-append "idiv " "ebx" "\n") out)
+  (mov out "eax" "edx"))
 
 
 (define (gen-debug-print out)
