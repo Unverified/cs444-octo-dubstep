@@ -11,7 +11,7 @@
 (define (mangle-names thing)
 	(match thing
 		[(funt id params) (string-append id (foldr string-append "" (map get-mangled-type-name params))))]
-		[(list cname scope-id var-name) (string-append cname "_" scope-id "_" var-name "_" "var")]))
+		[names (foldr (lambda (s y) (string-append s "_" y)) "var" names)]))
 
 (define (get-mangled-type-name ast)
   (match ast
