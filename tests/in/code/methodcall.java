@@ -3,7 +3,7 @@ public class methodcall {
 
   public static int m1(int x, int y) {
     int z = 10000;
-    z = x + y;
+    z = z + x + y;
     return z;
   }
 
