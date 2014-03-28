@@ -110,8 +110,8 @@
   
 (define (gen-code-binop out sinfo op ls rs)
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
-  (comment out "binop " (symbol->string op))
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
+  (comment out "binop " (symbol->string op))
 
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs)]
@@ -123,7 +123,8 @@
         ['plus (add out "eax" "ebx")]
         ['minus (sub out "eax" "ebx")]
         ['star (imul out "eax" "ebx")]
-        ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (divide out "eax" "ebx")]
+        ['slash (divide out "eax" "ebx")]
+	['pct (rem out "eax" "ebx")]
         [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo op ls rs)])])
 
   (pop out "ebx" "restoring"))			;restore ebx
@@ -395,7 +396,10 @@
 
 
 (define (divide out reg1 reg2)
+  (comment out "divide")
 
+ 
+ 
   ;;need to:
   ;;put content of reg2 into eax
   ;;put 0 into edx
