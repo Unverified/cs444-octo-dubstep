@@ -228,6 +228,10 @@
   (let  ([label-cond (symbol->string (gensym))]
          [label-update (symbol->string (gensym))]
          [label-end (symbol->string (gensym))])
+
+    (nl out)
+    (nl out)
+    (comment out "FOR")
     (define new-sinfo (if [varassign? init] (gen-code-recurse out sinfo init) sinfo))
     (jmp out label-cond)
     (label out label-update)
@@ -239,7 +243,10 @@
     (cjmp out "jne" label-end)			
     (gen-code-recurse out new-sinfo body)
     (jmp out label-update)
-    (label out label-end)))
+    (label out label-end)
+    (reset-stack out (- (length (stackinfo-decls new-sinfo)) (length (stackinfo-decls sinfo))))
+    (nl out)
+    (nl out)))
 
 (define (gen-code-return out sinfo expr)
   (comment out ";RETURN")
