@@ -123,7 +123,7 @@
         ['plus (add out "eax" "ebx")]
         ['minus (sub out "eax" "ebx")]
         ['star (imul out "eax" "ebx")]
-        ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (movi "eax" 1)]
+        ['slash (comment out "TODO: WARNING DIVIDE NOT IMPLEMENTED, eax is 1") (divide out "eax" "ebx" 'char)]
         [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo op ls rs)])])
 
   (pop out "ebx" "restoring"))			;restore ebx
@@ -386,6 +386,38 @@
 (define (cjmp out cj label . comment)
   (display (string-append "" cj " " label) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
+
+
+(define (divide out reg1 reg2)
+
+  ;;need to:
+  ;;put content of reg2 into eax
+  ;;put 0 into edx
+  ;;do an idiv
+  (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
+							   (mov "ebx" reg2))
+			    (begin (mov "eax" reg2)
+			       (mov "ebx" reg1)))
+  (mov "edx" "0")
+  (display (string-append "idiv " "ebx") out)
+  (mov "eax" "eax"))
+  
+
+(define (rem out reg1 reg2)
+  (comment out "remainder")
+
+  ;;need to:
+  ;;put content of reg2 into eax
+  ;;put 0 into edx
+  ;;do an idiv
+  (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
+							   (mov "ebx" reg2))
+			    (begin (mov "eax" reg2)
+			       (mov "ebx" reg1)))
+  (mov "edx" "0")
+  (display (string-append "idiv " "ebx") out)
+  (mov "eax" "edx"))
+
 
 (define (gen-debug-print out)
   (push out "eax")
