@@ -2,10 +2,13 @@ public class first {
   public first(){}
 
   public static int test() {
-    int x = 14603;
+    int x = 14656;
+    int y = 1;
 
-    for(int i = 1; i <= 10; i = i + 1) {
-      x = x + i;
+    if(-y == 1) {
+      x = x + 1;
+    } else {
+      x = x + 2;
     }
 
     return x;

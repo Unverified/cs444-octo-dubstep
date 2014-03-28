@@ -159,12 +159,11 @@
                (label out label-end)])))
 
 (define (gen-code-unop out sinfo op rs)
-  (comment out "TODO: generate unop assembly"))
-;  (gen-code-recurse out sinfo rs)
-;  (mov out "ecx" 0)
-;  (match op
-;    ['minus (sub out "ecx" "eax")]
-;    ['not (sub out "eax" "ebx")]
+  (gen-code-recurse out sinfo rs)
+  (match op
+    ['minus (display "neg eax\n" out)]
+    ['not   (display "not eax\n" out)
+            (display "and eax,1\n" out)]))
 
 (define (gen-code-cast out sinfo c ex)
   (comment out "TODO: generate cast assembly"))
