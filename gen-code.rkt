@@ -159,12 +159,11 @@
                (label out label-end)])))
 
 (define (gen-code-unop out sinfo op rs)
-  (comment out "TODO: generate unop assembly"))
-;  (gen-code-recurse out sinfo rs)
-;  (mov out "ecx" 0)
-;  (match op
-;    ['minus (sub out "ecx" "eax")]
-;    ['not (sub out "eax" "ebx")]
+  (gen-code-recurse out sinfo rs)
+  (match op
+    ['minus (display "neg eax\n" out)]
+    ['not   (display "not eax\n" out)
+            (display "and eax,1\n" out)]))
 
 (define (gen-code-cast out sinfo c ex)
   (comment out "TODO: generate cast assembly"))
@@ -228,6 +227,10 @@
   (let  ([label-cond (symbol->string (gensym))]
          [label-update (symbol->string (gensym))]
          [label-end (symbol->string (gensym))])
+
+    (nl out)
+    (nl out)
+    (comment out "FOR")
     (define new-sinfo (if [varassign? init] (gen-code-recurse out sinfo init) sinfo))
     (jmp out label-cond)
     (label out label-update)
@@ -239,7 +242,10 @@
     (cjmp out "jne" label-end)			
     (gen-code-recurse out new-sinfo body)
     (jmp out label-update)
-    (label out label-end)))
+    (label out label-end)
+    (reset-stack out (- (length (stackinfo-decls new-sinfo)) (length (stackinfo-decls sinfo))))
+    (nl out)
+    (nl out)))
 
 (define (gen-code-return out sinfo expr)
   (comment out ";RETURN")

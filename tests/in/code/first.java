@@ -2,19 +2,15 @@ public class first {
   public first(){}
 
   public static int test() {
-    int y = 0;
-    boolean x = true;
+    int x = 14656;
+    int y = 1;
 
-    x = ((y == 1) || x) && x;
-
-    if(x == true) {
-      y = 14657;
-    } else if (x == false) {
-      y = 14658;
+    if(-y == 1) {
+      x = x + 1;
     } else {
-      y = 14659;
+      x = x + 2;
     }
 
-    return y;
+    return x;
   }
 }
