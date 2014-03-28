@@ -4,6 +4,9 @@
 (require "ast-tree.rkt")
 (require "types.rkt")
 
+(require "gen-headers.rkt")
+(require "generation-structures.rkt")
+
 (provide gen-code)
 
 (struct stackinfo (decls ebpoff))
@@ -14,13 +17,16 @@
 (define (get-outfile cinfo)
   (string-append "output/" (foldr string-append "" (info-name cinfo)) ".s"))
 
-(define (gen-code cinfo)
+(define (gen-code cinfo cenvs)
   (define out (open-output-file (get-outfile cinfo) #:exists 'replace))
+  (define cenv (find-codeenv (info-name cinfo) cenvs))
   (gen-debug-externs out)
   (gen-debug-print-eax out)
   (match (info-ast cinfo)
     [(or (cunit _ _ (class _ _ _ _ _ _ bd))
-         (cunit _ _ (interface _ _ _ _ _ bd))) (gen-code-recurse out empty-stackinfo bd)]))
+         (cunit _ _ (interface _ _ _ _ _ bd))) (gen-code-recurse out empty-stackinfo bd)])
+  (gen-static out cenv)
+  )
 
 (define (gen-code-recurse out vdecls t)
   ;(ast-print-struct t)
