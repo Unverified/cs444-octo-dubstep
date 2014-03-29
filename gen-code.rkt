@@ -304,6 +304,9 @@
 		
 		(cond
 			[(codeenv-class? cenv)
+				(movi out "ebx" "0")
+				(cmp out "eax" "ebx")
+				(cjmp out "je" fail-label "Null literal is automatically false")
 		  		(gen-get-class-id out "eax")
 		  		;;get id list
 		  		(let ([id-list (codeenv-casts cenv)])
