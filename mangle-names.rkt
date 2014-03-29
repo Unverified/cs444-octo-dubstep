@@ -21,7 +21,7 @@
 	[(codemeth? thing) (string-append (mangle-names (codemeth-origin thing)) "_" (mangle-names (codemeth-id thing)) "_method")]
 	[(codevar? thing) (string-append (mangle-names (codevar-tag thing)) "_" (codevar-id thing) "_var")]
         [(codeenv? thing) (string-append (mangle-names (codeenv-name thing)) "_" (number->string (codeenv-guid thing)) "_class")]
-	[else (c-errorf "Unknown thing ~a" thing)]))
+	[else (c-errorf "NAME MANGLER ERROR: Unrecognized structure/object: ~a" thing)]))
 
 (define (get-mangled-type-name ast)
   (match ast
