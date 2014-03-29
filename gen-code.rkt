@@ -207,6 +207,7 @@
 
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs cenvs)]
+    [(equal? op 'instanceof) (gen-code-instanceof out sinfo ls rs cenvs)]
     [else
       (if [stringlit? rs] (gen-code-stringlit out sinfo rs cenvs) (gen-code-recurse out sinfo rs cenvs))
       (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
@@ -252,6 +253,10 @@
       ['ampamp (cjmp out "jne" label-end)
                (gen-code-recurse out sinfo rs cenvs)
                (label out label-end)])))
+
+;;helper - INSTANCEOF
+(define (gen-code-instanceof out sinfo ls rs cenvs)
+	(error 'gen-code-instanceof "unimplemented"))
 
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
