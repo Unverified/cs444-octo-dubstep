@@ -14,6 +14,8 @@
 (struct stackinfo (mdecls ldecls sdecls ebpoff))
 
 (define WORD 4)
+(define ARRAY-SZ-LOC "1")	;offset in bytes to size of array
+(define ARRAY-HEADER-SZ "2")	;size of header in bytes
 (define empty-stackinfo (stackinfo empty empty empty 0))
 
 (define (get-outfile cinfo)
@@ -107,8 +109,41 @@
   (gen-code-method out empty bd)
   (nl out))
 
-(define (gen-code-classcreate out sinfo cls params)
-  (comment out "TODO: generate classcreate assembly, " (foldr string-append "" cls)))
+(define (gen-code-classcreate out sinfo cls args)
+  (push out "ebx")
+
+  (cond 
+    [(jlstring-slit? cls args) (stringlit->chararray out sinfo (first args))
+                               (push out "eax" "push char array on stack")]
+    [else (push-method-args out sinfo args)])	;push args onto stack
+
+  
+  (malloc out 1)
+  (push out "eax")	;push "this" onto stack
+  (comment out "TODO: call new class constructor here")
+  ;(call out (constr-label cls params))
+
+  (pop out "eax")			;pop "this" off stack and return it
+  (reset-stack out (length args))	;pop this and args off stack
+  (pop out "ebx"))
+
+(define (stringlit->chararray out sinfo slit)
+  (define c-str (rest (reverse (rest (reverse (string->list (literal-value slit)))))))	;remove string quotes (ie '(" a b c ") -> '(a b c))
+  (comment out "Converting String to char[]")
+  (arraycreate-sz out sinfo (ptype 'char) (length c-str))
+  (comment out "Adding chars to char[]")
+  (copy-to-chararray out c-str 0))
+  
+(define (copy-to-chararray out c-str i)
+  (cond
+    [(empty? c-str) (printf "")]
+    [else (movi out (string-append "[eax+4*"ARRAY-HEADER-SZ"+4*" (number->string i) "]") (char->integer (first c-str)))
+          (copy-to-chararray out (rest c-str) (+ i 1))]))
+
+(define (jlstring-slit? cls args)
+  (and (equal? cls '("java" "lang" "String"))
+       (equal? 1 (length args))
+       (stringlit? (first args))))
 
 ;==============================================================================================
 ;==== Method Generation
@@ -153,7 +188,7 @@
   (push-method-args out sinfo args)	;push all method args onto stack
   (push out "ebx" "this") 		;push the addr of "this"
   (call out id)				;TODO: call right label
-  (reset-stack out (length args))	;"pop" off all the args from the stack
+  (reset-stack out (+ 1 (length args)))	;"pop" off all the args from the stack
   (comment out "===methodcall end===")
   (pop out "ebx"))
 
@@ -278,11 +313,19 @@
 (define (gen-code-stringlit out sinfo slit)
   (match (assoc (literal-value slit) (stackinfo-sdecls sinfo))
     [(list key value) (movf out "eax" "ebp" value)]
-    [_ (gen-code-classcreate out sinfo '("java" "lang" "String") slit)]))
+    [_ (gen-code-classcreate out sinfo '("java" "lang" "String") (list slit))]))
 
 ;==============================================================================================
 ;==== Array Generation
 ;==============================================================================================
+
+(define (arraycreate-sz out sinfo ty size)	;used by us when we know the size of the array
+  (push out "ebx")
+  (movi out "eax" size)	;used by malloc, 2 is added to this register in gen-arraycreate-code
+  (movi out "ebx" size)	;ebx is placed into the array as the array size in gen-arraycreate-code
+  (gen-arraycreate-code out)
+  (pop out "ebx")) 
+  
 
 ;ARRAY CREATE
 (define (gen-code-arraycreate out sinfo ty sz)
@@ -301,14 +344,16 @@
   (call out "__exception" "array size less than 0")
   (label out lbl-sz-ok)
 
-  (addi out "eax" 2)		;add 1 to size so we can store the size
+  (gen-arraycreate-code out)
+
+  (pop out "ebx"))
+
+(define (gen-arraycreate-code out)
+  (add out "eax" ARRAY-HEADER-SZ)	;add 2 to size so we can store the size
   (push out "ebx")
   (call out "__malloc")		;address will be in eax
   (pop out "ebx")
-  (mov out "[eax+4]" "ebx")	;move the size of the array to the first element
-  (nl out)
-
-  (pop out "ebx"))
+  (mov out "[eax+4]" "ebx"))	;move the size of the array to the first element
 
 ;ARRAY ACCESS
 (define (gen-code-arrayaccess out sinfo rtnaddr left index)
@@ -329,20 +374,27 @@
   (label out lbl-sz-ok1)
 
   (comment out "Checking index not >= array size")
-  (cmp out "ebx" "[eax+4]")
+  (cmp out "ebx" (string-append "[eax+4*"ARRAY-SZ-LOC"]"))
   (cjmp out "jl" lbl-sz-ok2)
   (call out "__exception")
   (label out lbl-sz-ok2)
 
-  (add out "ebx" "2")
+  (gen-arrayaccess-code out rtnaddr)
+
+  (nl out)
+  (pop out "ebx"))  
+
+(define (gen-arrayaccess-index out index)
+  (movi out "ebx" index)
+  (gen-arrayaccess-code out #t))
+
+(define (gen-arrayaccess-code out rtnaddr)
+  (add out "ebx" ARRAY-HEADER-SZ)
   (imul out "ebx" "4")
   (cond
     [rtnaddr (add out "eax" "ebx")]
-    [else (mov out "eax" "[eax+ebx]")])
-
-  (nl out)
-
-  (pop out "ebx"))  
+    [else (mov out "eax" "[eax+ebx]")]))
+  
 
 ;==============================================================================================
 ;==== Field Access Generation
@@ -447,19 +499,7 @@
     [(ptype 'char) (movi out "eax" val "lit char val " (number->string val))]
     [(ptype 'null) (movi out "eax" 0 "literal val null")]
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
-    [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo '("java" "lang" "String") (literal empty type val))]))
-
-(define (gen-code-cast out sinfo c ex)
-  (gen-code-recurse out sinfo ex)
-  (match c
-    [(ptype 'int)  (comment out "cast to int")]
-    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
-    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (error 'cast-rtype "unimplemented")]
-    [(atype type) (error 'cast-atype "unimplemented")]
-    ))
+    [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo '("java" "lang" "String") (list (literal empty type val)))]))
 
 ;==============================================================================================
 ;==== Helpers
