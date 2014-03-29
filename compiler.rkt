@@ -28,9 +28,9 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-(define files-to-compile (vector->list (current-command-line-arguments)))
+;(define files-to-compile (vector->list (current-command-line-arguments)))
 ;(define files-to-compile (list "tests/in/a3/J2_interfaces/J2_interface.java" "tests/in/a3/J2_interfaces/Main.java"))
-;(define files-to-compile (list "tests/in/a3/Je_6_For_NullInCondition.java"))
+(define files-to-compile (list "tests/in/code/tester.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -156,7 +156,7 @@
 
 
 (printf "~n~n=========== Type Checking ==========~n")
-(type-check disambig-cinfo)
+(for-each (curry type-check disambig-cinfo) disambig-cinfo)
 
 (define final-info (map (lambda (x) (set-cinfo-ast x (simplify-ast (info-ast x)))) disambig-cinfo))
 (for-each (compose1 (curryr print-ast "") info-ast) final-info)
@@ -166,7 +166,7 @@
 (for-each reachability final-info)
 
 (printf "~n~n=========== Code Generation ==========~n")
-(gen-code (first final-info) (map (curry info->codeenv final-info) final-info))
+(gen-all-code final-info (map (curry info->codeenv final-info) final-info))
 
 (map (curry info->codeenv final-info) final-info)
 

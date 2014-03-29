@@ -9,7 +9,7 @@
 (require "generation-structures.rkt")
 (require "mangle-names.rkt")
 
-(provide gen-code)
+(provide gen-all-code)
 
 (struct stackinfo (mdecls ldecls sdecls ebpoff))
 
@@ -19,10 +19,17 @@
 (define (get-outfile cinfo)
   (string-append "output/" (foldr string-append "" (info-name cinfo)) ".s"))
 
+(define (gen-all-code cinfos cenvs)
+  (define out (open-output-file (string->path "output/-start.s") #:exists 'replace))
+  (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))))
+  (display "\nsection .text\n\n" out)
+  (gen-code-start out entry-label)
+  
+  (gen-code (first cinfos) cenvs))
+
 (define (gen-code cinfo cenvs)
   (define out (open-output-file (get-outfile cinfo) #:exists 'replace))
   (define cenv (find-codeenv (info-name cinfo) cenvs))
-  (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods cenv))))
   (gen-static out cenv)
   (display "\n\n\nsection .text\n" out)
   (gen-debug-externs out)
@@ -31,10 +38,8 @@
              (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
              (match (codemeth-def x)
                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out (codeenv-parent cenv) params bd cenvs)]
-               [(method _ _ '(static) (ptype 'int) (methoddecl _ "test" `()) bd) (gen-code-start-method out entry-label bd cenvs)]
                [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out params bd cenvs)])) 
     (filter codemeth-ref? (codeenv-methods cenv))))
-
 
 (define (gen-code-recurse out sinfo t cenvs)
   ;(ast-print-struct t)
@@ -115,9 +120,8 @@
 ;==============================================================================================
 
 ;ENTRY POINT
-(define (gen-code-start-method out entry-label bd cenvs)
-  (nl out)
-  (gen-code-method out empty bd cenvs)
+(define (gen-code-start out entry-label)
+  (display (string-append "extern " entry-label "\n") out)
   (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)

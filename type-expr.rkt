@@ -140,7 +140,7 @@
     [else #t]))
 
 ;;type-check : (assoc fullq-names info) -> void
-(define (type-check all-cinfo) 
+(define (type-check all-cinfo cinfo) 
   
   ;;parent-of? rtype rtype envs -> Boolean
   (define (parent-of? T S)
@@ -405,9 +405,7 @@
     
       [_ (error "Type Checker Not Implemented")]))
 
-  (for-each (lambda (cinfo) 
-              (printf "###### TYPE CHECKING ~a ####~n" (info-name cinfo)) 
-              (type-expr (info-name cinfo) empty empty (cunit-body (info-ast cinfo)))) all-cinfo))
+  (type-expr (info-name cinfo) empty empty (cunit-body (info-ast cinfo))))
 
      
                                                 
