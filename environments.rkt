@@ -16,6 +16,7 @@
 (provide va)
 (provide env-empty)
 
+(provide mdecl->funt)
 (provide methodcall->funt)
 (provide (struct-out eval))
 (provide (struct-out envs))

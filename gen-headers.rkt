@@ -17,25 +17,26 @@
 
 (define (gen-static out cenv)
   (define dis-list (compose (curry for-each (curryr display out))))
-  (let ([sect-label (apply string-append (codeenv-name cenv))]
-        [inter-label "_INTERFACE"])
-    
+  (let ([sect-label (apply string-append (codeenv-name cenv))])
     ;; want to write in a data section
-    (dis-list (list "section .data\n\n" "global " sect-label "\n\n"))
+    (dis-list (list "section .data\n\n" "global " (mangle-names cenv) "\n\n"))
     (for-each (lambda (x) (dis-list (list "extern " (mangle-names x) "\n")))
               (filter-not codemeth-ref? (codeenv-methods cenv)))
     (display "\n" out)
     (for-each (lambda (x) (dis-list (list "global " (mangle-names x) "\t; Method Defn\n")))
               (filter codemeth-ref? (codeenv-methods cenv)))
+    
     ;; write the table header so we can find stuff
-    (dis-list (list
-               "\n"
-               ;; label our location so it can be found
-               sect-label ":\n"
-               "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
+;    (dis-list (list
+;               "\n"
+;               ;; label our location so it can be found
+;               sect-label ":\n"
+;               "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
+    (dis-list (list "\n" (mangle-names cenv) ":\n" 
+                    "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
+    
     ;; method pointers go here
-    (for-each (lambda (x) (for-each (curryr display out)
-                                    (list "\tdd " (mangle-names x) "\t; scope" "\n" )))
+    (for-each (lambda (meth) (dis-list (list "\tdd " (mangle-names meth) "\t; scope" "\n" )))
               (reverse (codeenv-methods cenv)))
     
     ;; Static variable points

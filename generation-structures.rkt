@@ -16,10 +16,9 @@
 
 
 (define counter (let ([count 0]) (lambda () (set! count (add1 count)) count)))
-(define store (make-hash))
 
-(define (name->id name)
-  (hash-ref! store name (thunk (counter))))
+(define store (make-hash))
+(define (name->id name) (hash-ref! store name (thunk (counter))))
 
 ;======================================================================================
 ;==== Code Environment Generation
@@ -37,39 +36,40 @@
         [else (for/list ([key (remove-duplicates (map first (reverse asoc)))])
                 (assoc key asoc))]))
 
-(define (assoclst->codemeth local lookup lst)
+(define (assoclst->codemeth local lookup cinfos lst)
   (reverse (for/list ([off (range 1 (add1 (length lst)))]
                       [asc (reverse-normalize lst)])
+             (let ([origin (first (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup"))))])
              (codemeth (first asc)
                        (equal? local (eval-scope (second asc)))
                        (is-static? (eval-ast (second asc)))
-                       (first (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup"))))
-                       (* 4 off) 
-                       (eval-ast (second asc))))))
+                       origin
+                       (* 4 off)
+                       (get-toplevel (first asc) (info-ast (find-info origin cinfos))))))))
 
-(define (assoclst->codevars local lookup lst)
+(define (assoclst->codevars local lookup cinfos lst)
   (define (get-assignment ast)
     (cond [(varassign? ast) (varassign-expr ast)]
           [(vdecl? ast) empty]
           [else (let-values ([(type _) (struct-info ast)]
                              [(err)  (open-output-string)])
-                  (display "gen-strctrs:assoclst->codevars:get-assignent no case " err)
+                  (display "gen-strctrs:assoclst->codevars:get-assignentno case " err)
                   (display ast err)
                   (error (get-output-string err)))]))
   
+  (define (asc->codevar static? off asc)
+    (let ([origin (first (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup"))))])
+      (codevar (first asc)
+               (if static? (equal? local (eval-scope (second asc))) #t)
+               static?
+               (if static? origin off)
+               (get-assignment (get-toplevel (first asc) (info-ast (find-info origin cinfos)))))))
+  
   (let-values ([(static instance) (partition (compose1 is-static? eval-ast second) lst)])    
-    (append (map (lambda (x) (codevar (first x)
-                                      (equal? local (eval-scope (second x)))
-                                      #t                         
-                                      (first (hash-ref lookup (eval-scope (second x)) (thunk (error (eval-scope (second x)) " not in lookup"))))
-                                      (get-assignment (eval-ast (second x))))) static)
+    (append (map (curry asc->codevar #t 0) static)
             (reverse (for/list ([off (range 1 (add1 (length instance)))]
                                 [asc  (reverse instance)])
-                       (codevar (first asc)
-                                #t
-                                #f 
-                                (* 4 off)
-                                (get-assignment (eval-ast (second asc)))))))))
+                       (asc->codevar #f (* 4 off) asc))))))
 
 (define (get-parent cinfo)
   (if (equal? (info-name cinfo) '("java" "lang" "Object"))
@@ -81,7 +81,7 @@
 
 (define (info->codeenv all-info cinfo)
   (let* ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))]
-         [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))])
+         [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup all-info (envs-vars (info-env cinfo)))])
     (codeenv
      (info-name cinfo)
      (name->id (info-name cinfo))
@@ -91,8 +91,8 @@
      (* 4 (+ 1 (length (filter-not codevar-static? vars))))
      (get-parent cinfo)
      vars
-     (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup (append (envs-constructors (info-env cinfo))
-                                                                       (envs-methods (info-env cinfo))))
+     (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo))
+                                                                                (envs-methods (info-env cinfo))))
      (append (for/list ([name  (map info-name all-info)]
                         [supers (map info-supers all-info)]
                         #:when (list? (member (info-name cinfo) supers)))
@@ -117,3 +117,22 @@
 (define (find-codevar id lst)
   (cond [(not (string? id)) (error 'find-codevar "id must be of type string")]
         [else (findf (compose (curry equal? id) codevar-id) lst)]))
+
+(define (get-toplevel id ast)
+  (define (matches-id? ast)
+    (cond [(string? id) (match ast
+                          [(varassign _ lft _) (matches-id? lft)]
+                          [(vdecl _ _ _ _ i) (equal? i id)]
+                          [_ #f])]
+          [(funt? id) (match ast
+                        [(constructor _ _ decl _) (equal? id (funt "" (funt-argt (mdecl->funt decl))))]
+                        [(method _ _ _ _ decl _) (equal? id (mdecl->funt decl))]
+                        [_ #f])]))
+  (match ast
+    [(cunit _ _ bdy) (get-toplevel id bdy)]
+    [(or (class _ _ _ _ _ _ bdy)
+         (interface _ _ _ _ _ bdy)) (get-toplevel id bdy)]
+    [(block _ id bdy) (match (filter matches-id? bdy)    
+                        [(list x) x]
+                        [empty (error 'get-toplevel "asked for thing that doesn't exist")]
+                        [_ (error 'get-toplevel "multiple definitons of type: ~e" id)])]))
