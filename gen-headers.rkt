@@ -16,8 +16,7 @@
             lst))
 
 (define (gen-static out cenv)
-  (let ([sect-label (apply string-append (codeenv-name cenv))]
-        [inter-label "_INTERFACE"])
+  (let ([sect-label (apply string-append (codeenv-name cenv))])
     
     (for-each (lambda (x) (for-each (curryr display out) 
                                     (list "extern " (mangle-names x) "\n")))
@@ -30,8 +29,7 @@
               (list           
                ;; label our location so it can be found
                sect-label ":\n"
-               "dd " (codeenv-guid cenv) "\t ; the unique id of this class \n"
-               "dd " inter-label "\t ; where valid interfaces are declared\n"))
+               "dd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
     ;; method pointers go here
     (for-each (lambda (x) (for-each (curryr display out)
                                     (list "dd " (mangle-names x) "\t; scope" "\n" )
