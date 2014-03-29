@@ -82,10 +82,9 @@
 (define (gen-code-start-method out entry-label bd)
   (nl out)
   (gen-code-method out empty bd)
-  (comment out "@@@@ ENTRY POINT @@@@")
+  (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
-  (nl out)
   (call out entry-label)
   (nl out)
   (gen-debug-print out)
@@ -93,7 +92,7 @@
   (display "mov eax, 1\n" out)
   (display "int 0x80\n" out)
   (display "int 3\n" out)
-  (comment out "@@@@@@@@@@@@@@@@@@@@@"))
+  (comment out "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
 
 (define (gen-code-method out params bd)
   (define sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty 4))
@@ -105,7 +104,7 @@
   (nl out)
   (pop out "ebp")
   (display "ret\n" out)			;ret from method
-  (comment out "#####################"))
+  (comment out "#############METHOsaD############"))
 
 (define (gen-code-varassign out sinfo id ex)
   (nl out)
@@ -187,7 +186,16 @@
             (display "and eax,1\n" out)]))
 
 (define (gen-code-cast out sinfo c ex)
-  (comment out "TODO: generate cast assembly"))
+  (gen-code-recurse out sinfo ex)
+  (match c
+    [(ptype 'int)  (comment out "cast to int")]
+    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
+    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
+    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
+    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
+    [(rtype name) (error 'cast-rtype "unimplemented")]
+    [(atype type) (error 'cast-atype "unimplemented")]
+    ))
 
 (define (gen-code-arraycreate out sinfo ty sz)
   (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))

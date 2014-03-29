@@ -7,7 +7,6 @@
 (provide constr-label)
 (provide mangle-names)
 
-
 (define (constr-label class args)
   (cond [(not (and (list? class) (andmap string? class)))
          (error 'constr-label "given invalid class name ~e" class)]
@@ -19,8 +18,8 @@
 (define (mangle-names thing)
   (cond [(funt? thing) (apply string-append (cons (funt-id thing) (map get-mangled-type-name (funt-argt thing))))]
         [(list? thing) (string-join thing "_")]
-	[(codemeth? thing) (string-append (mangle-names (codemeth-origin thing)) "_" (mangle-names (codemeth-id thing)))]
-	[(codevar? thing) (string-append (mangle-names (codevar-tag thing)) "_" (codevar-id thing))]
+	[(codemeth? thing) (string-append (mangle-names (codemeth-origin thing)) "_" (mangle-names (codemeth-id thing)) "_" "method")]
+	[(codevar? thing) (string-append (mangle-names (codevar-tag thing)) "_" (codevar-id thing) "_" "var")]
 	[else (c-errorf "Unknown thing ~a" thing)]))
 
 (define (get-mangled-type-name ast)
