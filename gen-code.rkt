@@ -256,6 +256,7 @@
 
 ;;helper - INSTANCEOF
 (define (gen-code-instanceof out sinfo ls rs cenvs)
+	(gen-code-recurse out sinfo ls cenvs)
 	(let*
 		([fail-label (gensym "instanceof-fail")]
 		 [success-label (gensym "instanceof-success")]
