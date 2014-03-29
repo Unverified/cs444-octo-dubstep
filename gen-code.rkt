@@ -69,9 +69,9 @@
   (define (gen-code-block-helper sinfo statements)
     (cond
       [(empty? statements) sinfo] ;TODO: pop local vars off stack
-      [(varassign? (first statements)) (gen-code-block-helper (gen-code-recurse out sinfo (first statements) cenvs) (rest statements) cenvs)]
+      [(varassign? (first statements)) (gen-code-block-helper (gen-code-recurse out sinfo (first statements) cenvs) (rest statements))]
       [else (gen-code-recurse out sinfo (first statements) cenvs)
-            (gen-code-block-helper sinfo (rest statements) cenvs)]))
+            (gen-code-block-helper sinfo (rest statements))]))
 
   (define bsinfo (gen-code-block-helper sinfo statements))
   (reset-stack out (- (length (stackinfo-ldecls bsinfo)) (length (stackinfo-ldecls sinfo)))))
@@ -159,6 +159,7 @@
 
 ;METHOD RETURN
 (define (gen-code-return out sinfo expr cenvs)
+
   (nl out)
   (comment out ";RETURN")
   (gen-code-recurse out sinfo expr cenvs)
@@ -256,7 +257,8 @@
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
-(define (gen-code-cast out sinfo c ex cenv cenvs)
+(define (gen-code-cast out sinfo c ex cenvs)
+  ;(printf "gen-code-cast ~a~n" ex)
   (gen-code-recurse out sinfo ex cenvs)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
@@ -268,7 +270,7 @@
 		  (push "ebx")
 		  (get-class-id out "eax")
 		  ;;get id list
-		  (let ([id-list (codeenv-casts (assoc name cenvs))])
+		  (let ([id-list (codeenv-casts (find-codeenv name cenvs))])
 			  (check-if-castable out id-list "eax" "ebx" (gensym "castable-fail") (gensym "castable-success")))
 		  (pop "ebx")
 		  (pop "eax")]
@@ -445,6 +447,8 @@
   (match type
     [(ptype 'int) (movi out "eax" val "lit int val " (number->string val))]
     [(ptype 'char) (movi out "eax" val "lit char val " (number->string val))]
+    [(ptype 'byte) (movi out "eax" val "lit byte val " (number->string val))]
+    [(ptype 'short) (movi out "eax" val "lit short val " (number->string val))]    
     [(ptype 'null) (movi out "eax" 0 "literal val null")]
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
     [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo '("java" "lang" "String") (literal empty type val) cenvs)]))
