@@ -32,7 +32,7 @@
                "\n"
                ;; label our location so it can be found
                sect-label ":\n"
-               "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"
+               "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
     ;; method pointers go here
     (for-each (lambda (x) (for-each (curryr display out)
                                     (list "\tdd " (mangle-names x) "\t; scope" "\n" )))
