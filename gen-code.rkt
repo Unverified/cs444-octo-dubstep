@@ -22,23 +22,23 @@
 (define (gen-code cinfo cenvs)
   (define out (open-output-file (get-outfile cinfo) #:exists 'replace))
   (define cenv (find-codeenv (info-name cinfo) cenvs))
+  (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods cenv))))
   (gen-static out cenv)
   (display "\n\n\nsection .text\n" out)
   (gen-debug-externs out)
   (gen-debug-print-eax out)
   (for-each(lambda (x)
-             (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
-             (gen-code-recurse out empty-stackinfo #f (codemeth-def x))) (filter codemeth-ref? (codeenv-methods cenv))))
+             (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) ))
+             (match (codemeth-def x)
+               [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out (codeenv-parent cenv) params bd)]
+               [(method _ _ '(static) (ptype 'int) (methoddecl _ "test" `()) bd) (gen-code-start-method out entry-label bd)]
+               [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out params bd)])) 
+    (filter codemeth-ref? (codeenv-methods cenv))))
 
 
 (define (gen-code-recurse out sinfo rtnaddr t)
   ;(ast-print-struct t)
   (match t
-    [(constructor env sp decl bd) (gen-code-constructor out bd)]
-    [(method _ _ '(static) (ptype 'int) (methoddecl _ "test" `()) bd) (gen-code-start-method out bd)]
-    [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out id params bd)]
- ;   [(methoddecl env id params) (methoddecl env id (map F params))]
- ;   [(parameter env type id) (parameter env (F type) id)]
     [(varassign env id ex) (gen-code-varassign out sinfo rtnaddr id ex)]
     [(vdecl env sp md ty id) (gen-code-vdecl out sinfo rtnaddr id)]
     [(binop env op ls rs) (gen-code-binop out sinfo rtnaddr op ls rs)]
@@ -73,37 +73,39 @@
   (define bsinfo (gen-code-block-helper sinfo statements))
   (reset-stack out (- (length (stackinfo-ldecls bsinfo)) (length (stackinfo-ldecls sinfo)))))
 
-(define (gen-code-constructor out bd)
-  (comment out "TODO: generate constructor assembly"))
+(define (gen-code-constructor out parent params bd)
+  (comment out "CONSTRUCTOR")
+  (if [empty? parent] (printf "") (call out (mangle-names (codemeth (funt "" params) #f #f parent 0 empty))))
+  (gen-code-method out empty bd)
+  (nl out))
 
-(define (gen-code-start-method out bd)
+(define (gen-code-start-method out entry-label bd)
   (nl out)
-  (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
+  (gen-code-method out empty bd)
+  (comment out "@@@@ ENTRY POINT @@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
-  (gen-code-methodcall out empty-stackinfo #f empty "test" empty)
+  (nl out)
+  (call out entry-label)
   (nl out)
   (gen-debug-print out)
   (nl out)
   (display "mov eax, 1\n" out)
   (display "int 0x80\n" out)
   (display "int 3\n" out)
-  (comment out "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-  (gen-code-method out "test" empty bd))
+  (comment out "@@@@@@@@@@@@@@@@@@@@@"))
 
-(define (gen-code-method out id params bd)
+(define (gen-code-method out params bd)
   (define sinfo (stackinfo (get-method-arg-decls (reverse params) 8) empty 4))
-  
-  (nl out)
-  (comment out "######## METHOD " id " ########")
-  (label out id "TODO: set the label for this method")
+
+  (comment out "####### METHOD ######")  
   (push out "ebp")			;save frame pointer
   (mov out "ebp" "esp")			;set new frame pointer to stack pointer
   (gen-code-recurse out sinfo #f bd)	;gen methods code
   (nl out)
   (pop out "ebp")
   (display "ret\n" out)			;ret from method
-  (comment out "#############METHOsaD############"))
+  (comment out "#####################"))
 
 (define (gen-code-varassign out sinfo rtnaddr id ex)
   (nl out)
