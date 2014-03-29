@@ -29,9 +29,9 @@
 ;; tag depends on how static is set, 
 ;; true means its the origin class, false is an offset
 (struct codevar (id ref? static? tag val) #:transparent)
-(struct codemeth (id ref? origin off def) #:transparent)
+(struct codemeth (id ref? static? origin off def) #:transparent)
 ;; type is either 'inter or 'class
-(struct codeenv (name guid class? vars methods casts) #:transparent)
+(struct codeenv (name guid class? parent vars methods casts) #:transparent)
 
 (define (reverse-normalize asoc)
   (cond [(empty? asoc) empty]
@@ -43,6 +43,7 @@
                       [asc (reverse-normalize lst)])
              (codemeth (first asc)
                        (equal? local (eval-scope (second asc)))
+                       (is-static? (eval-ast (second asc)))
                        (first (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup"))))
                        (* 4 off) 
                        (eval-ast (second asc))))))
@@ -71,6 +72,14 @@
                          (* 4 off)
                          (get-assignment (eval-ast (second asc)))))))))
 
+(define (get-parent cinfo)
+  (if (equal? (info-name cinfo) '("java" "lang" "Object"))
+      empty
+      (let ([parent (get-extends (info-ast cinfo))])
+       (if (empty? parent)
+           '("java" "lang" "Object")
+           parent))))
+
 (define (info->codeenv all-info cinfo)
   (let ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))])
     (codeenv
@@ -79,6 +88,7 @@
      (cond [(is-class? (info-ast cinfo)) #t]
            [(is-interface? (info-ast cinfo)) #f]
            [else (error "info->codeenv givencinfo of a improper compilation unit")])
+     (get-parent cinfo)
      (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))
      (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup (append (envs-constructors (info-env cinfo))
                                                                        (envs-methods (info-env cinfo))))

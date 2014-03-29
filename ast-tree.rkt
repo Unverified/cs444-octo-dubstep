@@ -661,10 +661,10 @@
 
 (define (is-static? ast)
   (match ast
+    [(constructor _ _ _ _) #f]
     [(method _ _ mod _ _ _) (list? (member 'static mod))]
     [(vdecl _ _ mod _ _) (if (empty? mod) #f (symbol=? mod 'static))]
-    [(varassign _ lft _) (is-static? lft)]
-            
+    [(varassign _ lft _) (is-static? lft)]       
     [_ (let-values ([(type _) (struct-info ast)]
                     [(err)  (open-output-string)])
          (display "is-static undefined for case " err)
