@@ -36,7 +36,7 @@
   (cond [(empty? asoc) empty]
         [else (for/list ([key (remove-duplicates (map first (reverse asoc)))])
                 (assoc key asoc))]))
-  
+
 (define (assoclst->codemeth local lookup lst)
   (reverse (for/list ([off (range 1 (add1 (length lst)))]
                       [asc (reverse-normalize lst)])
@@ -63,27 +63,25 @@
                                       #t                         
                                       (first (hash-ref lookup (eval-scope (second x)) (thunk (error (eval-scope (second x)) " not in lookup"))))
                                       (get-assignment (eval-ast (second x))))) static)
-     (reverse (for/list ([off (range 1 (add1 (length instance)))]
-                         [asc  (reverse instance)])
-                (codevar (first asc)
-                         #t
-                         #f 
-                         (* 4 off)
-                         (get-assignment (eval-ast (second asc)))))))))
+            (reverse (for/list ([off (range 1 (add1 (length instance)))]
+                                [asc  (reverse instance)])
+                       (codevar (first asc)
+                                #t
+                                #f 
+                                (* 4 off)
+                                (get-assignment (eval-ast (second asc)))))))))
 
 (define (get-parent cinfo)
   (if (equal? (info-name cinfo) '("java" "lang" "Object"))
       empty
       (let ([parent (get-extends (info-ast cinfo))])
-       (if (empty? parent)
-           '("java" "lang" "Object")
-           parent))))
+        (if (empty? parent)
+            '("java" "lang" "Object")
+            parent))))
 
 (define (info->codeenv all-info cinfo)
   (let* ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))]
-         [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))]
-        
-        )
+         [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))])
     (codeenv
      (info-name cinfo)
      (name->id (info-name cinfo))
@@ -103,8 +101,8 @@
                         [impls (map info-impls all-info)]
                         #:when (and (list? impls) (list? (member (info-name cinfo) impls))))
                (name->id name))))))
-  
-  
+
+
 ;======================================================================================
 ;==== Code Environment Lookup
 ;======================================================================================

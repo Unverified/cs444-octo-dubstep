@@ -15,8 +15,6 @@
                                   (list "dd " x "\t; " (string-join x ".") "\n")))
             lst))
 
-
-
 (define (gen-static out cenv)
   (define dis-list (compose (curry for-each (curryr display out))))
   (let ([sect-label (apply string-append (codeenv-name cenv))]
