@@ -156,6 +156,12 @@
   (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
+
+  (comment out "@@@@@@@@@@@@ Initialize Static variables! @@@@@@@")
+  (gen-initialize-static-fields out bd cenvs)
+
+
+  (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
   (call out entry-label)
   (nl out)
   (gen-debug-print out)
@@ -593,6 +599,14 @@
 			(cjmp out "je" success-label)
 			(gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 			
+
+(define (gen-initialize-static-fields out bd cenvs)
+
+	(define (gen-initialize-static-fields-class cenv)
+		(map (lambda (x) (gen-code-recurse out empty (codevar-val x) cenvs)) (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv))))
+	(map gen-initialize-static-fields-class cenvs)) 	
+;	(error 'gen-initialize-static-fields "unimplemented"))
+
 
 (define (nl out)
   (display "\n" out))
