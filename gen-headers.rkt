@@ -8,11 +8,11 @@
   (map (curryr display out) (codeenv-name cenv)))
 
 (define (write-class-array out lst)
-  (display "dd " out)
+  (display "\tdd " out)
   (display (length lst) out)
   (display "\t; number of entries\n" out)
   (for-each (lambda (x) (for-each (curryr display out)
-                                  (list "dd " x "\t; " (string-join x ".") "\n")))
+                                  (list "\tdd " x "\t; " (string-join x ".") "\n")))
             lst))
 
 (define (gen-static out cenv)
@@ -32,11 +32,10 @@
                "\n"
                ;; label our location so it can be found
                sect-label ":\n"
-               "dd " (codeenv-guid cenv) "\t ; the unique id of this class \n"
-               "dd " inter-label "\t ; where valid interfaces are declared\n"))
+               "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"
     ;; method pointers go here
     (for-each (lambda (x) (for-each (curryr display out)
-                                    (list "dd " (mangle-names x) "\t; scope" "\n" )))
+                                    (list "\tdd " (mangle-names x) "\t; scope" "\n" )))
               (reverse (codeenv-methods cenv)))
     
     ;; Static variable points
