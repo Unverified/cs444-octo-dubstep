@@ -16,7 +16,7 @@
 
 
 (define counter
-  (let ([count -1]) (lambda () (set! count (add1 count)) count)))
+  (let ([count 0]) (lambda () (set! count (add1 count)) count)))
 (define store (make-hash))
 
 (define (name->id name)
