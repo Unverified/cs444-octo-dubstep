@@ -15,8 +15,7 @@
 (provide find-codevar)
 
 
-(define counter
-  (let ([count 0]) (lambda () (set! count (add1 count)) count)))
+(define counter (let ([count 0]) (lambda () (set! count (add1 count)) count)))
 (define store (make-hash))
 
 (define (name->id name)
@@ -31,7 +30,7 @@
 (struct codevar (id ref? static? tag val) #:transparent)
 (struct codemeth (id ref? static? origin off def) #:transparent)
 ;; type is either 'inter or 'class
-(struct codeenv (name guid class? parent vars methods casts) #:transparent)
+(struct codeenv (name guid class? size parent vars methods casts) #:transparent)
 
 (define (reverse-normalize asoc)
   (cond [(empty? asoc) empty]
@@ -81,15 +80,19 @@
            parent))))
 
 (define (info->codeenv all-info cinfo)
-  (let ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))])
+  (let* ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))]
+         [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))]
+        
+        )
     (codeenv
      (info-name cinfo)
      (name->id (info-name cinfo))
      (cond [(is-class? (info-ast cinfo)) #t]
            [(is-interface? (info-ast cinfo)) #f]
            [else (error "info->codeenv givencinfo of a improper compilation unit")])
+     (* 4 (+ 1 (length (filter-not codevar-static? vars))))
      (get-parent cinfo)
-     (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup (envs-vars (info-env cinfo)))
+     vars
      (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup (append (envs-constructors (info-env cinfo))
                                                                        (envs-methods (info-env cinfo))))
      (append (for/list ([name  (map info-name all-info)]

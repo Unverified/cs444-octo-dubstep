@@ -15,28 +15,34 @@
                                   (list "dd " x "\t; " (string-join x ".") "\n")))
             lst))
 
+
+
 (define (gen-static out cenv)
-  (let ([sect-label (apply string-append (codeenv-name cenv))])
-    
-    (for-each (lambda (x) (for-each (curryr display out) 
-                                    (list "extern " (mangle-names x) "\n")))
-              (filter-not codemeth-ref? (codeenv-methods cenv)))
+  (define dis-list (compose (curry for-each (curryr display out))))
+  (let ([sect-label (apply string-append (codeenv-name cenv))]
+        [inter-label "_INTERFACE"])
     
     ;; want to write in a data section
-    (display "\nsection .data\n\n" out)
+    (dis-list (list "section .data\n\n" "global " sect-label "\n\n"))
+    (for-each (lambda (x) (dis-list (list "extern " (mangle-names x) "\n")))
+              (filter-not codemeth-ref? (codeenv-methods cenv)))
+    (display "\n" out)
+    (for-each (lambda (x) (dis-list (list "global " (mangle-names x) "\t; Method Defn\n")))
+              (filter codemeth-ref? (codeenv-methods cenv)))
     ;; write the table header so we can find stuff
-    (for-each (curryr display out)
-              (list           
+    (dis-list (list
+               "\n"
                ;; label our location so it can be found
                sect-label ":\n"
-               "dd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
+               "dd " (codeenv-guid cenv) "\t ; the unique id of this class \n"
+               "dd " inter-label "\t ; where valid interfaces are declared\n"))
     ;; method pointers go here
     (for-each (lambda (x) (for-each (curryr display out)
-                                    (list "dd " (mangle-names x) "\t; scope" "\n" )
-                                        
-                                        ))
+                                    (list "dd " (mangle-names x) "\t; scope" "\n" )))
               (reverse (codeenv-methods cenv)))
     
-    ;; layout static vars here
-    ))
+    ;; Static variable points
+    (for-each (lambda (x) (dis-list (list "global " (mangle-names x) "\t; Static Var\n"
+                                          (mangle-names x) ": dd 0\t; \n")))
+              (filter (lambda (x) (and (codevar-ref? x) (codevar-static? x))) (codeenv-vars cenv)))))
 

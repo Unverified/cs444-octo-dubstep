@@ -7,7 +7,6 @@
 (provide constr-label)
 (provide mangle-names)
 
-
 (define (constr-label class args)
   (cond [(not (and (list? class) (andmap string? class)))
          (error 'constr-label "given invalid class name ~e" class)]
