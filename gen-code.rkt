@@ -577,11 +577,10 @@
 			
 
 (define (gen-initialize-static-fields out bd cenvs)
-
+	(printf "gen-initialize-static-fields: ~a~n" bd)
 	(define (gen-initialize-static-fields-class cenv)
-		(map (lambda (x) (gen-code-recurse out empty (codevar-val x) cenvs)) (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv))))
+		(map (lambda (x) (gen-code-recurse out empty (varassign empty (append (codevar-tag x) (list (codevar-id x))) (codevar-val x)) cenvs)) (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
 	(map gen-initialize-static-fields-class cenvs)) 	
-;	(error 'gen-initialize-static-fields "unimplemented"))
 
 
 (define (nl out)
