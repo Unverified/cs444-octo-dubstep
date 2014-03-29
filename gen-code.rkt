@@ -266,14 +266,18 @@
     [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (push "eax")
-		  (push "ebx")
-		  (get-class-id out "eax")
-		  ;;get id list
-		  (let ([id-list (codeenv-casts (find-codeenv name cenvs))])
-			  (check-if-castable out id-list "eax" "ebx" (gensym "castable-fail") (gensym "castable-success")))
-		  (pop "ebx")
-		  (pop "eax")]
+    [(rtype name) (let ([cenv (find-codeenv name cenvs)])
+		  (cond
+			[(codeenv-class? cenv)
+	      			(push "eax")
+		  		(push "ebx")
+		  		(gen-get-class-id out "eax")
+		  		;;get id list
+		  		(let ([id-list (codeenv-casts cenv)])
+			  		(gen-check-if-castable out id-list "eax" "ebx" (gensym "castable-fail") (gensym "castable-success")))
+		  		(pop "ebx")
+		  		(pop "eax")]
+			[else (error 'cast-rtype-interface "unimplemented")]))]
     [(atype type) (error 'cast-atype "unimplemented")]
     ))
 
@@ -498,11 +502,11 @@
 
 
 ;;the register points to the object. The caller preserves the register. 
-(define (get-class-id out register)
+(define (gen-get-class-id out register)
 	(movf out register register "0" "Getting static class info")
 	(movf out register register "0" "Getting the class number"))
 
-(define (check-if-castable out id-list register check-register fail-label success-label)
+(define (gen-check-if-castable out id-list register check-register fail-label success-label)
 	(cond
 		[(empty? id-list) 
 			(label out fail-label)
@@ -512,7 +516,7 @@
 			(movi out check-register (first id-list))
 			(cmp check-register register)
 			(cjmp out "je" success-label)
-			(check-if-castable out (rest id-list) register fail-label success-label)])) 
+			(gen-check-if-castable out (rest id-list) register fail-label success-label)])) 
 			
 
 (define (nl out)
