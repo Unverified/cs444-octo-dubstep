@@ -44,7 +44,6 @@
 
 
 (define (gen-code-recurse out sinfo t cenvs)
-  ;(ast-print-struct t)
   (match t
     [(varassign env id ex) (gen-code-varassign out sinfo id ex cenvs)]
     [(binop env op ls rs) (gen-code-binop out sinfo op ls rs cenvs)]
@@ -59,11 +58,8 @@
     [(iff env test tru fls) (gen-code-iff out sinfo test tru fls cenvs)]
     [(return env expr) (gen-code-return out sinfo expr cenvs)]
     [(for env init clause update body) (gen-code-for out sinfo init clause update body cenvs)]
-;    [(ptype _) ast]
-;    [(rtype _) ast]
-;    [(atype type) (atype (F type))]
     [(varuse _ id) (gen-code-varuse out sinfo id cenvs)]
-    [(this _ type) (thunk (gen-code-varuse out sinfo "this" cenvs))]
+    [(this _ type) (gen-code-this out)]
     [(literal _ type val) (gen-code-literal out sinfo type val cenvs)]
     [(block env id statements)  (gen-code-block out sinfo id statements cenvs) ]
     [`() (comment out "EMPTY STATEMENT")]))
@@ -411,7 +407,7 @@
 ;==== "this" Generation
 ;==============================================================================================
 
-(define (gen-code-this out sinfo type cenvs)
+(define (gen-code-this out)
   (mov out "eax" "[ebp+8]")) 
 
 (define (gen-code-get-this out sinfo t cenvs)
