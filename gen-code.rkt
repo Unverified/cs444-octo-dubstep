@@ -255,8 +255,11 @@
                (label out label-end)])))
 
 ;;helper - INSTANCEOF
+;;this code is mostly copied from the gen-code-cast function
 (define (gen-code-instanceof out sinfo ls rs cenvs)
+	(comment out "Getting lhs of instanceof")
 	(gen-code-recurse out sinfo ls cenvs)
+	(comment out "We now have lhs of instanceof")
 	(let*
 		([fail-label (gensym "instanceof-fail")]
 		 [success-label (gensym "instanceof-success")]
@@ -269,7 +272,7 @@
 		  		(gen-get-class-id out "eax")
 		  		;;get id list
 		  		(let ([id-list (codeenv-casts cenv)])
-			  		(gen-check-if-castable out id-list "eax" "ebx" fail-label success-label))
+			  		(gen-check-if-castable out id-list "eax" "ebx" success-label))
 				(label out fail-label)
 				(movi out "eax" "0")
 				(jmp out end-label)
@@ -479,7 +482,7 @@
 		  		(gen-get-class-id out "eax")
 		  		;;get id list
 		  		(let ([id-list (codeenv-casts cenv)])
-			  		(gen-check-if-castable out id-list "eax" "ebx" fail-label success-label))
+			  		(gen-check-if-castable out id-list "eax" "ebx" success-label))
 				(label out fail-label)
 				(call out "__exception" "Bad Cast")
 				(label out success-label "Valid cast")
@@ -525,15 +528,15 @@
 	(movf out register register "0" "Getting static class info")
 	(movf out register register "0" "Getting the class number"))
 
-(define (gen-check-if-castable out id-list register check-register fail-label success-label)
+(define (gen-check-if-castable out id-list register check-register success-label)
 	(cond
 		[(empty? id-list) 
-			(jmp out fail-label)]
+			(nl out)]
 		[else
 			(movi out check-register (first id-list))
 			(cmp check-register register)
 			(cjmp out "je" success-label)
-			(gen-check-if-castable out (rest id-list) register fail-label success-label)])) 
+			(gen-check-if-castable out (rest id-list) register success-label)])) 
 			
 
 (define (nl out)
