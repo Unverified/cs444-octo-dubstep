@@ -211,6 +211,7 @@
 
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs cenvs)]
+    [(equal? op 'instanceof) (gen-code-instanceof out sinfo ls rs cenvs)]
     [else
       (if [stringlit? rs] (gen-code-stringlit out sinfo rs cenvs) (gen-code-recurse out sinfo rs cenvs))
       (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
@@ -257,29 +258,34 @@
                (gen-code-recurse out sinfo rs cenvs)
                (label out label-end)])))
 
+;;helper - INSTANCEOF
+(define (gen-code-instanceof out sinfo ls rs cenvs)
+	(gen-code-recurse out sinfo ls cenvs)
+	(let*
+		([fail-label (gensym "instanceof-fail")]
+		 [success-label (gensym "instanceof-success")]
+		 [end-label (gensym "instanceof-end")]
+  		 [name (rtype-type rs)]
+		 [cenv (find-codeenv name cenvs)] )
+		
+		(cond
+			[(codeenv-class? cenv)
+		  		(gen-get-class-id out "eax")
+		  		;;get id list
+		  		(let ([id-list (codeenv-casts cenv)])
+			  		(gen-check-if-castable out id-list "eax" "ebx" fail-label success-label))
+				(label out fail-label)
+				(movi out "eax" "0")
+				(jmp out end-label)
+				(label out success-label)
+				(movi out "eax" "1")
+				(label out end-label)]
+			[else (error 'cast-rtype-interface "unimplemented")])))
+
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
 
-;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
-(define (gen-code-cast out sinfo c ex cenvs)
-  ;(printf "gen-code-cast ~a~n" ex)
-  (gen-code-recurse out sinfo ex cenvs)
-  (match c
-    [(ptype 'int)  (comment out "cast to int")]
-    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
-    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (push "eax")
-		  (push "ebx")
-		  (get-class-id out "eax")
-		  ;;get id list
-		  (let ([id-list (codeenv-casts (find-codeenv name cenvs))])
-			  (check-if-castable out id-list "eax" "ebx" (gensym "castable-fail") (gensym "castable-success")))
-		  (pop "ebx")
-		  (pop "eax")]
-    [(atype type) (error 'cast-atype "unimplemented")]
-    ))
+
 
 (define (gen-code-stringlit out sinfo slit cenvs)
   (match (assoc (literal-value slit) (stackinfo-sdecls sinfo))
@@ -457,18 +463,35 @@
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
     [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo '("java" "lang" "String") (literal empty type val) cenvs)]))
 
-;(define (gen-code-cast out sinfo c ex cenvs)
-;  (gen-code-recurse out sinfo ex)
-;  (match c
-;    [(ptype 'int)  (comment out "cast to int")]
-;    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-;    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-;    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
-;    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-;    [(rtype name) (error 'cast-rtype "unimplemented")]
-;    [(atype type) (error 'cast-atype "unimplemented")]
-;    ))
-
+;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
+(define (gen-code-cast out sinfo c ex cenvs)
+  ;(printf "gen-code-cast ~a~n" ex)
+  (gen-code-recurse out sinfo ex cenvs)
+  (match c
+    [(ptype 'int)  (comment out "cast to int")]
+    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
+    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
+    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
+    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
+    [(rtype name) (let ([cenv (find-codeenv name cenvs)]
+			[fail-label (gensym "castable-fail")]
+			[success-label (gensym "castable-success")])
+		  (cond
+			[(codeenv-class? cenv)
+	      			(push out "eax")
+		  		(push out "ebx")
+		  		(gen-get-class-id out "eax")
+		  		;;get id list
+		  		(let ([id-list (codeenv-casts cenv)])
+			  		(gen-check-if-castable out id-list "eax" "ebx" fail-label success-label))
+				(label out fail-label)
+				(call out "__exception" "Bad Cast")
+				(label out success-label "Valid cast")
+		  		(pop out "ebx")
+		  		(pop out "eax")]
+			[else (error 'cast-rtype-interface "unimplemented")]))]
+    [(atype type) (error 'cast-atype "unimplemented")]
+    ))
 ;==============================================================================================
 ;==== Helpers
 ;==============================================================================================
@@ -502,21 +525,19 @@
 
 
 ;;the register points to the object. The caller preserves the register. 
-(define (get-class-id out register)
+(define (gen-get-class-id out register)
 	(movf out register register "0" "Getting static class info")
 	(movf out register register "0" "Getting the class number"))
 
-(define (check-if-castable out id-list register check-register fail-label success-label)
+(define (gen-check-if-castable out id-list register check-register fail-label success-label)
 	(cond
 		[(empty? id-list) 
-			(label out fail-label)
-			(call out "__exception" "Bad cast")
-			(label out success-label)]
+			(jmp out fail-label)]
 		[else
 			(movi out check-register (first id-list))
 			(cmp check-register register)
 			(cjmp out "je" success-label)
-			(check-if-castable out (rest id-list) register fail-label success-label)])) 
+			(gen-check-if-castable out (rest id-list) register fail-label success-label)])) 
 			
 
 (define (nl out)
