@@ -185,7 +185,8 @@
     ['not   (display "not eax\n" out)
             (display "and eax,1\n" out)]))
 
-(define (gen-code-cast out sinfo c ex)
+;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
+(define (gen-code-cast out sinfo c ex cenv)
   (gen-code-recurse out sinfo ex)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
@@ -193,7 +194,14 @@
     [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (error 'cast-rtype "unimplemented")]
+    [(rtype name) (push "eax")
+		  (push "ebx")
+		  (get-class-id out "eax")
+		  ;;get id list
+		  (let ([id-list (codeenv-casts (assoc name cenv))])
+			  (check-if-castable out id-list "eax" "ebx" (gensym "castable-fail") (gensym "castable-success")))
+		  (pop "ebx")
+		  (pop "eax")]
     [(atype type) (error 'cast-atype "unimplemented")]
     ))
 
@@ -404,6 +412,25 @@
   (cond
     [(empty? params) empty]
     [else (cons (list (parameter-id (first params)) (string-append "+" (number->string ebpoff))) (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
+
+
+;;the register points to the object. The caller preserves the register. 
+(define (get-class-id out register)
+	(movf out register register "0" "Getting static class info")
+	(movf out register register "0" "Getting the class number"))
+
+(define (check-if-castable out id-list register check-register fail-label success-label)
+	(cond
+		[(empty? id-list) 
+			(label out fail-label)
+			(call out "__exception" "Bad cast")
+			(label out success-label)]
+		[else
+			(movi out check-register (first id-list))
+			(cmp check-register register)
+			(cjmp out "je" success-label)
+			(check-if-castable out (rest id-list) register fail-label success-label)])) 
+			
 
 (define (nl out)
   (display "\n" out))
