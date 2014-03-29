@@ -256,30 +256,7 @@
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
 
-;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
-(define (gen-code-cast out sinfo c ex cenvs)
-  ;(printf "gen-code-cast ~a~n" ex)
-  (gen-code-recurse out sinfo ex cenvs)
-  (match c
-    [(ptype 'int)  (comment out "cast to int")]
-    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
-    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (let ([cenv (find-codeenv name cenvs)])
-		  (cond
-			[(codeenv-class? cenv)
-	      			(push "eax")
-		  		(push "ebx")
-		  		(gen-get-class-id out "eax")
-		  		;;get id list
-		  		(let ([id-list (codeenv-casts cenv)])
-			  		(gen-check-if-castable out id-list "eax" "ebx" (gensym "castable-fail") (gensym "castable-success")))
-		  		(pop "ebx")
-		  		(pop "eax")]
-			[else (error 'cast-rtype-interface "unimplemented")]))]
-    [(atype type) (error 'cast-atype "unimplemented")]
-    ))
+
 
 (define (gen-code-stringlit out sinfo slit cenvs)
   (match (assoc (literal-value slit) (stackinfo-sdecls sinfo))
@@ -457,18 +434,30 @@
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
     [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo '("java" "lang" "String") (literal empty type val) cenvs)]))
 
-;(define (gen-code-cast out sinfo c ex cenvs)
-;  (gen-code-recurse out sinfo ex)
-;  (match c
-;    [(ptype 'int)  (comment out "cast to int")]
-;    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-;    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-;    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
-;    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-;    [(rtype name) (error 'cast-rtype "unimplemented")]
-;    [(atype type) (error 'cast-atype "unimplemented")]
-;    ))
-
+;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
+(define (gen-code-cast out sinfo c ex cenvs)
+  ;(printf "gen-code-cast ~a~n" ex)
+  (gen-code-recurse out sinfo ex cenvs)
+  (match c
+    [(ptype 'int)  (comment out "cast to int")]
+    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
+    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
+    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
+    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
+    [(rtype name) (let ([cenv (find-codeenv name cenvs)])
+		  (cond
+			[(codeenv-class? cenv)
+	      			(push "eax")
+		  		(push "ebx")
+		  		(gen-get-class-id out "eax")
+		  		;;get id list
+		  		(let ([id-list (codeenv-casts cenv)])
+			  		(gen-check-if-castable out id-list "eax" "ebx" (gensym "castable-fail") (gensym "castable-success")))
+		  		(pop "ebx")
+		  		(pop "eax")]
+			[else (error 'cast-rtype-interface "unimplemented")]))]
+    [(atype type) (error 'cast-atype "unimplemented")]
+    ))
 ;==============================================================================================
 ;==== Helpers
 ;==============================================================================================
