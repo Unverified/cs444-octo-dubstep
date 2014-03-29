@@ -43,7 +43,7 @@
                       [asc (reverse-normalize lst)])
              (codemeth (first asc)
                        (equal? local (eval-scope (second asc)))
-                       (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup")))
+                       (first (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup"))))
                        (* 4 off) 
                        (eval-ast (second asc))))))
 
@@ -57,13 +57,12 @@
                   (display ast err)
                   (error (get-output-string err)))]))
   
-  (let-values ([(static instance) (partition (compose1 is-static? eval-ast second) lst)])
-    (append 
-     (map (lambda (x) (codevar (first x)
-                               (equal? local (eval-scope (second x)))
-                               #t                         
-                               (hash-ref lookup (eval-scope (second x)) (thunk (error (eval-scope (second x)) " not in lookup"))) 
-                               (get-assignment (eval-ast (second x))))) static)
+  (let-values ([(static instance) (partition (compose1 is-static? eval-ast second) lst)])    
+    (append (map (lambda (x) (codevar (first x)
+                                      (equal? local (eval-scope (second x)))
+                                      #t                         
+                                      (first (hash-ref lookup (eval-scope (second x)) (thunk (error (eval-scope (second x)) " not in lookup"))))
+                                      (get-assignment (eval-ast (second x))))) static)
      (reverse (for/list ([off (range 1 (add1 (length instance)))]
                          [asc  (reverse instance)])
                 (codevar (first asc)

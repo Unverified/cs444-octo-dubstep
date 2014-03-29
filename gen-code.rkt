@@ -27,7 +27,7 @@
   (gen-debug-externs out)
   (gen-debug-print-eax out)
   (for-each(lambda (x)
-             (for-each (curryr display out) (list  (mangle-names (codemeth-id x)) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
+             (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
              (gen-code-recurse out empty-stackinfo #f (codemeth-def x))) (filter codemeth-ref? (codeenv-methods cenv))))
 
 

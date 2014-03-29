@@ -19,9 +19,9 @@
   (let ([sect-label (apply string-append (codeenv-name cenv))]
         [inter-label "_INTERFACE"])
     
-    (for-each (lambda (x) (for-each (curryr display out)
-                                    (list "extern " (mangle-names (codemeth-id x)) "\n")))
-     (filter-not codemeth-ref? (codeenv-methods cenv)))
+    (for-each (lambda (x) (for-each (curryr display out) 
+                                    (list "extern " (mangle-names x) "\n")))
+              (filter-not codemeth-ref? (codeenv-methods cenv)))
     
     ;; want to write in a data section
     (display "\nsection .data\n\n" out)
@@ -34,7 +34,7 @@
                "dw " inter-label "\t ; where valid interfaces are declared\n"))
     ;; method pointers go here
     (for-each (lambda (x) (for-each (curryr display out)
-                                    (list "dw " (mangle-names (codemeth-id x)) "\t; scope" "\n" )
+                                    (list "dw " (mangle-names x) "\t; scope" "\n" )
                                         
                                         ))
               (reverse (codeenv-methods cenv)))
