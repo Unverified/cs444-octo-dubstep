@@ -3,8 +3,17 @@
 (require "types.rkt")
 (require "errorf.rkt")
 (require "generation-structures.rkt")
+
+(provide constr-label)
 (provide mangle-names)
 
+
+(define (constr-label class args)
+  (cond [(not (and (list? class) (andmap string class)))
+         (error 'constr-label "given invalid class name ~e" class)]
+        [(not (and (list? args) (andmap (lambda (x) (or (atype? x) (rtype? x) (ptype? x))))))
+         (error 'constr-label "given invalid arg list ~e" args)]
+        [else (mangle-names (codemeth (funt "" args) #f #f class 0 empty))]))
 
 ;;mangling names
 (define (mangle-names thing)
