@@ -114,7 +114,7 @@
                                (push out "eax" "push char array on stack")]
     [else (push-method-args out sinfo args cenvs)])	;push args onto stack
   
-  (malloc out 1)
+  (malloc out (codeenv-size (find-codeenv cls cenvs)))
   (push out "eax")	;push "this" onto stack
   (comment out "TODO: call new class constructor here")
   (call out "stringshit__a__char_method")
