@@ -1,5 +1,6 @@
 #! /bin/bash
 
+rm output/*.o
 cp stdlib/runtime.s output/
 
 for a in output/*.s; do

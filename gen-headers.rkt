@@ -27,6 +27,11 @@
               (filter codemeth-ref? (codeenv-methods cenv)))
     
     ;; write the table header so we can find stuff
+;    (dis-list (list
+;               "\n"
+;               ;; label our location so it can be found
+;               sect-label ":\n"
+;               "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
     (dis-list (list "\n" (mangle-names cenv) ":\n" 
                     "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
     

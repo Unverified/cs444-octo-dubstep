@@ -11,10 +11,10 @@
 
 (provide gen-code)
 
-(struct stackinfo (mdecls ldecls ebpoff))
+(struct stackinfo (mdecls ldecls sdecls ebpoff))
 
 (define WORD 4)
-(define empty-stackinfo (stackinfo empty empty 0))
+(define empty-stackinfo (stackinfo empty empty empty 0))
 
 (define (get-outfile cinfo)
   (string-append "output/" (foldr string-append "" (info-name cinfo)) ".s"))
@@ -40,7 +40,6 @@
   ;(ast-print-struct t)
   (match t
     [(varassign env id ex) (gen-code-varassign out sinfo id ex)]
-    [(vdecl env sp md ty id) (gen-code-vdecl out sinfo id)]
     [(binop env op ls rs) (gen-code-binop out sinfo op ls rs)]
     [(unop env op rs) (gen-code-unop out sinfo op rs)]
     [(cast env c ex) (gen-code-cast out sinfo c ex)]
@@ -62,6 +61,10 @@
     [(block env id statements)  (gen-code-block out sinfo id statements) ]
     [`() (comment out "EMPTY STATEMENT")]))
 
+;==============================================================================================
+;==== Block Generation
+;==============================================================================================
+
 (define (gen-code-block out sinfo id statements)
   (define (gen-code-block-helper sinfo statements)
     (cond
@@ -73,12 +76,45 @@
   (define bsinfo (gen-code-block-helper sinfo statements))
   (reset-stack out (- (length (stackinfo-ldecls bsinfo)) (length (stackinfo-ldecls sinfo)))))
 
+;==============================================================================================
+;==== Variable Assignment Generation
+;==============================================================================================
+
+(define (gen-code-varassign out sinfo id ex)
+  (nl out)
+  (comment out "VARASSIGN")
+
+  (gen-code-recurse out sinfo ex)	;puts result in eax
+  (cond
+    [(vdecl? id)  (push out "eax" "assign " (vdecl-id id) " to eax")
+                  (stackinfo-add-sdecl (stackinfo-add-ldecl sinfo (vdecl-id id)) ex)]
+    [(varuse? id) (movt out "ebp" "eax" (get-ebp-offset (varuse-id id) sinfo) "assign " (varuse-id id) " to eax")
+                   sinfo]
+    [(arrayaccess? id) (push out "ebx" "saving")
+                       (mov out "ebx" "eax")
+                       (gen-code-arrayaccess out sinfo #t (arrayaccess-left id) (arrayaccess-index id))
+                       (movt out "eax" "ebx" "")
+                       (pop out "ebx")
+                        sinfo]))
+
+;==============================================================================================
+;==== Class Generation
+;==============================================================================================
+
 (define (gen-code-constructor out parent params bd)
   (comment out "CONSTRUCTOR")
   (if [empty? parent] (printf "") (call out (constr-label parent params)))
   (gen-code-method out empty bd)
   (nl out))
 
+(define (gen-code-classcreate out sinfo cls params)
+  (comment out "TODO: generate classcreate assembly, " (foldr string-append "" cls)))
+
+;==============================================================================================
+;==== Method Generation
+;==============================================================================================
+
+;ENTRY POINT
 (define (gen-code-start-method out entry-label bd)
   (nl out)
   (gen-code-method out empty bd)
@@ -94,8 +130,9 @@
   (display "int 3\n" out)
   (comment out "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
 
+;METHOD DECLARATION
 (define (gen-code-method out params bd)
-  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty 4))
+  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty empty 4))
 
   (comment out "####### METHOD ######")  
   (push out "ebp")			;save frame pointer
@@ -106,38 +143,73 @@
   (display "ret\n" out)			;ret from method
   (comment out "#############METHOsaD############"))
 
-(define (gen-code-varassign out sinfo id ex)
+;METHOD CALL
+(define (gen-code-methodcall out sinfo left id args)
   (nl out)
-  (comment out "VARASSIGN")
+  (push out "ebx")
+  (comment out "=== METHODCALL TO " id " ===")
+  (gen-code-get-this out sinfo left)
+  (comment out "Pushing method args on stack")
+  (push-method-args out sinfo args)	;push all method args onto stack
+  (push out "ebx" "this") 		;push the addr of "this"
+  (call out id)				;TODO: call right label
+  (reset-stack out (length args))	;"pop" off all the args from the stack
+  (comment out "===methodcall end===")
+  (pop out "ebx"))
 
-  (gen-code-recurse out sinfo ex)	;puts result in eax
+;METHOD RETURN
+(define (gen-code-return out sinfo expr)
+  (nl out)
+  (comment out ";RETURN")
+  (gen-code-recurse out sinfo expr)
+  (reset-stack out (length (stackinfo-ldecls sinfo)))
+  (pop out "ebp")
+  (display "ret\n" out)
+  (nl out))			;ret from method
+
+;------- Method Helpers -------
+
+(define (reset-stack out n)
   (cond
-    [(vdecl? id)  (push out "eax" "assign " (vdecl-id id) " to eax")
-                  (stackinfo-add-decl sinfo (vdecl-id id))]
-    [(varuse? id) (movt out "ebp" "eax" (get-ebp-offset (varuse-id id) sinfo) "assign " (varuse-id id) " to eax")
-                   sinfo]
-    [(arrayaccess? id) (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
-                       (push out "ebx" "saving")
-                       (mov out "ebx" "eax")
-                       (gen-code-arrayaccess out temp-sinfo #t (arrayaccess-left id) (arrayaccess-index id))
-                       (movt out "eax" "ebx" "")
-                       (pop out "ebx")
-                        sinfo]))
+    [(> n 0) (addi out "esp" (* WORD n))]
+    [else (printf "")]))
 
-(define (gen-code-vdecl out sinfo id)
-  (comment out "TODO: generate vdecl assembly"))
-  
+(define (push-method-args out sinfo args)
+  (cond
+    [(empty? args) (printf "")]
+    [else (gen-code-recurse out sinfo (first args))
+          (push out "eax")
+          (push-method-args out sinfo (rest args))]))
+
+(define (get-method-arg-decls params ebpoff)
+  (cond
+    [(empty? params) empty]
+    [else (cons (list (parameter-id (first params)) (string-append "+" (number->string ebpoff))) 
+                (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
+
+;==============================================================================================
+;==== Operation Generation
+;==============================================================================================
+
+;UNOP
+(define (gen-code-unop out sinfo op rs)
+  (gen-code-recurse out sinfo rs)
+  (match op
+    ['minus (display "neg eax\n" out)]
+    ['not   (display "not eax\n" out)
+            (display "and eax,1\n" out)]))
+
+;BINOP
 (define (gen-code-binop out sinfo op ls rs)
-  (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (comment out "binop " (symbol->string op))
 
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs)]
     [else
-      (gen-code-recurse out temp-sinfo rs)	;get result of rhs
+      (if [stringlit? rs] (gen-code-stringlit out sinfo rs) (gen-code-recurse out sinfo rs))
       (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
-      (gen-code-recurse out temp-sinfo ls)	;get result of lhs
+      (if [stringlit? ls] (gen-code-stringlit out sinfo ls) (gen-code-recurse out sinfo ls))
       (match op
         ['plus (add out "eax" "ebx")]
         ['minus (sub out "eax" "ebx")]
@@ -148,6 +220,7 @@
 
   (pop out "ebx" "restoring"))			;restore ebx
 
+;Helper - CONDITIONAL
 (define (gen-code-conditional out sinfo op ls rs)
   (let ([label-tru (symbol->string (gensym))]	
         [label-end-of-if (symbol->string (gensym))])
@@ -165,6 +238,7 @@
     (movi out "eax" 1)				;if condition was true set eax to 1
     (label out label-end-of-if)))
 
+;Helper - LOGICAL
 (define (gen-code-logical out sinfo op ls rs)
   (let ([label-end (symbol->string (gensym))])
     (movi out "ebx" 1)
@@ -178,12 +252,8 @@
                (gen-code-recurse out sinfo rs)
                (label out label-end)])))
 
-(define (gen-code-unop out sinfo op rs)
-  (gen-code-recurse out sinfo rs)
-  (match op
-    ['minus (display "neg eax\n" out)]
-    ['not   (display "not eax\n" out)
-            (display "and eax,1\n" out)]))
+(define (stringlit? t)
+  (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
 (define (gen-code-cast out sinfo c ex cenv)
@@ -205,8 +275,17 @@
     [(atype type) (error 'cast-atype "unimplemented")]
     ))
 
+(define (gen-code-stringlit out sinfo slit)
+  (match (assoc (literal-value slit) (stackinfo-sdecls sinfo))
+    [(list key value) (movf out "eax" "ebp" value)]
+    [_ (gen-code-classcreate out sinfo '("java" "lang" "String") slit)]))
+
+;==============================================================================================
+;==== Array Generation
+;==============================================================================================
+
+;ARRAY CREATE
 (define (gen-code-arraycreate out sinfo ty sz)
-  (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
   (define lbl-sz-ok (symbol->string (gensym)))
 
   (push out "ebx")
@@ -231,8 +310,8 @@
 
   (pop out "ebx"))
 
+;ARRAY ACCESS
 (define (gen-code-arrayaccess out sinfo rtnaddr left index)
-  (define temp-sinfo (stackinfo-inc-ebpoff sinfo 1))
   (define lbl-sz-ok1 (symbol->string (gensym)))
   (define lbl-sz-ok2 (symbol->string (gensym)))
   (push out "ebx")
@@ -265,20 +344,32 @@
 
   (pop out "ebx"))  
 
-(define (gen-code-classcreate out sinfo cls params)
-  (comment out "TODO: generate classcreate assembly"))
+;==============================================================================================
+;==== Field Access Generation
+;==============================================================================================
 
 (define (gen-code-fieldaccess out sinfo left field)
-  (comment out "TODO: generate fieldaccess assembly"))
+  (comment out "Fieldaccess")
+  (gen-code-get-this out sinfo left))
 
-(define (gen-code-methodcall out sinfo left id args)
-  (nl out)
-  (comment out "=== METHODCALL TO " id " ===")
-  (push-method-args out sinfo args)	;push all method args onto stack
-  (push out "0" "this") 		;TODO: push the addr of "this"
-  (call out id)				;TODO: call right label
-  (reset-stack out (length args))	;"pop" off all the args from the stack
-  (comment out "===methodcall end==="))
+;==============================================================================================
+;==== "this" Generation
+;==============================================================================================
+
+(define (gen-code-this out sinfo type)
+  (mov out "eax" "[ebp+8]")) 
+
+(define (gen-code-get-this out sinfo t)
+  (comment out "Getting \"this\"")
+  (cond
+    [(rtype? t) (mov out "ebx" "0")]				;static call to method, no this
+    [(not (empty? t)) (gen-code-recurse out sinfo t)		;doing a method call on something which better be a class
+                         (mov out "ebx" "eax")]			
+    [else (mov out "ebx" "[ebp+8]")]))				;local method call, use current this
+
+;==============================================================================================
+;==== If / While / For Generation
+;==============================================================================================
 
 (define (gen-code-iff out sinfo test tru fls)
   (nl out)
@@ -342,29 +433,33 @@
     (reset-stack out (- (length (stackinfo-ldecls new-sinfo)) (length (stackinfo-ldecls sinfo))))
     (nl out)))
 
-(define (gen-code-return out sinfo expr)
-  (nl out)
-  (comment out ";RETURN")
-  (gen-code-recurse out sinfo expr)
-  (reset-stack out (length (stackinfo-ldecls sinfo)))
-  (pop out "ebp")
-  (display "ret\n" out)
-  (nl out))			;ret from method
+;==============================================================================================
+;==== OTHER
+;==============================================================================================
 
 (define (gen-code-varuse out sinfo id)
   (comment out "varuse id: " id)
   (movf out "eax" "ebp" (get-ebp-offset id sinfo)))
 
-(define (gen-code-this out sinfo type)
-  (movf out "eax" "ebp" "+8")) 
-
 (define (gen-code-literal out sinfo type val)
   (match type
-    [(ptype 'int) (movi out "eax" val "literal val " (number->string val))]
+    [(ptype 'int) (movi out "eax" val "lit int val " (number->string val))]
+    [(ptype 'char) (movi out "eax" val "lit char val " (number->string val))]
     [(ptype 'null) (movi out "eax" 0 "literal val null")]
-    [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val null")]))
-    ;[(rtype '("java" "lang" "String")) (movi out "eax" val "literal val null")]
-    ;[(ptype 'char) (movi out "eax" val "literal val null")]
+    [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
+    [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo '("java" "lang" "String") (literal empty type val))]))
+
+(define (gen-code-cast out sinfo c ex)
+  (gen-code-recurse out sinfo ex)
+  (match c
+    [(ptype 'int)  (comment out "cast to int")]
+    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
+    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
+    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
+    [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
+    [(rtype name) (error 'cast-rtype "unimplemented")]
+    [(atype type) (error 'cast-atype "unimplemented")]
+    ))
 
 ;==============================================================================================
 ;==== Helpers
@@ -379,39 +474,23 @@
     [(list? ldecl) (second ldecl)]
     [else (error "Could find a declaration for a variable? No test should be like that.")]))
 
-(define (stackinfo-add-decl sinfo id)
+(define (stackinfo-add-ldecl sinfo id)
   (define ldecls (stackinfo-ldecls sinfo))
   (define ebpoff (stackinfo-ebpoff sinfo))
   (stackinfo (stackinfo-mdecls sinfo)
              (cons (list id (string-append "-" (number->string ebpoff))) ldecls)
+             (stackinfo-sdecls sinfo)
              (+ ebpoff WORD)))
 
-(define (stackinfo-inc-ebpoff sinfo n)
-  (define ldecls (stackinfo-ldecls sinfo))
-  (define ebpoff (stackinfo-ebpoff sinfo))
-  (stackinfo (stackinfo-mdecls sinfo) ldecls (+ ebpoff (* WORD n))))
-
-(define (stackinfo-dec-ebpoff sinfo n)
-  (define ldecls (stackinfo-ldecls sinfo))
-  (define ebpoff (stackinfo-ebpoff sinfo))
-  (stackinfo (stackinfo-mdecls sinfo) ldecls (- ebpoff (* WORD n))))
-
-(define (reset-stack out n)
+(define (stackinfo-add-sdecl sinfo ex)
   (cond
-    [(> n 0) (addi out "esp" (* WORD n))]
-    [else (printf "")]))
-
-(define (push-method-args out sinfo args)
-  (cond
-    [(empty? args) (printf "")]
-    [else (gen-code-recurse out sinfo (first args))
-          (push out "eax")
-          (push-method-args out sinfo (rest args))]))
-
-(define (get-method-arg-decls params ebpoff)
-  (cond
-    [(empty? params) empty]
-    [else (cons (list (parameter-id (first params)) (string-append "+" (number->string ebpoff))) (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
+    [(literal? ex) (equal? (literal-type ex) (rtype '("java" "lang" "String")))
+     (stackinfo (stackinfo-mdecls sinfo)
+                (stackinfo-ldecls sinfo)
+                (cons (list (literal-value ex) (second (first (stackinfo-ldecls sinfo)))) 
+                      (stackinfo-sdecls sinfo))
+                (stackinfo-ebpoff sinfo))]
+    [else sinfo]))
 
 
 ;;the register points to the object. The caller preserves the register. 
