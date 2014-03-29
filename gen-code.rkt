@@ -588,7 +588,7 @@
 			(movi out check-register (first id-list))
 			(cmp check-register register)
 			(cjmp out "je" success-label)
-			(gen-check-if-castable out (rest id-list) register success-label)])) 
+			(gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 			
 
 (define (nl out)
