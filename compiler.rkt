@@ -28,9 +28,9 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-(define files-to-compile (vector->list (current-command-line-arguments)))
+;(define files-to-compile (vector->list (current-command-line-arguments)))
 ;(define files-to-compile (list "tests/in/a3/J2_interfaces/J2_interface.java" "tests/in/a3/J2_interfaces/Main.java"))
-;(define files-to-compile (list "tests/in/code/tester.java"))
+(define files-to-compile (list "tests/in/code/tester.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -166,14 +166,6 @@
 (for-each reachability final-info)
 
 (printf "~n~n=========== Code Generation ==========~n")
-;(gen-all-code final-info (map (curry info->codeenv final-info) final-info))
+(gen-all-code (map (curry info->codeenv final-info) final-info))
 
-(map (curry info->codeenv final-info) final-info)
-
-;(compiled)
-
-
-
-
-
-
+(compiled)
