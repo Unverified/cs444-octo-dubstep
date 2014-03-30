@@ -635,9 +635,12 @@
 			
 
 (define (gen-initialize-static-fields out bd cenvs)
-	(printf "gen-initialize-static-fields: ~a~n" bd)
+	(printf "gen-initialize-static-fields: ~a~n" cenvs)
 	(define (gen-initialize-static-fields-class cenv)
-		(map (lambda (x) (gen-code-recurse out empty (varassign empty (append (codevar-tag x) (list (codevar-id x))) (codevar-val x)) cenvs)) (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
+		(map (lambda (cvar)
+				(gen-code-recurse out empty (codevar-val cvar) cenvs) 
+				(mov out (string-append "[" (mangle-names cvar)  "]") "eax"))
+			 (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
 	(map gen-initialize-static-fields-class cenvs)) 	
 
 
