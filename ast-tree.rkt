@@ -177,7 +177,7 @@
     [(vdecl _ sp md ty (varassign _ id ex)) (varassign empty (vdecl empty sp md (clean-ast ty) id) (clean-ast ex))]
     [(vdecl _ sp md ty id) (vdecl empty sp md (clean-ast ty) id)]
     
-    [(methodcall _ `() id args) (methodcall empty empty id (map clean-ast args))]
+    [(methodcall _ `() id args) (methodcall empty (this empty empty) id (map clean-ast args))]
     [(methodcall _ `(,ids ...) id args) (methodcall empty (ambiguous empty ids) id (map clean-ast args))]
     
     [(arraycreate _ `(,ty ...) sz) (arraycreate empty (rtype ty) (clean-ast sz))]

@@ -6,9 +6,14 @@ public class statictest {
   public statictest() {
   }
 
+  public int m1() {
+    
+    return 0;
+  }
+
   public static int test() {
-    statictest t = new statictest();
-    t.x = 14657;
-    return t.x;
+    statictest s = new statictest();
+    s.m1();
+    return 0;
   }
 }

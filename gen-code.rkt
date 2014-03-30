@@ -55,7 +55,7 @@
     [(unop env op rs) (gen-code-unop out sinfo op rs cenvs)]
     [(cast env c ex) (gen-code-cast out sinfo c ex cenvs)]
     [(arraycreate env ty sz) (gen-code-arraycreate out sinfo ty sz cenvs)]
-    [(classcreate (rtype typ) cls params) (gen-code-classcreate out sinfo typ params cenvs)]
+    [(classcreate (rtype typ) cls params) (gen-code-classcreate out sinfo cls typ params cenvs)]
     [(fieldaccess lty left field) (gen-code-fieldaccess out sinfo #f left field cenvs)]
     [(arrayaccess env left index) (gen-code-arrayaccess out sinfo #f left index cenvs)]
     [(while env test body) (gen-code-while out sinfo test body cenvs)]
@@ -123,8 +123,9 @@
     (gen-code-method out sdecls mbdecls params bd cenvs) ))
 
 ;CLASS CREATE
-(define (gen-code-classcreate out sinfo cls args cenvs)
-  (comment out "CLASS CREATE " (foldr string-append "" cls))
+(define (gen-code-classcreate out sinfo cls rty args cenvs)
+  (define mcvar (find-codemeth cls (codeenv-methods (find-codeenv rty cenvs))))
+  (comment out "CLASS CREATE " (foldr string-append "" rty))
   (push out "ebx")
 
   (cond 
@@ -132,10 +133,9 @@
                                (push out "eax" "push char array on stack")]
     [else (push-method-args out sinfo args cenvs)])	;push args onto stack
   
-  (malloc out (codeenv-size (find-codeenv cls cenvs)))
+  (malloc out (codeenv-size (find-codeenv rty cenvs)))
   (push out "eax")	;push "this" onto stack
-  (comment out "TODO: call new class constructor here")
-  (call out "statictest__method")
+  (call out (mangle-names mcvar))
   (pop out "eax")			;pop "this" off stack and return it
 
   (reset-stack out (length args))	;pop this and args off stack
@@ -211,13 +211,15 @@
 
 ;METHOD CALL
 (define (gen-code-methodcall out sinfo left id args cenvs)
+  (define mcvar (find-codemeth id (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
+
   (push out "ebx")
   (gen-code-get-this out sinfo left cenvs)	;puts "this" in ebx
 
   (comment out "Pushing method args on stack")
   (push-method-args out sinfo args cenvs)	;push all method args onto stack
   (push out "ebx" "this") 			;push the addr of "this"
-  (call out id)					;TODO: call right label
+  (call out (mangle-names mcvar))					;TODO: call right label
   (reset-stack out (+ 1 (length args)))		;"pop" off all the args from the stack
   (pop out "ebx"))
 
@@ -444,7 +446,7 @@
 ;==============================================================================================
 
 (define (gen-code-fieldaccess out sinfo rtnaddr left field cenvs)
-  (define fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-fieldacces-left-type left)) cenvs))))
+  (define fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (comment out "Fieldaccess")
   (push out "ebx")
@@ -457,7 +459,7 @@
 
   (pop out "ebx"))
 
-(define (get-fieldacces-left-type left)
+(define (get-left-type left)
   (cond
     [(rtype? left) left]
     [else (ast-env left)]))
@@ -476,9 +478,8 @@
   (cond
     [(rtype? t) (mov out "ebx" "0")		;static call to method, no this
                 (jmp out non-null)]		;since static call, no need to check null
-    [(not (empty? t)) (gen-code-recurse out sinfo t cenvs)	;doing a method call on something which better be a class
-                      (mov out "ebx" "eax")]			
-    [else (mov out "ebx" "[ebp+8]")])		;t is empty, use local this
+    [else (gen-code-recurse out sinfo t cenvs)	;doing a method call on something which better be a class
+          (mov out "ebx" "eax")])		
   
   (cmp out "ebx" "0")
   (cjmp out "jne" non-null)
