@@ -28,9 +28,9 @@
 ;==============================================================================================
 
 ;Get all the files from the command line
-(define files-to-compile (vector->list (current-command-line-arguments)))
+;(define files-to-compile (vector->list (current-command-line-arguments)))
 ;(define files-to-compile (list "tests/in/a3/J2_interfaces/J2_interface.java" "tests/in/a3/J2_interfaces/Main.java"))
-;(define files-to-compile (list "tests/in/code/tester.java"))
+(define files-to-compile (list "tests/in/code/tester.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
