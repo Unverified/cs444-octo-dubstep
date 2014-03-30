@@ -565,8 +565,8 @@
 
 ;;the register points to the object. The caller preserves the register. 
 (define (gen-get-class-id out register)
-	(movf out register register "-0" "Getting static class info")
-	(movf out register register "-0" "Getting the class number"))
+	(movf out register register "" "Getting static class info")
+	(movf out register register "" "Getting the class number"))
 
 (define (gen-check-if-castable out id-list register check-register success-label)
 	(cond
