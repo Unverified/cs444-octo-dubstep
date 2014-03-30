@@ -1,12 +1,19 @@
 public class statictest {
 
-  public static int x = 0;
+  public static int s = 0;
+  public int x = 14657;
 
   public statictest() {
   }
 
-  public static int test() {
+  public int m1() {
     x = 14657;
-    return x;
+    int y = 0;
+    y = x;
+    return s;
+  }
+
+  public static int test() {
+    return 0;
   }
 }
