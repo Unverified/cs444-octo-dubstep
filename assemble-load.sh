@@ -1,6 +1,8 @@
 #! /bin/bash
 
-rm output/*.o
+for a in output/*.s; do
+	rm ${a}
+done
 cp stdlib/runtime.s output/
 
 for a in output/*.s; do
