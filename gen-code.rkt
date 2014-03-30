@@ -26,12 +26,12 @@
   (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))))
   (display "\nsection .text\n\n" out)
   (gen-code-start out entry-label cenvs)
-  (gen-code (first cenvs) cenvs))
+  (gen-code cenvs (first cenvs)))
 
-(define (gen-code cenvs env)
-  (define out (open-output-file (get-outfile env) #:exists 'replace))
-  (define sdecls (get-static-decls (codeenv-vars env)))
-  (gen-static out env)
+(define (gen-code cenvs cenv)
+  (define out (open-output-file (get-outfile cenv) #:exists 'replace))
+  (define sdecls (get-static-decls (codeenv-vars cenv)))
+  (gen-static out cenv)
   (display "\n\n\nsection .text\n\n" out)
   (gen-runtime-externs out)
   (gen-debug-print-eax out)
@@ -43,9 +43,9 @@
   (for-each (lambda (x)
               (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
               (match (codemeth-def x)
-                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out (codeenv-parent env) params bd cenvs)]
-                [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out params bd cenvs)]))
-    (filter codemeth-ref? (codeenv-methods env))))
+                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out sdecls (codeenv-parent cenv) params bd cenvs)]
+                [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out sdecls params bd cenvs)]))
+    (filter codemeth-ref? (codeenv-methods cenv))))
 
 (define (gen-code-recurse out sinfo t cenvs)
   (match t
@@ -54,7 +54,7 @@
     [(unop env op rs) (gen-code-unop out sinfo op rs cenvs)]
     [(cast env c ex) (gen-code-cast out sinfo c ex cenvs)]
     [(arraycreate env ty sz) (gen-code-arraycreate out sinfo ty sz cenvs)]
-    [(classcreate env cls params) (gen-code-classcreate out sinfo env params cenvs)]
+    [(classcreate (rtype typ) cls params) (gen-code-classcreate out sinfo typ params cenvs)]
     [(fieldaccess env left field) (gen-code-fieldaccess out sinfo left field cenvs)]
     [(arrayaccess env left index) (gen-code-arrayaccess out sinfo #f left index cenvs)]
     [(while env test body) (gen-code-while out sinfo test body cenvs)]
