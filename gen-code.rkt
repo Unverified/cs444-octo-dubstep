@@ -57,7 +57,7 @@
   (for-each (lambda (x)
               (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
               (match (codemeth-def x)
-                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out sdecls mbdecls (codeenv-parent cenv) params bd cenvs)]
+                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out sdecls mbdecls cenv params bd cenvs)]
                 [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out sdecls mbdecls params bd cenvs)]))
             (filter codemeth-ref? (codeenv-methods cenv))))
 
@@ -376,7 +376,7 @@
 (define (gen-code-stringlit out sinfo slit cenvs)
   (match (assoc (literal-value slit) (stackinfo-strdecls sinfo))
     [(list key value) (movf out "eax" "ebp" value)]
-    [_ (gen-code-classcreate out sinfo '("java" "lang" "String") (list slit) cenvs)]))
+    [_ (gen-code-classcreate out sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list slit) cenvs)]))
 
 ;==============================================================================================
 ;==== Array Generation
@@ -585,7 +585,7 @@
     [(ptype 'short) (movi out "eax" val "lit short val " (number->string val))]    
     [(ptype 'null) (movi out "eax" 0 "literal val null")]
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
-    [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo '("java" "lang" "String") (list (literal empty type val)) cenvs)]))
+    [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list (literal empty type val)) cenvs)]))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
 (define (gen-code-cast out sinfo c ex cenvs)
