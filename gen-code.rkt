@@ -84,6 +84,7 @@
 ;==============================================================================================
 
 (define (gen-code-varassign out sinfo id ex cenvs)
+  (printf "gen-code-varassign: ~a~n" id)
   (gen-code-recurse out sinfo ex cenvs)	;puts result in eax
   (cond
     [(vdecl? id)  (push out "eax" "declaring " (vdecl-id id))
@@ -117,7 +118,6 @@
   (malloc out (codeenv-size (find-codeenv cls cenvs)))
   (push out "eax")	;push "this" onto stack
   (comment out "TODO: call new class constructor here")
-  (call out "stringshit__a__char_method")
   (pop out "eax")			;pop "this" off stack and return it
 
   (reset-stack out (length args))	;pop this and args off stack
@@ -233,6 +233,7 @@
 
 ;BINOP
 (define (gen-code-binop out sinfo op ls rs cenvs)
+  (printf "gen-code-binop: ~a ~a ~a~n" ls op rs)
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs cenvs)]
@@ -304,6 +305,7 @@
 		  		(gen-get-class-id out "eax")
 		  		;;get id list
 		  		(let ([id-list (codeenv-casts cenv)])
+					(printf "id-list for : ~a ~a~n" name id-list)
 			  		(gen-check-if-castable out id-list "eax" "ebx" success-label))
 				(label out fail-label)
 				(movi out "eax" 0)
@@ -533,6 +535,7 @@
 ;==============================================================================================
 
 (define (get-ebp-offset id sinfo)
+  (printf "get-ebp-offset ~a~n" id)
   (define mdecl (assoc id (stackinfo-mdecls sinfo)))
   (define ldecl (assoc id (stackinfo-ldecls sinfo)))
   (cond
