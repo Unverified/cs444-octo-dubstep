@@ -28,6 +28,7 @@
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
                                                                   cenvs))))
   (display "\nsection .text\n\n" out)
+  (gen-runtime-externs out)
   (display "extern NATIVEjava.io.OutputStream.nativeWrite\n\n" out)
   (gen-debug-print-eax out)
   (gen-code-start out all-labels entry-label cenvs)
@@ -132,7 +133,7 @@
   (let ([parent (codeenv-parent cenv)]
         [member-vars (filter-not codevar-static? (codeenv-vars cenv))])
     (load-membervars-into-this out sdecls mbdecls member-vars cenvs)
-    (if [empty? parent] (printf "") (call out (constr-label parent params)))
+    (if (empty? parent) (printf "") (call out (constr-label parent empty)))
     (gen-code-method out sdecls mbdecls params bd cenvs) ))
 
 ;CLASS CREATE
