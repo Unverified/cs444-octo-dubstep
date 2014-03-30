@@ -119,28 +119,31 @@
   (let ([parent (codeenv-parent cenv)]
         [member-vars (filter-not codevar-static? (codeenv-vars cenv))])
     (load-membervars-into-this out sdecls mbdecls member-vars cenvs)
-    ;(if [empty? parent] (printf "") (call out (constr-label parent params)))
+    (if [empty? parent] (printf "") (call out (constr-label parent params)))
     (gen-code-method out sdecls mbdecls params bd cenvs) ))
 
 ;CLASS CREATE
 (define (gen-code-classcreate out sinfo cls rty args cenvs)
-  (define mcvar (find-codemeth cls (codeenv-methods (find-codeenv rty cenvs))))
-  (comment out "CLASS CREATE " (foldr string-append "" rty))
-  (push out "ebx")
+  (let* ([cenv (find-codeenv rty cenvs)]
+         [mcvar (find-codemeth cls (codeenv-methods cenv))]
+         [csize (codeenv-size cenv)])
 
-  (cond 
-    [(jlstring-slit? cls args) (stringlit->chararray out sinfo (first args))
-                               (push out "eax" "push char array on stack")]
-    [else (push-method-args out sinfo args cenvs)])	;push args onto stack
+    (comment out "CLASS CREATE " (foldr string-append "" rty))
+    (push out "ebx")
+
+    (cond 
+      [(jlstring-slit? cls args) (stringlit->chararray out sinfo (first args))
+                                 (push out "eax" "push char array on stack")]
+      [else (push-method-args out sinfo args cenvs)])	;push args onto stack
   
-  (malloc out (codeenv-size (find-codeenv rty cenvs)))
-  (push out "eax")	;push "this" onto stack
-  (call out (mangle-names mcvar))
-  (pop out "eax")			;pop "this" off stack and return it
+    (malloc out csize)
+    (push out "eax")			;push "this" onto stack
+    (call out (mangle-names mcvar))
+    (pop out "eax")			;pop "this" off stack and return it
 
-  (reset-stack out (length args))	;pop this and args off stack
-  (pop out "ebx")
-  (comment out "END CLASS CREATE"))
+    (reset-stack out (length args))	;pop this and args off stack
+    (pop out "ebx")
+    (comment out "END CLASS CREATE")))
 
 ;Take string literal and create a char array, eax will contain address of char array
 (define (stringlit->chararray out sinfo slit)
