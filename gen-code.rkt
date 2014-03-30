@@ -9,7 +9,7 @@
 (require "generation-structures.rkt")
 (require "mangle-names.rkt")
 
-(provide gen-code)
+(provide gen-all-code)
 
 (struct stackinfo (mdecls ldecls sdecls mbdecls strdecls ebpoff))
 
@@ -17,15 +17,20 @@
 (define ARRAY-SZ-LOC "1")	;offset in bytes to size of array
 (define ARRAY-HEADER-SZ "2")	;size of header in bytes
 
-(define (get-outfile cinfo)
-  (string-append "output/" (foldr string-append "" (info-name cinfo)) ".s"))
+(define (get-outfile env)
+  (string-append "output/" (foldr string-append "" (codeenv-name env)) ".s"))
 
-(define (gen-code cinfo cenvs)
-  (define out (open-output-file (get-outfile cinfo) #:exists 'replace))
-  (define cenv (find-codeenv (info-name cinfo) cenvs))
+(define (gen-all-code cenvs)
+  (define out (open-output-file (string->path "output/-start.s") #:exists 'replace))
+  (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))))
+  (display "\nsection .text\n\n" out)
+  (gen-code-start out entry-label cenvs)
+  (gen-code cenvs (first cenvs)))
+
+(define (gen-code cenvs cenv)
+  (define out (open-output-file (get-outfile cenv) #:exists 'replace))
   (define sdecls (get-static-decls (codeenv-vars cenv)))
   (define mbdecls (get-member-decls (codeenv-vars cenv)))
-  (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods cenv))))
   (gen-static out cenv)
   (display "\n\n\nsection .text\n\n" out)
   (gen-runtime-externs out)
@@ -35,14 +40,12 @@
   (display ";====== Class code\n" out)
   (display ";================================================\n\n" out)
 
-  (for-each(lambda (x)
-             (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
-             (match (codemeth-def x)
-               [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out sdecls mbdecls cenv params bd cenvs)]
-               [(method _ _ '(static) (ptype 'int) (methoddecl _ "test" `()) bd) (gen-code-start-method out sdecls mbdecls entry-label bd cenvs)]
-               [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out sdecls mbdecls params bd cenvs)])) 
+  (for-each (lambda (x)
+              (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
+              (match (codemeth-def x)
+                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out sdecls mbdecls cenv params bd cenvs)]
+                [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out sdecls mbdecls params bd cenvs)]))
     (filter codemeth-ref? (codeenv-methods cenv))))
-
 
 (define (gen-code-recurse out sinfo t cenvs)
   (match t
@@ -51,7 +54,7 @@
     [(unop env op rs) (gen-code-unop out sinfo op rs cenvs)]
     [(cast env c ex) (gen-code-cast out sinfo c ex cenvs)]
     [(arraycreate env ty sz) (gen-code-arraycreate out sinfo ty sz cenvs)]
-    [(classcreate env (rtype cls) params) (gen-code-classcreate out sinfo cls params cenvs)]
+    [(classcreate (rtype typ) cls params) (gen-code-classcreate out sinfo typ params cenvs)]
     [(fieldaccess env left field) (gen-code-fieldaccess out sinfo left field cenvs)]
     [(arrayaccess env left index) (gen-code-arrayaccess out sinfo #f left index cenvs)]
     [(while env test body) (gen-code-while out sinfo test body cenvs)]
@@ -163,14 +166,14 @@
 ;==============================================================================================
 
 ;ENTRY POINT
-(define (gen-code-start-method out sdecls mbdecls entry-label bd cenvs)
-  (gen-code-method out sdecls mbdecls empty bd cenvs)
+(define (gen-code-start out entry-label cenvs)
+  (display (string-append "extern " entry-label "\n") out)
+  (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
 
   (comment out "@@@@@@@@@@@@ Initialize Static variables! @@@@@@@")
-  (gen-initialize-static-fields out bd cenvs)
-
+  (gen-initialize-static-fields out cenvs)
 
   (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
   (call out entry-label)
@@ -634,7 +637,7 @@
 			(gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 			
 
-(define (gen-initialize-static-fields out bd cenvs)
+(define (gen-initialize-static-fields out cenvs)
 	(printf "gen-initialize-static-fields: ~a~n" cenvs)
 	(define (gen-initialize-static-fields-class cenv)
 		(map (lambda (cvar)

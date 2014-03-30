@@ -23,8 +23,8 @@
         [(codeenv? thing) (string-append (mangle-names (codeenv-name thing)) "_" (number->string (codeenv-guid thing)) "_class")]
 	[else (c-errorf "NAME MANGLER ERROR: Unrecognized structure/object: ~a" thing)]))
 
-(define (get-mangled-type-name ast)
-  (match ast
+(define (get-mangled-type-name tr)
+  (match tr
     [(ptype name) (string-append "_" (symbol->string name))]
     [(rtype name) (string-append "_r_" (apply string-append name))]
     [(atype t) (string-append "_a_" (get-mangled-type-name t))]))

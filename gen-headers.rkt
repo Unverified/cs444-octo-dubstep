@@ -16,6 +16,8 @@
             lst))
 
 (define (gen-static out cenv)
+  (printf "starting header for ~a~n" (codeenv-name cenv))
+  
   (define dis-list (compose (curry for-each (curryr display out))))
   (let ([sect-label (apply string-append (codeenv-name cenv))])
     ;; want to write in a data section
@@ -42,5 +44,8 @@
     ;; Static variable points
     (for-each (lambda (x) (dis-list (list "global " (mangle-names x) "\t; Static Var\n"
                                           (mangle-names x) ": dd 0\t; \n")))
-              (filter (lambda (x) (and (codevar-ref? x) (codevar-static? x))) (codeenv-vars cenv)))))
+              (filter (lambda (x) (and (codevar-ref? x) (codevar-static? x))) (codeenv-vars cenv)))
+    
+    (printf "done header for ~a~n" (codeenv-name cenv))
+    ))
 
