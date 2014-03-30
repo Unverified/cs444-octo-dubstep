@@ -1,19 +1,14 @@
 public class statictest {
 
   public static int s = 0;
-  public int x = 14657;
+  public int x = 0;
 
   public statictest() {
   }
 
-  public int m1() {
-    x = 14657;
-    int y = 0;
-    y = x;
-    return s;
-  }
-
   public static int test() {
-    return 0;
+    statictest t = new statictest();
+    t.x = 14657;
+    return t.x;
   }
 }
