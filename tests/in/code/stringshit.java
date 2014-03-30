@@ -1,7 +1,7 @@
 public class stringshit {
   public stringshit(){}
 
-  public int x = 0;
+  public static int x = 0;
 
   public stringshit(char[] c){
     c[2] = 'd';
