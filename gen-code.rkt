@@ -85,6 +85,7 @@
 ;==============================================================================================
 
 (define (gen-code-varassign out sinfo id ex cenvs)
+  (printf "gen-code-varassign: ~a~n" id)
   (gen-code-recurse out sinfo ex cenvs)	;puts result in eax
   (cond
     [(vdecl? id)  (push out "eax" "declaring " (vdecl-id id))
@@ -120,7 +121,6 @@
   (malloc out (codeenv-size (find-codeenv cls cenvs)))
   (push out "eax")	;push "this" onto stack
   (comment out "TODO: call new class constructor here")
-  (call out "stringshit__a__char_method")
   (pop out "eax")			;pop "this" off stack and return it
 
   (reset-stack out (length args))	;pop this and args off stack
@@ -156,6 +156,12 @@
   (gen-code-method out sdecls empty bd cenvs)
   (display "global _start\n" out)
   (display "_start:\n" out)
+
+  (comment out "@@@@@@@@@@@@ Initialize Static variables! @@@@@@@")
+  (gen-initialize-static-fields out bd cenvs)
+
+
+  (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
   (call out entry-label)
   (gen-debug-print out)
   (display "mov eax, 1\n" out)
@@ -237,6 +243,7 @@
 
 ;BINOP
 (define (gen-code-binop out sinfo op ls rs cenvs)
+  (printf "gen-code-binop: ~a ~a ~a~n" ls op rs)
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs cenvs)]
@@ -293,26 +300,27 @@
 	(gen-code-recurse out sinfo ls cenvs)
 	(comment out "We now have lhs of instanceof")
 	(let*
-		([fail-label (gensym "instanceof-fail")]
-		 [success-label (gensym "instanceof-success")]
-		 [end-label (gensym "instanceof-end")]
+		([fail-label (symbol->string (gensym "instanceoffail"))]
+		 [success-label (symbol->string (gensym "instanceofsuccess"))]
+		 [end-label (symbol->string (gensym "instanceofend"))]
   		 [name (rtype-type rs)]
 		 [cenv (find-codeenv name cenvs)] )
 		
 		(cond
 			[(codeenv-class? cenv)
-				(movi out "ebx" "0")
+				(movi out "ebx" 0)
 				(cmp out "eax" "ebx")
 				(cjmp out "je" fail-label "Null literal is automatically false")
 		  		(gen-get-class-id out "eax")
 		  		;;get id list
 		  		(let ([id-list (codeenv-casts cenv)])
+					(printf "id-list for : ~a ~a~n" name id-list)
 			  		(gen-check-if-castable out id-list "eax" "ebx" success-label))
 				(label out fail-label)
-				(movi out "eax" "0")
+				(movi out "eax" 0)
 				(jmp out end-label)
 				(label out success-label)
-				(movi out "eax" "1")
+				(movi out "eax" 0)
 				(label out end-label)]
 			[else (error 'cast-rtype-interface "unimplemented")])))
 
@@ -368,8 +376,8 @@
 
 ;ARRAY ACCESS
 (define (gen-code-arrayaccess out sinfo rtnaddr left index cenvs) 
-  (define lbl-sz-ok1 (symbol->string (gensym "no-exception1")))
-  (define lbl-sz-ok2 (symbol->string (gensym "no-exception2")))
+  (define lbl-sz-ok1 (symbol->string (gensym "noexception1")))
+  (define lbl-sz-ok2 (symbol->string (gensym "noexception2")))
   (push out "ebx")
 
   (comment out "ARRAY ACCESS")
@@ -442,8 +450,8 @@
 
 (define (gen-code-iff out sinfo test tru fls cenvs)
   (comment out "IFF")
-  (let  ([label-fls (symbol->string (gensym "if-false"))]
-	[label-end-of-if (symbol->string (gensym "if-end"))])
+  (let  ([label-fls (symbol->string (gensym "iffalse"))]
+	[label-end-of-if (symbol->string (gensym "ifend"))])
     (comment out "Evaluating test")
     (gen-code-recurse out sinfo test cenvs)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
@@ -522,8 +530,8 @@
     [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
     [(rtype name) (let ([cenv (find-codeenv name cenvs)]
-			[fail-label (gensym "castable-fail")]
-			[success-label (gensym "castable-success")])
+			[fail-label (symbol->string (gensym "castablefail"))]
+			[success-label (symbol->string (gensym "castablesuccess"))])
 		  (cond
 			[(codeenv-class? cenv)
 	      			(push out "eax")
@@ -545,7 +553,6 @@
 ;==============================================================================================
 
 (define (get-var-mem-loc id sinfo)
-  (printf "dhbdsj ~a ~a~n" id (stackinfo-sdecls sinfo))
   (define mdecl (assoc id (stackinfo-mdecls sinfo)))
   (define ldecl (assoc id (stackinfo-ldecls sinfo)))
   (define sdecl (assoc id (stackinfo-sdecls sinfo)))
@@ -579,8 +586,8 @@
 
 ;;the register points to the object. The caller preserves the register. 
 (define (gen-get-class-id out register)
-	(movf out register register "0" "Getting static class info")
-	(movf out register register "0" "Getting the class number"))
+	(movf out register register "" "Getting static class info")
+	(movf out register register "" "Getting the class number"))
 
 (define (gen-check-if-castable out id-list register check-register success-label)
 	(cond
@@ -588,10 +595,17 @@
 			(nop out "failure; the next instruction should be the failure code")]
 		[else
 			(movi out check-register (first id-list))
-			(cmp check-register register)
+			(cmp out check-register register)
 			(cjmp out "je" success-label)
 			(gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 			
+
+(define (gen-initialize-static-fields out bd cenvs)
+	(printf "gen-initialize-static-fields: ~a~n" bd)
+	(define (gen-initialize-static-fields-class cenv)
+		(map (lambda (x) (gen-code-recurse out empty (varassign empty (append (codevar-tag x) (list (codevar-id x))) (codevar-val x)) cenvs)) (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
+	(map gen-initialize-static-fields-class cenvs)) 	
+
 
 (define (nl out)
   (display "\n" out))
@@ -685,7 +699,7 @@
   (display "\tret\t;RETURN\n" out))
 
 (define (nop out . comment)
- (display "nop" out)
+ (display "\tnop" out)
  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (divide out reg1 reg2)

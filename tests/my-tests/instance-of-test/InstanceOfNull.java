@@ -4,9 +4,17 @@ public class InstanceOfNull
 	{
 	}
 
-	public static boolean foo()
+	public static int test()
 	{
 		InstanceOfNull a = null;
-		return a instanceof Object;
+		boolean b = a instanceof InstanceOfNull;
+		if (b == true)
+		{
+			return -1;
+		}
+		else
+		{
+			return 1;
+		}
 	}
 }
