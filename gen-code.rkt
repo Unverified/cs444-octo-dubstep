@@ -290,15 +290,15 @@
 	(gen-code-recurse out sinfo ls cenvs)
 	(comment out "We now have lhs of instanceof")
 	(let*
-		([fail-label (gensym "instanceof-fail")]
-		 [success-label (gensym "instanceof-success")]
-		 [end-label (gensym "instanceof-end")]
+		([fail-label (symbol->string (gensym "instanceoffail"))]
+		 [success-label (symbol->string (gensym "instanceofsuccess"))]
+		 [end-label (symbol->string (gensym "instanceofend"))]
   		 [name (rtype-type rs)]
 		 [cenv (find-codeenv name cenvs)] )
 		
 		(cond
 			[(codeenv-class? cenv)
-				(movi out "ebx" "0")
+				(movi out "ebx" 0)
 				(cmp out "eax" "ebx")
 				(cjmp out "je" fail-label "Null literal is automatically false")
 		  		(gen-get-class-id out "eax")
@@ -306,10 +306,10 @@
 		  		(let ([id-list (codeenv-casts cenv)])
 			  		(gen-check-if-castable out id-list "eax" "ebx" success-label))
 				(label out fail-label)
-				(movi out "eax" "0")
+				(movi out "eax" 0)
 				(jmp out end-label)
 				(label out success-label)
-				(movi out "eax" "1")
+				(movi out "eax" 0)
 				(label out end-label)]
 			[else (error 'cast-rtype-interface "unimplemented")])))
 
@@ -364,8 +364,8 @@
 
 ;ARRAY ACCESS
 (define (gen-code-arrayaccess out sinfo rtnaddr left index cenvs) 
-  (define lbl-sz-ok1 (symbol->string (gensym "no-exception1")))
-  (define lbl-sz-ok2 (symbol->string (gensym "no-exception2")))
+  (define lbl-sz-ok1 (symbol->string (gensym "noexception1")))
+  (define lbl-sz-ok2 (symbol->string (gensym "noexception2")))
   (push out "ebx")
 
   (comment out "ARRAY ACCESS")
@@ -430,8 +430,8 @@
 
 (define (gen-code-iff out sinfo test tru fls cenvs)
   (comment out "IFF")
-  (let  ([label-fls (symbol->string (gensym "if-false"))]
-	[label-end-of-if (symbol->string (gensym "if-end"))])
+  (let  ([label-fls (symbol->string (gensym "iffalse"))]
+	[label-end-of-if (symbol->string (gensym "ifend"))])
     (comment out "Evaluating test")
     (gen-code-recurse out sinfo test cenvs)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
@@ -510,8 +510,8 @@
     [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
     [(rtype name) (let ([cenv (find-codeenv name cenvs)]
-			[fail-label (gensym "castable-fail")]
-			[success-label (gensym "castable-success")])
+			[fail-label (symbol->string (gensym "castablefail"))]
+			[success-label (symbol->string (gensym "castablesuccess"))])
 		  (cond
 			[(codeenv-class? cenv)
 	      			(push out "eax")
@@ -562,8 +562,8 @@
 
 ;;the register points to the object. The caller preserves the register. 
 (define (gen-get-class-id out register)
-	(movf out register register "0" "Getting static class info")
-	(movf out register register "0" "Getting the class number"))
+	(movf out register register "-0" "Getting static class info")
+	(movf out register register "-0" "Getting the class number"))
 
 (define (gen-check-if-castable out id-list register check-register success-label)
 	(cond
@@ -571,7 +571,7 @@
 			(nop out "failure; the next instruction should be the failure code")]
 		[else
 			(movi out check-register (first id-list))
-			(cmp check-register register)
+			(cmp out check-register register)
 			(cjmp out "je" success-label)
 			(gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 			
@@ -675,7 +675,7 @@
   (display "\tret\t;RETURN\n" out))
 
 (define (nop out . comment)
- (display "nop" out)
+ (display "\tnop" out)
  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
 (define (divide out reg1 reg2)
