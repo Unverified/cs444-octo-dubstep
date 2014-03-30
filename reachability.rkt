@@ -33,10 +33,13 @@
       [(iff _ test tru '()) (reach in tru) in]
       [(iff _ test tru fls) (or (reach in tru) (reach in fls))]
 
-      [(or (while _ (literal _ (ptype 'boolean) #t) bdy)
-           (for _ _ (literal _ (ptype 'boolean) #t) _ bdy)) (reach in bdy) no]
+      [(or (for _ _ '() _ bdy)
+           (for _ _ (literal _ (ptype 'boolean) #t) _ bdy)
+           (while _ (literal _ (ptype 'boolean) #t) bdy)) (reach in bdy) no]
+      
       [(or (while _ (literal _ (ptype 'boolean) #f) bdy)
            (for _ _ (literal _ (ptype 'boolean) #f) _ bdy)) (c-errorf "Unreachable code in while(false)/for(;false;).")]
+      
       [(or (while _ _ bdy)
            (for _ _ _ _ bdy)) (reach in bdy) in]
 
@@ -45,5 +48,4 @@
       [(block _ _ statements) (reach-statements statements in in)]
 
       [_ in]))
-
   (reach maybe (info-ast cinfo)))

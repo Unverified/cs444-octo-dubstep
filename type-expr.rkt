@@ -139,35 +139,19 @@
     [(check-asoc asoc) (c-errorf "Use of non-static field variable inside a static method.")]
     [else #t]))
 
+(define (test-un-op op right)
+  (cond
+    [(symbol=? op 'not) (if (type-ast=? right (ptype 'boolean)) (ptype 'boolean)
+                            (c-errorf "! operator expects type boolean"))]
+    [(symbol=? op 'minus) (if (type-numeric? right) (ptype 'int)
+                              (c-errorf "- operator expects numeric type"))]))
+
 ;;type-check : (assoc fullq-names info) -> void
 (define (type-check all-cinfo cinfo) 
   
   ;;parent-of? rtype rtype envs -> Boolean
   (define (parent-of? T S)
     (superclass? all-cinfo (rtype-type S) (rtype-type T)))
-  
-  
-  ;;num-type<? : ptype ptype -> Boolean
-  (define (num-type<? pt1 pt2)
-    (match (list (ptype-type pt1) (ptype-type pt2))
-      [(list 'byte t) (list? (member t '(short int char long float double)))]
-      [(list 'short t) (list? (member t '(int char long float double)))]
-      [(list 'char t) (list? (member t '(int long float double)))]
-      [(list 'int t) (list? (member t '(long float double)))]
-      [(list 'long t) (list? (member t '(float double)))]
-      [(list 'float t) (list? (member t '(double)))]
-      [_ #f]))
-  
-
-  ;;num-type-min : ptype ptype -> ptype
-  ;;May be useful if numerics turn out to be more complicated than we think
-  (define (num-type-min p1 p2)
-    (if (num-type<? p1 p2) p1 p2))
-
-  ;;num-type-max : ptype ptype -> ptype
-  ;;
-  (define (num-type-max p1 p2)
-    (if (num-type<? p1 p2) p2 p1))
   
   ;;cast-ptypes : ptype ptype -> Boolean
   (define (cast-ptypes T S)
@@ -277,7 +261,6 @@
              (list _ _ (ptype 'void))) (c-errorf "not allowed to perform binary operation on void type! ~a" (list op t1 t2))]
         
         ;;Special case: Can apply + operator to String/bool, bool/String and String/String:
-        [(list 'plus (rtype '("java" "lang" "String")) (rtype '("java" "lang" "String"))) (rtype '("java" "lang" "String"))]
         [(list 'plus (rtype '("java" "lang" "String")) (ptype 'void)) (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]
         [(list 'plus (ptype 'void) (rtype '("java" "lang" "String"))) (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]
         [(list 'plus (rtype '("java" "lang" "String")) (or (rtype _) (atype _) (ptype _))) (rtype '("java" "lang" "String"))]
@@ -293,23 +276,10 @@
         [(list (or 'plus 'minus 'star  'slash 'pct) (ptype _) (ptype _))   (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'int) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
         [(list (or 'gt 'lt 'gteq 'lteq 'eqeq 'noteq) (ptype _) (ptype _))  (if (and (type-numeric? t1) (type-numeric? t2)) (ptype 'boolean) (c-errorf "Attempt to perform binary operation on non-numeric type ~a ~a ~a" op t1 t2))]
         [_ (c-errorf "Undefined Binop ~a for types ~a ~a" op t1 t2)]))
-    
-    (define (test-specific-bin-op type left right err-string)
-      (if (and (type-ast=? type (type-expr C mrtn mod left)) 
-               (type-ast=? type (type-expr C mrtn mod right))) type (error err-string)))
-    
-    (define (test-un-op op right)
-      (cond
-        [(symbol=? op 'not) (if (type-ast=? (type-expr C mrtn mod right) (ptype 'boolean)) (ptype 'boolean)
-                              (c-errorf "! operator expects type boolean"))]
-        [(symbol=? op 'minus) (if (type-numeric? (type-expr C mrtn mod right)) (ptype 'int)
-                              (c-errorf "- operator expects numeric type"))]))
-                        
                       
     (match ast
       [(this _ type) type]
       [(vdecl _ _ _ type _) type]
-    
       
       [(varassign _ (fieldaccess _ left field) val)
        (let ([field-type (get-type-field C mod (curry type-expr C mrtn mod) all-cinfo (varassign-id ast) 'Write)])
@@ -328,15 +298,14 @@
        (check-varuse-static mod ast id)
        (match (assoc id (envs-types (ast-env ast)))
          [#f (c-errorf "Unbound Identifier")]
-         [`(,x ,y) (if(class? y) (c-errorf "Unbound Identifier") y)])]
+         [`(,x ,y) (if (class? y) (c-errorf "Unbound Identifier") y)])]
     
       [(literal _ type _) type]
-      ;[(or (rtype '("java" "lang" "Integer"))) (ptype 'int)]
-      [(or
-        (ptype _) (atype _ ) (rtype  _)) ast]
+      [(or (ptype _) (atype _ ) (rtype  _)) ast]
     
-      [(cast _ c expr) 
-         (if (castable? (type-expr C mrtn mod c) (type-expr C mrtn mod expr) (ast-env ast)) (type-expr C mrtn mod c) (c-errorf "Invalid Cast ~a ~a" (type-expr C mrtn mod c) (type-expr C mrtn mod expr)))]
+      [(cast _ c expr) (if (castable? c (type-expr C mrtn mod expr) (ast-env ast)) 
+                           c 
+                           (c-errorf "Invalid Cast ~a ~a" c (type-expr C mrtn mod expr)))]
     
       [(iff _ test tru fls) (if (begin 
                                   (if (not (empty? tru)) (type-expr C mrtn mod tru) (printf "na")) 
@@ -376,9 +345,9 @@
                            [(equal? rtn-type (ptype 'void)) (c-errorf "Method return cannot return type void.")]
                            [(not (can-assign? mrtn rtn-type)) (c-errorf "Return type \"~a\" of method is not equal to a return statements return type \"~a\"." mrtn rtn-type)]
                            [else rtn-type]))]
-      [(arraycreate _ type size) (begin (type-expr C mrtn mod type) (if (type-whole? (type-expr C mrtn mod size)) 
-                                                          (atype (type-expr C mrtn mod type))   
-                                                          (c-errorf "Array declaration expects numeric type for size")))]
+      [(arraycreate _ type size) (if (type-whole? (type-expr C mrtn mod size)) 
+                                     (atype type)   
+                                     (c-errorf "Array declaration expects numeric type for size"))]
       [(methodcall _ left _ args) (get-type-method C mod (curry type-expr C mrtn mod) all-cinfo ast)]
            
       [(methoddecl _ id parameters) (error "Attempt to type Method Declaration")]

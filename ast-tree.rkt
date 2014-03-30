@@ -35,9 +35,6 @@
 (provide (struct-out ambiguous))
 (provide (struct-out this))
 
-;;inserted by the type-checker, prompts code generator to do a run-time check
-(provide (struct-out narrowing-ref-conversion))
-
 (provide clean-ast)
 (provide parse->ast)
 (provide print-asts)
@@ -147,9 +144,6 @@
 
 ;(Struct this ([type : (Listof String)])
 (struct this ast (type) #:prefab)
-
-;;narrowing-ref-coonversion: ([target: rtype] [source: rtype])
-(struct narrowing-ref-conversion ast (target source) #:prefab)
 
 
 ;(: sigend-cast : Number Number -> Number )
