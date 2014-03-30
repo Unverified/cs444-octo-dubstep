@@ -24,6 +24,8 @@
   (define out (open-output-file (string->path "output/-start.s") #:exists 'replace))
   (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))))
   (display "\nsection .text\n\n" out)
+  (display "extern NATIVEjava.io.OutputStream.nativeWrite\n\n" out)
+  (gen-debug-print-eax out)
   (gen-code-start out entry-label cenvs)
   (gen-code cenvs (first cenvs)))
 
@@ -34,7 +36,6 @@
   (gen-static out cenv)
   (display "\n\n\nsection .text\n\n" out)
   (gen-runtime-externs out)
-  (gen-debug-print-eax out)
 
   (display "\n;================================================\n" out)
   (display ";====== Class code\n" out)
@@ -55,7 +56,7 @@
     [(cast env c ex) (gen-code-cast out sinfo c ex cenvs)]
     [(arraycreate env ty sz) (gen-code-arraycreate out sinfo ty sz cenvs)]
     [(classcreate (rtype typ) cls params) (gen-code-classcreate out sinfo typ params cenvs)]
-    [(fieldaccess env left field) (gen-code-fieldaccess out sinfo left field cenvs)]
+    [(fieldaccess lty left field) (gen-code-fieldaccess out sinfo #f left field cenvs)]
     [(arrayaccess env left index) (gen-code-arrayaccess out sinfo #f left index cenvs)]
     [(while env test body) (gen-code-while out sinfo test body cenvs)]
     [(methodcall env left id args) (gen-code-methodcall out sinfo left id args cenvs)]
@@ -87,20 +88,27 @@
 ;==== Variable Assignment Generation
 ;==============================================================================================
 
-(define (gen-code-varassign out sinfo id ex cenvs)
-  (printf "gen-code-varassign: ~a~n" id)
+(define (gen-code-varassign out sinfo lhs ex cenvs)
   (gen-code-recurse out sinfo ex cenvs)	;puts result in eax
-  (cond
-    [(vdecl? id)  (push out "eax" "declaring " (vdecl-id id))
-                  (stackinfo-add-sdecl (stackinfo-add-ldecl sinfo (vdecl-id id)) ex)]
-    [(varuse? id) (gen-code-varuse-write out sinfo (varuse-id id))
+  (match lhs
+    [(vdecl _ _ _ _ id)  (push out "eax" "declaring " id)
+                         (stackinfo-add-sdecl (stackinfo-add-ldecl sinfo id) ex)]
+    [(varuse _ id) (gen-code-varuse-write out sinfo id)
                    sinfo]
-    [(arrayaccess? id) (push out "ebx" "saving")
+    [(arrayaccess _ left id) (push out "ebx" "saving")
+                          (mov out "ebx" "eax")
+                          (gen-code-arrayaccess out sinfo #t left id cenvs)
+                          (movt out "eax" "ebx" "")
+                          (pop out "ebx")
+                           sinfo]
+    [(fieldaccess _ left field) (push out "ebx" "saving")
                        (mov out "ebx" "eax")
-                       (gen-code-arrayaccess out sinfo #t (arrayaccess-left id) (arrayaccess-index id) cenvs)
+                       (gen-code-fieldaccess out sinfo #t left field cenvs)
                        (movt out "eax" "ebx" "")
                        (pop out "ebx")
-                        sinfo]))
+                        sinfo
+
+]))
 
 ;==============================================================================================
 ;==== Class Generation
@@ -127,6 +135,7 @@
   (malloc out (codeenv-size (find-codeenv cls cenvs)))
   (push out "eax")	;push "this" onto stack
   (comment out "TODO: call new class constructor here")
+  (call out "statictest__method")
   (pop out "eax")			;pop "this" off stack and return it
 
   (reset-stack out (length args))	;pop this and args off stack
@@ -157,7 +166,7 @@
 ;(struct codevar (id ref? static? tag val) #:transparent)
 (define (load-membervars-into-this out sdecls mbdecls member-vars cenvs)
   (define sinfo (stackinfo empty empty sdecls mbdecls empty 4))
-  (mov out "ebx" "[ebp+8]")
+  (mov out "ebx" "[esp+4]")
   (map (lambda(mvar) (gen-code-recurse out sinfo (codevar-val mvar) cenvs)
                      (mov out (string-append "[ebx+"(number->string (codevar-tag mvar)) "]") "eax")) member-vars))
 
@@ -365,7 +374,7 @@
 
 ;ARRAY CREATE
 (define (gen-code-arraycreate out sinfo ty sz cenvs)
-  (define no-exception (symbol->string (gensym "no-exception")))
+  (define no-exception (symbol->string (gensym "noexception")))
 
   (push out "ebx")
 
@@ -434,9 +443,24 @@
 ;==== Field Access Generation
 ;==============================================================================================
 
-(define (gen-code-fieldaccess out sinfo left field cenvs)
+(define (gen-code-fieldaccess out sinfo rtnaddr left field cenvs)
+  (define fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-fieldacces-left-type left)) cenvs))))
+
   (comment out "Fieldaccess")
-  (gen-code-get-this out sinfo left cenvs))
+  (push out "ebx")
+
+  (gen-code-get-this out sinfo left cenvs)
+  (cond
+    [(codevar-static? fcvar) ]
+    [rtnaddr (addi out "eax" (codevar-tag fcvar))]
+    [else (mov out "eax" (string-append "[ebx+" (number->string (codevar-tag fcvar)) "]"))])
+
+  (pop out "ebx"))
+
+(define (get-fieldacces-left-type left)
+  (cond
+    [(rtype? left) left]
+    [else (ast-env left)]))
 
 ;==============================================================================================
 ;==== "this" Generation
@@ -446,7 +470,7 @@
   (mov out "eax" "[ebp+8]")) 
 
 (define (gen-code-get-this out sinfo t cenvs)
-  (define non-null (symbol->string (gensym "non-null")))
+  (define non-null (symbol->string (gensym "non_null")))
   (comment out "Getting \"this\"")
 
   (cond
@@ -456,7 +480,7 @@
                       (mov out "ebx" "eax")]			
     [else (mov out "ebx" "[ebp+8]")])		;t is empty, use local this
   
-  (cmp "ebx" "0")
+  (cmp out "ebx" "0")
   (cjmp out "jne" non-null)
   (call out "__exception")
   (label out non-null))				;local method call, use current this
@@ -467,8 +491,8 @@
 
 (define (gen-code-iff out sinfo test tru fls cenvs)
   (comment out "IFF")
-  (let  ([label-fls (symbol->string (gensym "iffalse"))]
-	[label-end-of-if (symbol->string (gensym "ifend"))])
+  (let  ([label-fls (symbol->string (gensym "if_false"))]
+	[label-end-of-if (symbol->string (gensym "if_end"))])
     (comment out "Evaluating test")
     (gen-code-recurse out sinfo test cenvs)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
@@ -489,8 +513,8 @@
     (label out label-end-of-if)))		;end of if statement
 
 (define (gen-code-while out sinfo test body cenvs)
-  (let  ([label-cond (symbol->string (gensym "while-check-condition"))]
-         [label-end (symbol->string (gensym "while-end"))])
+  (let  ([label-cond (symbol->string (gensym "while_check_condition"))]
+         [label-end (symbol->string (gensym "while_end"))])
     (label out label-cond)
     (gen-code-recurse out sinfo test cenvs)
     (movi out "ecx" 1)				
@@ -501,9 +525,9 @@
     (label out label-end)))
 
 (define (gen-code-for out sinfo init clause update body cenvs)
-  (let  ([label-cond (symbol->string (gensym "for-check-condition"))]
-         [label-update (symbol->string (gensym "for-update"))]
-         [label-end (symbol->string (gensym "for-end"))])
+  (let  ([label-cond (symbol->string (gensym "for_check_condition"))]
+         [label-update (symbol->string (gensym "for_update"))]
+         [label-end (symbol->string (gensym "for_end"))])
     (comment out "FOR")
     (define new-sinfo (if [varassign? init] (gen-code-recurse out sinfo init cenvs) sinfo))
     (jmp out label-cond)
@@ -804,9 +828,7 @@
 
 (define (gen-runtime-externs out)
   (display "extern __exception\n" out)
-  (display "extern __malloc\n" out)
-  (display ";v Delete this, its used for debugging v\n" out)
-  (display "extern NATIVEjava.io.OutputStream.nativeWrite\n\n" out))
+  (display "extern __malloc\n" out))
 
 
 
