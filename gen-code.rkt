@@ -424,7 +424,7 @@
        (movi out "eax" 1)
        (label out end-label "Done instanceof")]
 
-      [else (error 'cast-rtype-interface "unimplemented")])))
+      [else (error 'cast-atype-interface "unimplemented")])))
 
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
@@ -690,8 +690,12 @@
                        (pop out "ebx")
                        (pop out "eax")]
                       [else (error 'cast-rtype-interface "unimplemented")]))]
-    [(atype type) 
-
+    [(atype (rtype type))
+		(error 'cast-atype "unimplemented") 
+		(push out "eax")
+		(push out "ebx")
+		(gen-get-array-class-info out "eax")
+		
 		;;TODO : Get run-time type of array
 		;;Get first element of array?
 		;;What if array has length null?
@@ -753,6 +757,14 @@
   (movf out register register "" "Getting static class info")
   (movf out register register "" "Getting the class number"))
 
+
+(define (gen-get-array-class-info out register)
+	(movf out register register "+4" "Getting static array info"))
+;;The register points to the array. The caller preserves the register.
+(define (gen-get-array-class-id out register)
+	(movf out register (string-append register register "4" "Getting static array info"))
+	(movf out register register "" "Getting the class number"))
+
 (define (gen-check-if-castable out id-list register check-register success-label)
   (cond
     [(empty? id-list) 
@@ -762,6 +774,7 @@
      (cmp out check-register register)
      (cjmp out "je" success-label)
      (gen-check-if-castable out (rest id-list) register check-register success-label)])) 
+
 
 
 (define (gen-initialize-static-fields out cenvs)
