@@ -11,7 +11,7 @@
 
 (provide gen-all-code)
 
-(struct stackinfo (mdecls ldecls sdecls mbdecls strdecls ebpoff))
+(struct stackinfo (mdecls ldecls strdecls ebpoff))
 
 (define WORD 4)
 (define ARRAY-SZ-LOC "1")	;offset in bytes to size of array
@@ -23,7 +23,7 @@
 (define (gen-all-code cenvs)
   (define out (open-output-file (string->path "output/-start.s") #:exists 'replace))
   (define-values (classes interfaces) (partition codeenv-class? cenvs))
-  (define entry-label (mangle-names (find-codemeth (funt "" empty) (codeenv-methods (first cenvs)))))
+  (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))))
   (define all-labels (remove-duplicates (map mangle-names (append (filter (lambda (x) (and (codevar-static? x) (codevar-ref? x))) (append-map codeenv-vars classes))
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
                                                                   cenvs))))
@@ -31,7 +31,7 @@
   (gen-runtime-externs out)
   (display "extern NATIVEjava.io.OutputStream.nativeWrite\n\n" out)
   (gen-debug-print-eax out)
-  (gen-code-start out all-labels entry-label cenvs)
+  (gen-code-start out (first cenvs) all-labels entry-label cenvs)
   (for-each gen-interface interfaces)
   (for-each (curry gen-code all-labels cenvs) classes))
 
@@ -45,8 +45,6 @@
 
 (define (gen-code all-labels cenvs cenv)
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
-  (define sdecls (get-static-decls (codeenv-vars cenv)))
-  (define mbdecls (get-member-decls (codeenv-vars cenv)))
   (gen-static out all-labels cenv)
   (display "\n\n\nsection .text\n\n" out)
   (gen-runtime-externs out)
@@ -58,41 +56,41 @@
   (for-each (lambda (x)
               (for-each (curryr display out) (list  (mangle-names x) ":\t; Method Def - " (funt-id (codemeth-id x)) "\n"))
               (match (codemeth-def x)
-                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out sdecls mbdecls cenv params bd cenvs)]
-                [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out sdecls mbdecls params bd cenvs)]))
+                [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out cenv params bd cenvs)]
+                [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out cenv params bd cenvs)]))
             (filter codemeth-ref? (codeenv-methods cenv))))
 
-(define (gen-code-recurse out sinfo t cenvs)
+(define (gen-code-recurse out cenv sinfo t cenvs)
   (match t
-    [(varassign env id ex) (gen-code-varassign out sinfo id ex cenvs)]
-    [(binop env op ls rs) (gen-code-binop out sinfo op ls rs cenvs)]
-    [(unop env op rs) (gen-code-unop out sinfo op rs cenvs)]
-    [(cast env c ex) (gen-code-cast out sinfo c ex cenvs)]
-    [(arraycreate env ty sz) (gen-code-arraycreate out sinfo ty sz cenvs)]
-    [(classcreate (rtype typ) cls params) (gen-code-classcreate out sinfo cls typ params cenvs)]
-    [(fieldaccess lty left field) (gen-code-fieldaccess out sinfo #f left field cenvs)]
-    [(arrayaccess env left index) (gen-code-arrayaccess out sinfo #f left index cenvs)]
-    [(while env test body) (gen-code-while out sinfo test body cenvs)]
-    [(methodcall env left id args) (gen-code-methodcall out sinfo left id args cenvs)]
-    [(iff env test tru fls) (gen-code-iff out sinfo test tru fls cenvs)]
-    [(return env expr) (gen-code-return out sinfo expr cenvs)]
-    [(for env init clause update body) (gen-code-for out sinfo init clause update body cenvs)]
-    [(varuse _ id) (gen-code-varuse-read out sinfo id cenvs)]
+    [(varassign env id ex) (gen-code-varassign out cenv sinfo id ex cenvs)]
+    [(binop env op ls rs) (gen-code-binop out cenv sinfo op ls rs cenvs)]
+    [(unop env op rs) (gen-code-unop out cenv sinfo op rs cenvs)]
+    [(cast env c ex) (gen-code-cast out cenv sinfo c ex cenvs)]
+    [(arraycreate env ty sz) (gen-code-arraycreate out cenv sinfo ty sz cenvs)]
+    [(classcreate (rtype typ) cls params) (gen-code-classcreate out cenv sinfo cls typ params cenvs)]
+    [(fieldaccess lty left field) (gen-code-fieldaccess out cenv sinfo #f left field cenvs)]
+    [(arrayaccess env left index) (gen-code-arrayaccess out cenv sinfo #f left index cenvs)]
+    [(while env test body) (gen-code-while out cenv sinfo test body cenvs)]
+    [(methodcall env left id args) (gen-code-methodcall out cenv sinfo left id args cenvs)]
+    [(iff env test tru fls) (gen-code-iff out cenv sinfo test tru fls cenvs)]
+    [(return env expr) (gen-code-return out cenv sinfo expr cenvs)]
+    [(for env init clause update body) (gen-code-for out cenv sinfo init clause update body cenvs)]
+    [(varuse _ id) (gen-code-varuse-read out cenv sinfo id cenvs)]
     [(this _ type) (gen-code-this out)]
-    [(literal _ type val) (gen-code-literal out sinfo type val cenvs)]
-    [(block env id statements)  (gen-code-block out sinfo id statements cenvs) ]
+    [(literal _ type val) (gen-code-literal out cenv sinfo type val cenvs)]
+    [(block env id statements)  (gen-code-block out cenv sinfo id statements cenvs) ]
     [`() (comment out "EMPTY STATEMENT")]))
 
 ;==============================================================================================
 ;==== Block Generation
 ;==============================================================================================
 
-(define (gen-code-block out sinfo id statements cenvs)
+(define (gen-code-block out cenv sinfo id statements cenvs)
   (define (gen-code-block-helper sinfo statements)
     (cond
       [(empty? statements) sinfo] ;TODO: pop local vars off stack
-      [(varassign? (first statements)) (gen-code-block-helper (gen-code-recurse out sinfo (first statements) cenvs) (rest statements))]
-      [else (gen-code-recurse out sinfo (first statements) cenvs)
+      [(varassign? (first statements)) (gen-code-block-helper (gen-code-recurse out cenv sinfo (first statements) cenvs) (rest statements))]
+      [else (gen-code-recurse out cenv sinfo (first statements) cenvs)
             (gen-code-block-helper sinfo (rest statements))]))
   
   (define bsinfo (gen-code-block-helper sinfo statements))
@@ -102,22 +100,22 @@
 ;==== Variable Assignment Generation
 ;==============================================================================================
 
-(define (gen-code-varassign out sinfo lhs ex cenvs)
-  (gen-code-recurse out sinfo ex cenvs)	;puts result in eax
+(define (gen-code-varassign out cenv sinfo lhs ex cenvs)
+  (gen-code-recurse out cenv sinfo ex cenvs)	;puts result in eax
   (match lhs
     [(vdecl _ _ _ _ id)  (push out "eax" "declaring " id)
-                         (stackinfo-add-sdecl (stackinfo-add-ldecl sinfo id) ex)]
-    [(varuse _ id) (gen-code-varuse-write out sinfo id)
+                         (stackinfo-add-strdecl (stackinfo-add-ldecl sinfo id) ex)]
+    [(varuse _ id) (gen-code-varuse-write out cenv sinfo id)
                    sinfo]
     [(arrayaccess _ left id) (push out "ebx" "saving")
                              (mov out "ebx" "eax")
-                             (gen-code-arrayaccess out sinfo #t left id cenvs)
+                             (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
                              (movt out "eax" "ebx" "")
                              (pop out "ebx")
                              sinfo]
     [(fieldaccess _ left field) (push out "ebx" "saving")
                                 (mov out "ebx" "eax")
-                                (gen-code-fieldaccess out sinfo #t left field cenvs)
+                                (gen-code-fieldaccess out cenv sinfo #t left field cenvs)
                                 (movt out "eax" "ebx" "")
                                 (pop out "ebx")
                                 sinfo
@@ -129,15 +127,24 @@
 ;==============================================================================================
 
 ;CONSTRUCTOR
-(define (gen-code-constructor out sdecls mbdecls cenv params bd cenvs)
+(define (gen-code-constructor out cenv params bd cenvs)
   (let ([parent (codeenv-parent cenv)]
-        [member-vars (filter-not codevar-static? (codeenv-vars cenv))])
-    (load-membervars-into-this out sdecls mbdecls member-vars cenvs)
+        [member-vars (filter-not codevar-static? (codeenv-vars cenv))]
+        [sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty empty 4)])
+    (push out "ebp")			
+    (mov out "ebp" "esp")
+
+    (push out "ebx" "saving")	
+    (load-membervars-into-this out cenv member-vars cenvs)
+    (pop out "ebx" "restoring")
+
     (if (empty? parent) (printf "") (call out (constr-label parent empty)))
-    (gen-code-method out sdecls mbdecls params bd cenvs) ))
+    (gen-code-recurse out cenv sinfo bd cenvs)
+    (pop out "ebp")
+    (ret out)))
 
 ;CLASS CREATE
-(define (gen-code-classcreate out sinfo cls rty args cenvs)
+(define (gen-code-classcreate out cenv sinfo cls rty args cenvs)
   (let* ([cenv (find-codeenv rty cenvs)]
          [mcvar (find-codemeth cls (codeenv-methods cenv))]
          [csize (codeenv-size cenv)])
@@ -146,9 +153,9 @@
     (push out "ebx")
 
     (cond 
-      [(jlstring-slit? rty args) (stringlit->chararray out sinfo (first args))
+      [(jlstring-slit? rty args) (stringlit->chararray out cenv sinfo (first args))
                                  (push out "eax" "push char array on stack")]
-      [else (push-method-args out sinfo args cenvs)])	;push args onto stack
+      [else (push-method-args out cenv sinfo args cenvs)])	;push args onto stack
   
     (malloc out csize)
     (push out "eax")			;push "this" onto stack
@@ -160,10 +167,10 @@
     (comment out "END CLASS CREATE")))
 
 ;Take string literal and create a char array, eax will contain address of char array
-(define (stringlit->chararray out sinfo slit)
+(define (stringlit->chararray out cenv sinfo slit)
   (define c-str (rest (reverse (rest (reverse (string->list (literal-value slit)))))))	;remove string quotes (ie '(" a b c ") -> '(a b c))
   (comment out "Converting String to char[]")
-  (arraycreate-sz out sinfo (ptype 'char) (length c-str))
+  (arraycreate-sz out cenv sinfo (ptype 'char) (length c-str))
   (comment out "Adding chars to char[]")
   (copy-to-chararray out c-str 0))
 
@@ -181,25 +188,26 @@
 
 
 ;(struct codevar (id ref? static? tag val) #:transparent)
-(define (load-membervars-into-this out sdecls mbdecls member-vars cenvs)
-  (define sinfo (stackinfo empty empty sdecls mbdecls empty 4))
-  (mov out "ebx" "[esp+4]")
-  (map (lambda(mvar) (gen-code-recurse out sinfo (codevar-val mvar) cenvs)
-         (mov out (string-append "[ebx+"(number->string (codevar-tag mvar)) "]") "eax")) member-vars))
+(define (load-membervars-into-this out cenv member-vars cenvs)
+  (define sinfo (stackinfo empty empty empty 4))
+  (mov out "ebx" "[ebp+8]")
+  (map (lambda(mvar) (gen-code-recurse out cenv sinfo (codevar-val mvar) cenvs)
+                     (mov out (string-append "[ebx+"(number->string (codevar-tag mvar)) "]") "eax")) 
+         member-vars))
 
 ;==============================================================================================
 ;==== Method Generation
 ;==============================================================================================
 
 ;ENTRY POINT
-(define (gen-code-start out labels entry-label cenvs)
+(define (gen-code-start out cenv labels entry-label cenvs)
   (for-each (lambda (x) (display (string-append "extern " x "\n") out)) labels)
   (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
   (display "global _start\n" out)
   (display "_start:\n" out)
   
   (comment out "@@@@@@@@@@@@ Initialize Static variables! @@@@@@@")
-  (gen-initialize-static-fields out cenvs)
+  (gen-initialize-static-fields out cenv cenvs)
   
   (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
   (call out entry-label)
@@ -209,16 +217,15 @@
   (display "int 3\n" out))
 
 ;METHOD DECLARATION
-(define (gen-code-method out sdecls mbdecls params bd cenvs)
-  (printf "SDECLS: ~a~n" sdecls)
-  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty sdecls mbdecls empty 4))
+(define (gen-code-method out cenv params bd cenvs)
+  (define sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty empty 4))
   (comment out "method prolog")
-  (push out "ebp")			;save frame pointer
-  (mov out "ebp" "esp")			;set new frame pointer to stack pointer
+  (push out "ebp")			
+  (mov out "ebp" "esp")			
   (nl out)
   
   (comment out "method body")
-  (gen-code-recurse out sinfo bd cenvs)	;gen methods code
+  (gen-code-recurse out cenv sinfo bd cenvs)	;gen methods code
   (nl out)
   
   (comment out "method epilog")
@@ -227,22 +234,22 @@
   (nl out))			;ret from method
 
 ;METHOD CALL
-(define (gen-code-methodcall out sinfo left id args cenvs)
+(define (gen-code-methodcall out cenv sinfo left id args cenvs)
   (define mcvar (find-codemeth id (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (push out "ebx")
-  (gen-code-get-this out sinfo left cenvs)	;puts "this" in ebx
+  (gen-code-get-this out cenv sinfo left cenvs)	;puts "this" in ebx
   
   (comment out "Pushing method args on stack")
-  (push-method-args out sinfo args cenvs)	;push all method args onto stack
+  (push-method-args out cenv sinfo args cenvs)	;push all method args onto stack
   (push out "ebx" "this") 			;push the addr of "this"
   (call out (mangle-names mcvar))					;TODO: call right label
   (reset-stack out (+ 1 (length args)))		;"pop" off all the args from the stack
   (pop out "ebx"))
 
 ;METHOD RETURN
-(define (gen-code-return out sinfo expr cenvs)
-  (gen-code-recurse out sinfo expr cenvs)
+(define (gen-code-return out cenv sinfo expr cenvs)
+  (gen-code-recurse out cenv sinfo expr cenvs)
   (reset-stack out (length (stackinfo-ldecls sinfo)))
   (pop out "ebp")
   (ret out))			;ret from method
@@ -254,12 +261,12 @@
     [(> n 0) (addi out "esp" (* WORD n))]
     [else (printf "")]))
 
-(define (push-method-args out sinfo args cenvs)
+(define (push-method-args out cenv sinfo args cenvs)
   (cond
     [(empty? args) (printf "")]
-    [else (gen-code-recurse out sinfo (first args) cenvs)
+    [else (gen-code-recurse out cenv sinfo (first args) cenvs)
           (push out "eax")
-          (push-method-args out sinfo (rest args) cenvs)]))
+          (push-method-args out cenv sinfo (rest args) cenvs)]))
 
 (define (get-method-arg-decls params ebpoff)
   (cond
@@ -267,48 +274,41 @@
     [else (cons (list (parameter-id (first params)) (string-append "+" (number->string ebpoff))) 
                 (get-method-arg-decls (rest params) (+ WORD ebpoff)))]))
 
-(define (get-static-decls codevars)
-  (map (lambda(cvar) (list (codevar-id cvar) (mangle-names cvar))) (filter codevar-static? codevars)))
-
-(define (get-member-decls codevars)
-  (map (lambda(mvar) (list (codevar-id mvar) (number->string (codevar-tag mvar)))) (filter-not codevar-static? codevars)))
-
-
 ;==============================================================================================
 ;==== Operation Generation
 ;==============================================================================================
 
 ;UNOP
-(define (gen-code-unop out sinfo op rs cenvs)
-  (gen-code-recurse out sinfo rs cenvs)
+(define (gen-code-unop out cenv sinfo op rs cenvs)
+  (gen-code-recurse out cenv sinfo rs cenvs)
   (match op
     ['minus (display "neg eax\n" out)]
     ['not   (display "not eax\n" out)
             (display "and eax,1\n" out)]))
 
 ;BINOP
-(define (gen-code-binop out sinfo op ls rs cenvs)
+(define (gen-code-binop out cenv sinfo op ls rs cenvs)
   (printf "gen-code-binop: ~a ~a ~a~n" ls op rs)
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (cond
-    [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out sinfo op ls rs cenvs)]
-    [(equal? op 'instanceof) (gen-code-instanceof out sinfo ls rs cenvs)]
+    [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out cenv sinfo op ls rs cenvs)]
+    [(equal? op 'instanceof) (gen-code-instanceof out cenv sinfo ls rs cenvs)]
     [else
-     (if [stringlit? rs] (gen-code-stringlit out sinfo rs cenvs) (gen-code-recurse out sinfo rs cenvs))
+     (if [stringlit? rs] (gen-code-stringlit out cenv sinfo rs cenvs) (gen-code-recurse out cenv sinfo rs cenvs))
      (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
-     (if [stringlit? ls] (gen-code-stringlit out sinfo ls cenvs) (gen-code-recurse out sinfo ls cenvs))
+     (if [stringlit? ls] (gen-code-stringlit out cenv sinfo ls cenvs) (gen-code-recurse out cenv sinfo ls cenvs))
      (match op
        ['plus (add out "eax" "ebx")]
        ['minus (sub out "eax" "ebx")]
        ['star (imul out "eax" "ebx")]
        ['slash (divide out "eax" "ebx")]
        ['pct (rem out "eax" "ebx")]
-       [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out sinfo op ls rs cenvs)])])
+       [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out cenv sinfo op ls rs cenvs)])])
   
   (pop out "ebx" "restoring"))			;restore ebx
 
 ;Helper - CONDITIONAL
-(define (gen-code-conditional out sinfo op ls rs cenvs)
+(define (gen-code-conditional out cenv sinfo op ls rs cenvs)
   (let ([ltrue (symbol->string (gensym "true"))]	
         [lend (symbol->string (gensym "end"))])
     (cmp out "eax" "ebx")				;first compare the 2 operations
@@ -326,23 +326,23 @@
     (label out lend)))
 
 ;Helper - LOGICAL
-(define (gen-code-logical out sinfo op ls rs cenvs)
+(define (gen-code-logical out cenv sinfo op ls rs cenvs)
   (let ([lend (symbol->string (gensym "end"))])
-    (gen-code-recurse out sinfo ls cenvs)
+    (gen-code-recurse out cenv sinfo ls cenvs)
     (cmp out "eax" "1")
     (match op
       ['barbar (cjmp out "je" lend)
-               (gen-code-recurse out sinfo rs cenvs)
+               (gen-code-recurse out cenv sinfo rs cenvs)
                (label out lend)]
       ['ampamp (cjmp out "jne" lend)
-               (gen-code-recurse out sinfo rs cenvs)
+               (gen-code-recurse out cenv sinfo rs cenvs)
                (label out lend)])))
 
 ;;helper - INSTANCEOF
 ;;this code is mostly copied from the gen-code-cast function
-(define (gen-code-instanceof out sinfo ls rs cenvs)
+(define (gen-code-instanceof out cenv sinfo ls rs cenvs)
   (comment out "Getting lhs of instanceof")
-  (gen-code-recurse out sinfo ls cenvs)
+  (gen-code-recurse out cenv sinfo ls cenvs)
   (comment out "We now have lhs of instanceof")
   (let*
       ([fail-label (symbol->string (gensym "instanceoffail"))]
@@ -374,16 +374,16 @@
 
 
 
-(define (gen-code-stringlit out sinfo slit cenvs)
+(define (gen-code-stringlit out cenv sinfo slit cenvs)
   (match (assoc (literal-value slit) (stackinfo-strdecls sinfo))
     [(list key value) (movf out "eax" "ebp" value)]
-    [_ (gen-code-classcreate out sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list slit) cenvs)]))
+    [_ (gen-code-classcreate out cenv sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list slit) cenvs)]))
 
 ;==============================================================================================
 ;==== Array Generation
 ;==============================================================================================
 
-(define (arraycreate-sz out sinfo ty size)	;used by us when we know the size of the array
+(define (arraycreate-sz out cenv sinfo ty size)	;used by us when we know the size of the array
   (push out "ebx")
   (movi out "eax" size)	;used by malloc, 2 is added to this register in gen-arraycreate-code
   (movi out "ebx" size)	;ebx is placed into the array as the array size in gen-arraycreate-code
@@ -392,13 +392,13 @@
 
 
 ;ARRAY CREATE
-(define (gen-code-arraycreate out sinfo ty sz cenvs)
+(define (gen-code-arraycreate out cenv sinfo ty sz cenvs)
   (define no-exception (symbol->string (gensym "noexception")))
   
   (push out "ebx")
   
   (comment out "ARRAY CREATE")
-  (gen-code-recurse out sinfo sz cenvs)
+  (gen-code-recurse out cenv sinfo sz cenvs)
   (mov out "ebx" "eax")		;save the size of the array in ebx
   
   (comment out "Checking array size not negative")
@@ -420,15 +420,15 @@
   (mov out "[eax+4]" "ebx"))	;move the size of the array to the first element
 
 ;ARRAY ACCESS
-(define (gen-code-arrayaccess out sinfo rtnaddr left index cenvs) 
+(define (gen-code-arrayaccess out cenv sinfo rtnaddr left index cenvs) 
   (define lbl-sz-ok1 (symbol->string (gensym "noexception1")))
   (define lbl-sz-ok2 (symbol->string (gensym "noexception2")))
   (push out "ebx")
   
   (comment out "ARRAY ACCESS")
-  (gen-code-recurse out sinfo index cenvs)
+  (gen-code-recurse out cenv sinfo index cenvs)
   (mov out "ebx" "eax")			;ebx now holds the index offset
-  (gen-code-recurse out sinfo left cenvs)	;eax now holds the array address
+  (gen-code-recurse out cenv sinfo left cenvs)	;eax now holds the array address
   
   (comment out "Checking index not negative")
   (cmp out "ebx" "0")
@@ -462,13 +462,13 @@
 ;==== Field Access Generation
 ;==============================================================================================
 
-(define (gen-code-fieldaccess out sinfo rtnaddr left field cenvs)
+(define (gen-code-fieldaccess out cenv sinfo rtnaddr left field cenvs)
   ;(define fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (comment out "Fieldaccess")
   (push out "ebx")
   
-  ;(gen-code-get-this out sinfo left cenvs)
+  ;(gen-code-get-this out cenv sinfo left cenvs)
   ;(cond
   ;  [(codevar-static? fcvar) ]
   ;  [rtnaddr (addi out "eax" (codevar-tag fcvar))]
@@ -488,14 +488,14 @@
 (define (gen-code-this out)
   (mov out "eax" "[ebp+8]")) 
 
-(define (gen-code-get-this out sinfo t cenvs)
+(define (gen-code-get-this out cenv sinfo t cenvs)
   (define non-null (symbol->string (gensym "non_null")))
   (comment out "Getting \"this\"")
   
   (cond
     [(rtype? t) (mov out "ebx" "0")		;static call to method, no this
                 (jmp out non-null)]		;since static call, no need to check null
-    [else (gen-code-recurse out sinfo t cenvs)	;doing a method call on something which better be a class
+    [else (gen-code-recurse out cenv sinfo t cenvs)	;doing a method call on something which better be a class
           (mov out "ebx" "eax")])		
   
   (cmp out "ebx" "0")
@@ -507,12 +507,12 @@
 ;==== If / While / For Generation
 ;==============================================================================================
 
-(define (gen-code-iff out sinfo test tru fls cenvs)
+(define (gen-code-iff out cenv sinfo test tru fls cenvs)
   (comment out "IFF")
   (let  ([label-fls (symbol->string (gensym "if_false"))]
          [label-end-of-if (symbol->string (gensym "if_end"))])
     (comment out "Evaluating test")
-    (gen-code-recurse out sinfo test cenvs)		;eval test, eax will contain 0 or 1 (false or true)
+    (gen-code-recurse out cenv sinfo test cenvs)		;eval test, eax will contain 0 or 1 (false or true)
     (comment out "Done evaluating test")
     
     (movi out "ecx" 1)				;mov 1 into ecx
@@ -520,43 +520,43 @@
     (cjmp out "jne" label-fls)			;if test is eqaul to false then jump to the false code
     
     (comment out "TRUE CODE")
-    (gen-code-recurse out sinfo tru cenvs)		;else the test was false so run false code
+    (gen-code-recurse out cenv sinfo tru cenvs)		;else the test was false so run false code
     (jmp out label-end-of-if)			;done fls code so jump passed tru code
     (comment out "End of true code")		
     
     (label out label-fls)
     (comment out "FALSE CODE")
-    (gen-code-recurse out sinfo fls cenvs)		;tru code
+    (gen-code-recurse out cenv sinfo fls cenvs)		;tru code
     (comment out "End of false code") 
     (label out label-end-of-if)))		;end of if statement
 
-(define (gen-code-while out sinfo test body cenvs)
+(define (gen-code-while out cenv sinfo test body cenvs)
   (let  ([label-cond (symbol->string (gensym "while_check_condition"))]
          [label-end (symbol->string (gensym "while_end"))])
     (label out label-cond)
-    (gen-code-recurse out sinfo test cenvs)
+    (gen-code-recurse out cenv sinfo test cenvs)
     (movi out "ecx" 1)				
     (cmp out "eax" "ecx")			
     (cjmp out "jne" label-end)			
-    (gen-code-recurse out sinfo body cenvs)
+    (gen-code-recurse out cenv sinfo body cenvs)
     (jmp out label-cond)
     (label out label-end)))
 
-(define (gen-code-for out sinfo init clause update body cenvs)
+(define (gen-code-for out cenv sinfo init clause update body cenvs)
   (let  ([label-cond (symbol->string (gensym "for_check_condition"))]
          [label-update (symbol->string (gensym "for_update"))]
          [label-end (symbol->string (gensym "for_end"))])
     (comment out "FOR")
-    (define new-sinfo (if [varassign? init] (gen-code-recurse out sinfo init cenvs) sinfo))
+    (define new-sinfo (if [varassign? init] (gen-code-recurse out cenv sinfo init cenvs) sinfo))
     (jmp out label-cond)
     (label out label-update)
-    (gen-code-recurse out new-sinfo update cenvs)
+    (gen-code-recurse out cenv new-sinfo update cenvs)
     (label out label-cond)
-    (gen-code-recurse out new-sinfo clause cenvs)
+    (gen-code-recurse out cenv new-sinfo clause cenvs)
     (movi out "ecx" 1)				
     (cmp out "eax" "ecx")			
     (cjmp out "jne" label-end)			
-    (gen-code-recurse out new-sinfo body cenvs)
+    (gen-code-recurse out cenv new-sinfo body cenvs)
     (jmp out label-update)
     (label out label-end)
     (reset-stack out (- (length (stackinfo-ldecls new-sinfo)) (length (stackinfo-ldecls sinfo))))))
@@ -565,20 +565,20 @@
 ;==== OTHER
 ;==============================================================================================
 
-(define (gen-code-varuse-read out sinfo id cenvs)
+(define (gen-code-varuse-read out cenv sinfo id cenvs)
   (cond
-    [(use-mbdecl? id sinfo) (mov out "eax" "[ebp+8]")
-                            (mov out "eax" (string-append "[eax+" (get-var-mem-loc id sinfo) "]"))]
-    [else (mov out "eax" (string-append "[" (get-var-mem-loc id sinfo) "]"))]))
+    [(use-membrdecl? cenv sinfo id) (mov out "eax" "[ebp+8]")
+                                    (mov out "eax" (string-append "[eax+" (get-var-mem-loc cenv sinfo id) "]"))]
+    [else (mov out "eax" (string-append "[" (get-var-mem-loc cenv sinfo id) "]"))]))
 
 ;(mov out (string-append "[" (get-var-mem-loc (varuse-id id) sinfo) "]") "eax"
-(define (gen-code-varuse-write out sinfo id)
+(define (gen-code-varuse-write out cenv sinfo id)
   (cond
-    [(use-mbdecl? id sinfo) (mov out "ecx" "[ebp+8]")
-                            (mov out (string-append "[ecx+" (get-var-mem-loc id sinfo) "]") "eax")]
-    [else (mov out (string-append "[" (get-var-mem-loc id sinfo) "]") "eax")]))
+    [(use-membrdecl? cenv sinfo id) (mov out "ecx" "[ebp+8]")
+                                    (mov out (string-append "[ecx+" (get-var-mem-loc cenv sinfo id) "]") "eax")]
+    [else (mov out (string-append "[" (get-var-mem-loc cenv sinfo id) "]") "eax")]))
 
-(define (gen-code-literal out sinfo type val cenvs)
+(define (gen-code-literal out cenv sinfo type val cenvs)
   (match type
     [(ptype 'int) (movi out "eax" val "lit int val " (number->string val))]
     [(ptype 'char) (movi out "eax" val "lit char val " (number->string val))]
@@ -586,12 +586,12 @@
     [(ptype 'short) (movi out "eax" val "lit short val " (number->string val))]    
     [(ptype 'null) (movi out "eax" 0 "literal val null")]
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
-    [(rtype '("java" "lang" "String")) (gen-code-classcreate out sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list (literal empty type val)) cenvs)]))
+    [(rtype '("java" "lang" "String")) (gen-code-classcreate out cenv sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list (literal empty type val)) cenvs)]))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
-(define (gen-code-cast out sinfo c ex cenvs)
+(define (gen-code-cast out cenv sinfo c ex cenvs)
   ;(printf "gen-code-cast ~a~n" ex)
-  (gen-code-recurse out sinfo ex cenvs)
+  (gen-code-recurse out cenv sinfo ex cenvs)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
     [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
@@ -621,45 +621,39 @@
 ;==== Helpers
 ;==============================================================================================
 
-(define (get-var-mem-loc id sinfo)
+(define (get-var-mem-loc cenv sinfo id)
   (define mdecl (assoc id (stackinfo-mdecls sinfo)))
   (define ldecl (assoc id (stackinfo-ldecls sinfo)))
-  (define sdecl (assoc id (stackinfo-sdecls sinfo)))
-  (define mbdecl (assoc id (stackinfo-mbdecls sinfo)))
+  (define membr-decl (find-codevar id (codeenv-vars cenv)))
   (cond
     [(and (list? mdecl) (list? ldecl)) (error "We have clashing decls in m and l")]
     [(list? mdecl) (string-append "ebp" (second mdecl))] ;method param, get off stack
     [(list? ldecl) (string-append "ebp" (second ldecl))] ;local variable, get off stack
-    [(list? sdecl) (second sdecl)] ;static variable, get using label
-    [(list? mbdecl) (second mbdecl)] ;static variable, get using label
+    [(codevar? membr-decl) (number->string (codevar-tag membr-decl))] ;member/static variable, get offset/label
     [else (error "Could find a declaration for a variable? No test should be like that.")]))
 
-(define (use-mbdecl? id sinfo)
+(define (use-membrdecl? cenv sinfo id)
   (define mdecl (assoc id (stackinfo-mdecls sinfo)))
   (define ldecl (assoc id (stackinfo-ldecls sinfo)))
-  (define mbdecl (assoc id (stackinfo-mbdecls sinfo)))
-  (and (not (or (list? mdecl) (list? ldecl))) (list? mbdecl)))
+  (define membr-decl (find-codevar id (codeenv-vars cenv)))
+  (and (not (or (list? mdecl) (list? ldecl))) (codevar? membr-decl)))
 
 (define (stackinfo-add-ldecl sinfo id)
   (define ldecls (stackinfo-ldecls sinfo))
   (define ebpoff (stackinfo-ebpoff sinfo))
   (stackinfo (stackinfo-mdecls sinfo)
              (cons (list id (string-append "-" (number->string ebpoff))) ldecls)
-             (stackinfo-sdecls sinfo)
-             (stackinfo-mbdecls sinfo)
              (stackinfo-strdecls sinfo)
              (+ ebpoff WORD)))
 
-(define (stackinfo-add-sdecl sinfo ex)
+(define (stackinfo-add-strdecl sinfo ex)
   (cond
-    [(literal? ex) (equal? (literal-type ex) (rtype '("java" "lang" "String")))
-                   (stackinfo (stackinfo-mdecls sinfo)
-                              (stackinfo-ldecls sinfo)
-                              (stackinfo-sdecls sinfo)
-                              (stackinfo-mbdecls sinfo)
-                              (cons (list (literal-value ex) (second (first (stackinfo-ldecls sinfo)))) 
-                                    (stackinfo-strdecls sinfo))
-                              (stackinfo-ebpoff sinfo))]
+    [(and (literal? ex) (equal? (literal-type ex) (rtype '("java" "lang" "String"))))
+     (stackinfo (stackinfo-mdecls sinfo)
+                (stackinfo-ldecls sinfo)
+                (cons (list (literal-value ex) (second (first (stackinfo-ldecls sinfo)))) 
+                      (stackinfo-strdecls sinfo))
+                (stackinfo-ebpoff sinfo))]
     [else sinfo]))
 
 
@@ -679,11 +673,11 @@
      (gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 
 
-(define (gen-initialize-static-fields out cenvs)
+(define (gen-initialize-static-fields out cenv cenvs)
   ;(printf "gen-initialize-static-fields: ~a~n" cenvs)
   (define (gen-initialize-static-fields-class cenv)
     (map (lambda (cvar)
-           (gen-code-recurse out empty (codevar-val cvar) cenvs) 
+           (gen-code-recurse out cenv empty (codevar-val cvar) cenvs) 
            (mov out (string-append "[" (mangle-names cvar)  "]") "eax"))
          (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
   (map gen-initialize-static-fields-class cenvs)) 	
