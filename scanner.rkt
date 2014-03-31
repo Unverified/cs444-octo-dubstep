@@ -43,7 +43,7 @@
     ['decimal-lit (convert-to-long 'decimal-lit (string->list lexeme))]
     ['octal-lit (convert-to-long 'octal-lit (string->list lexeme))]
     ['hex-lit (convert-to-long 'hex-lit (string->list lexeme))]
-    ['char-lit (token 'char-lit (char->integer (first (escape-chars (string->list lexeme)))))]
+    ['char-lit (token 'char-lit (char->integer (second (escape-chars (string->list lexeme)))))]
     ['string-lit (token 'string-lit (list->string (escape-chars (string->list lexeme))))]
     ['bool-lit (token 'bool-lit (equal? lexeme "true"))]
     [x (token x lexeme)]))

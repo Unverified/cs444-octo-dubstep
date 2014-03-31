@@ -6,7 +6,8 @@ public class NegOneToChar
 
 	public static int test()
 	{
-		char ret = (char) -1;
+		int x = -1;
+		char ret = (char) x;
 		if ((int)ret == -1)
 		{
 			return -1;
