@@ -469,7 +469,7 @@
     [(rtype? ty) (mov out "esi" (rtype-type ty) )
                  (mov out "[eax+4]" "esi")]
     [(ptype? ty) (mov out "[eax+4]" 0)]
-    [(atype? ty) (error 'gen-code-arraycreate "how?")]
+    [(atype? ty) (error 'gen-code-arraycreate "how?")])
   
   (pop out "ebx"))
 
@@ -695,18 +695,23 @@
                        (pop out "ebx")
                        (pop out "eax")]
                       [else (error 'cast-rtype-interface "unimplemented")]))]
-    [(atype (rtype type))
-		(error 'cast-atype "unimplemented") 
-		(push out "eax")
-		(push out "ebx")
-		(gen-get-array-class-info out "eax")
-		
-		;;TODO : Get run-time type of array
-		;;Get first element of array?
-		;;What if array has length null?
-		;;What if array elements not initialized?
-		;;What if array is null? 		
-		(error 'cast-atype "unimplemented")]
+    [(atype (rtype name))
+		(let ([cenv (find-codeenv name cenvs)]
+		      [fail-label (symbol->string (gensym "castfail"))]
+		      [success-label (symbol->string (gensym "castablesuccess"))])
+		(cond
+			[(codeenv-class? cenv) 
+			(push out "eax")
+			(push out "ebx")		
+			(gen-get-array-class-id out "eax")
+			(let ([id-list (codeenv-casts cenv)])
+			  (gen-check-if-castable out id-list "eax" "ebx" success-label))
+			(label out fail-label)
+			(call out "__exception" "Bad Cast")
+			(label out success-label "Valid Cast")
+			(pop out "ebx")
+			(pop out "eax")]
+			[else (error 'cast-atype-interface "unimplemented")]))]
     ))
 ;==============================================================================================
 ;==== Helpers
@@ -764,7 +769,9 @@
 
 
 (define (gen-get-array-class-info out register)
-	(movf out register register "+4" "Getting static array info"))
+	(display (string-append "\t" "lea " register " [" register "+" WORD "]" ";Getting static class info from array") out))
+
+
 ;;The register points to the array. The caller preserves the register.
 (define (gen-get-array-class-id out register)
 	(movf out register (string-append register register "4" "Getting static array info"))
