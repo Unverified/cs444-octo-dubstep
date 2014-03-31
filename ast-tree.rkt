@@ -234,8 +234,8 @@
                       [else (comb-nlit (ptype 'boolean) =)])]                
         ['noteq (cond [(and (type-bool? lht) (type-bool? rht)) (comb-blit (compose not equal?))]
                       [else (comb-nlit (ptype 'boolean) (compose not =))])]
-        ['barbar (comb-blit (lambda (x y) (or x y)))]
-        ['ampamp (comb-blit (lambda (x y) (and x y)))]     
+        [(or 'barbar 'bar)  (comb-blit (lambda (x y) (or x y)))]
+        [(and 'ampamp 'amp) (comb-blit (lambda (x y) (and x y)))]
         [_      (printf "~a unimplemented~n" op)
                 (error "unimplemented!")]))))
 

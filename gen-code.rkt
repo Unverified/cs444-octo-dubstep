@@ -37,9 +37,7 @@
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
   (display (string-append "global " (mangle-names cenv) "\n\n") out)
   (display (string-append (mangle-names cenv) ":\n") out)
-  
   (for-each (curryr display out) (list "\tdd " (codeenv-guid cenv) "\t; set up the guid\n")))
-
 
 (define (gen-code all-labels cenvs cenv)
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
@@ -465,6 +463,13 @@
   (label out no-exception)
   
   (gen-arraycreate-code out)
+  (mov out "esi" ARRAY-LABEL)
+  (mov out "[eax]" "esi")
+  (cond
+    [(rtype? ty) (mov out "esi" (rtype-type ty) )
+                 (mov out "[eax+4]" "esi")]
+    [(ptype? ty) (mov out "[eax+4]" 0)]
+    [(atype? ty) (error 'gen-code-arraycreate "how?")]
   
   (pop out "ebx"))
 
