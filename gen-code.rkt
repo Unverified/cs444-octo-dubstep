@@ -16,6 +16,7 @@
 (define WORD 4)
 (define ARRAY-SZ-LOC "1")	;offset in bytes to size of array
 (define ARRAY-HEADER-SZ "2")	;size of header in bytes
+(define ARRAY-LABEL "__ARRAY")
 
 (define (get-outfile env)
   (string-append "output/" (foldr string-append "" (codeenv-name env)) ".s"))
@@ -23,17 +24,14 @@
 (define (gen-all-code cenvs)
   (define out (open-output-file (string->path "output/-start.s") #:exists 'replace))
   (define-values (classes interfaces) (partition codeenv-class? cenvs))
-  (define entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))))
   (define all-labels (remove-duplicates (map mangle-names (append (filter (lambda (x) (and (codevar-static? x) (codevar-ref? x))) (append-map codeenv-vars classes))
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
                                                                   cenvs))))
-  (display "\nsection .text\n\n" out)
-  (gen-runtime-externs out)
-  (display "extern NATIVEjava.io.OutputStream.nativeWrite\n\n" out)
-  (gen-debug-print-eax out)
-  (gen-code-start out (first cenvs) all-labels entry-label cenvs)
+  
+  (gen-code-start out all-labels cenvs)
+  
   (for-each gen-interface interfaces)
-  (for-each (curry gen-code all-labels cenvs) classes))
+  (for-each (curry gen-code (cons ARRAY-LABEL all-labels) cenvs) classes))
 
 (define (gen-interface cenv)
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
@@ -200,21 +198,38 @@
 ;==============================================================================================
 
 ;ENTRY POINT
-(define (gen-code-start out cenv labels entry-label cenvs)
-  (for-each (lambda (x) (display (string-append "extern " x "\n") out)) labels)
-  (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
-  (display "global _start\n" out)
-  (display "_start:\n" out)
-  
-  (comment out "@@@@@@@@@@@@ Initialize Static variables! @@@@@@@")
-  (gen-initialize-static-fields out cenv cenvs)
-  
-  (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
-  (call out entry-label)
-  (gen-debug-print out)
-  (display "mov eax, 1\n" out)
-  (display "int 0x80\n" out)
-  (display "int 3\n" out))
+(define (gen-code-start out labels cenvs)
+  (let ([entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs))))])  
+    (display "global _start\n" out)
+    (display (string-append "global " ARRAY-LABEL "\n\n") out)
+      
+    (for-each (lambda (x) (display (string-append "extern " x "\n") out)) labels)
+    (display "extern NATIVEjava.io.OutputStream.nativeWrite\n" out) 
+    (gen-runtime-externs out)
+    
+    (display "section .data\n\n" out)
+    (display (string-append ARRAY-LABEL ":\n") out)
+    (display (string-append "\tdd " (number->string (name->id "array")) "\n") out)
+    
+    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x) "\n") out))
+              (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
+                          (reverse (codeenv-methods (find-codeenv '("java" "lang" "Object") cenvs)))))
+    
+    (display "section .text\n\n" out)
+    (gen-debug-print-eax out)
+    
+    (comment out "@@@@@@@@@@@@@ ENTRY POINT @@@@@@@@@@@@@")
+    (display "_start:\n" out)
+    
+    (comment out "@@@@@@@@@@@@ Initialize Static variables! @@@@@@@")
+    (gen-initialize-static-fields out cenvs)
+    
+    (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
+    (call out entry-label)
+    (gen-debug-print out)
+    (display "mov eax, 1\n" out)
+    (display "int 0x80\n" out)
+    (display "int 3\n" out)))
 
 ;METHOD DECLARATION
 (define (gen-code-method out cenv params bd cenvs)
@@ -673,14 +688,14 @@
      (gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 
 
-(define (gen-initialize-static-fields out cenv cenvs)
+(define (gen-initialize-static-fields out cenvs)
   ;(printf "gen-initialize-static-fields: ~a~n" cenvs)
   (define (gen-initialize-static-fields-class cenv)
     (map (lambda (cvar)
            (gen-code-recurse out cenv empty (codevar-val cvar) cenvs) 
            (mov out (string-append "[" (mangle-names cvar)  "]") "eax"))
          (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
-  (map gen-initialize-static-fields-class cenvs)) 	
+  (map gen-initialize-static-fields-class cenvs))	
 
 
 (define (nl out)

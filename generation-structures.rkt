@@ -33,7 +33,7 @@
 
 (define (reverse-normalize asoc)
   (cond [(empty? asoc) empty]
-        [else (for/list ([key (remove-duplicates (map first (reverse asoc)))])
+        [else (for/list ([key (remove-duplicates (reverse (map first asoc)))])
                 (assoc key asoc))]))
 
 (define (assoclst->codemeth local lookup cinfos lst)
@@ -45,8 +45,7 @@
                          (is-static? (eval-ast (second asc)))
                          origin
                          (* 4 off)
-                         (loosetype-expr cinfos (get-toplevel (first asc) (info-ast (find-info origin cinfos))))
-                         )))))
+                         (loosetype-expr cinfos (get-toplevel (first asc) (info-ast (find-info origin cinfos)))))))))
 
 (define (assoclst->codevars local lookup cinfos lst)
   (define (get-assignment at)
@@ -80,11 +79,16 @@
             '("java" "lang" "Object")
             parent))))
 
+
+(define (build-ml all-info cinfo)
+    (cond [(false? cinfo) empty]
+          [else (append (filter (compose1 (curry equal? (cunit-scope (info-ast cinfo))) eval-scope second) (envs-methods (info-env cinfo)))
+                                (build-ml all-info (find-info (get-parent cinfo) all-info)))]))
+
 (define (info->codeenv all-info cinfo)
   (let* ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))]
          [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup all-info (envs-vars (info-env cinfo)))]
          [array (if (extends-array? (info-name cinfo)) (list (name->id "array")) empty)])
-    
     (codeenv
      (info-name cinfo)
      (name->id (info-name cinfo))
@@ -94,8 +98,7 @@
      (* 4 (+ 1 (length (filter-not codevar-static? vars))))
      (get-parent cinfo)
      vars
-     (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo))
-                                                                                (envs-methods (info-env cinfo))))
+     (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo)) (build-ml all-info cinfo)))
      (append array        
              (for/list ([name  (map info-name all-info)]
                         [supers (map info-supers all-info)]
@@ -206,7 +209,7 @@
     [(literal _ type val) (literal type type val)]
     [(varuse env id) (match (assoc id (envs-types env))
                        [`(,x ,y) (varuse y id)]
-                       [_ (error "fuck man")])]
+                       [_ (error 'loosetype-expr "varuse is unbound")])]
     [(varassign _ id expr) (let ([newid (loosetype-expr all-cinfo id)])
                              (varassign (ast-env newid) newid (loosetype-expr all-cinfo expr)))]
     

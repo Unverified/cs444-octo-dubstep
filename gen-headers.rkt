@@ -1,4 +1,5 @@
 #lang racket
+(require "environments.rkt")
 (require "generation-structures.rkt")
 (require "mangle-names.rkt")
 
@@ -33,7 +34,8 @@
                   "\tdd " (codeenv-guid cenv) "\t ; the unique id of this class \n"))
   ;; method pointers
   (for-each (lambda (meth) (dis-list (list "\tdd " (mangle-names meth) "\t; scope" "\n" )))
-            (reverse (codeenv-methods cenv)))
+            (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
+                        (reverse (codeenv-methods cenv))))
   ;; static variable pointers
   (for-each (lambda (x) (display (string-append (mangle-names x) ": dd 0\t; \n") out))
             (filter (lambda (x) (and (codevar-ref? x) (codevar-static? x))) (codeenv-vars cenv)))
