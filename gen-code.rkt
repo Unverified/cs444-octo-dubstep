@@ -35,7 +35,7 @@
 
 (define (gen-interface cenv)
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
-  (display (string-append "global " (mangle-names cenv) "\n") out)
+  (display (string-append "global " (mangle-names cenv) "\n\n") out)
   (display (string-append (mangle-names cenv) ":\n") out)
   
   (for-each (curryr display out) (list "\tdd " (codeenv-guid cenv) "\t; set up the guid\n")))
