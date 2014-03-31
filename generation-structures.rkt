@@ -243,7 +243,7 @@
     
     [(block _ id statements) (block voidt id (map (curry loosetype-expr all-cinfo) statements))]
     [(iff _ test tru fls) (iff voidt (loosetype-expr all-cinfo test) (loosetype-expr all-cinfo tru) (loosetype-expr all-cinfo fls))]
-    [(while _ test body) (while voidt (loosetype-expr all-cinfo test) (loosetype-expr all-cinfo test))]
+    [(while _ test body) (while voidt (loosetype-expr all-cinfo test) (loosetype-expr all-cinfo body))]
     [(for _ in cl up bdy) (for voidt (loosetype-expr all-cinfo in) (loosetype-expr all-cinfo cl) (loosetype-expr all-cinfo up) (loosetype-expr all-cinfo bdy))]
     
     
