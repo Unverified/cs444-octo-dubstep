@@ -99,7 +99,8 @@
      (get-parent cinfo)
      vars
      (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo)) (build-ml all-info cinfo)))
-     (append array        
+     (append array
+             (list (name->id (info-name cinfo)))
              (for/list ([name  (map info-name all-info)]
                         [supers (map info-supers all-info)]
                         #:when (list? (member (info-name cinfo) supers)))
