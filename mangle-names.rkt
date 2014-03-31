@@ -1,4 +1,5 @@
 #lang racket
+(require "ast-tree.rkt")
 (require "environments.rkt")
 (require "types.rkt")
 (require "errorf.rkt")
@@ -10,6 +11,7 @@
 (define (constr-label class args)
   (cond [(not (and (list? class) (andmap string? class)))
          (error 'constr-label "given invalid class name ~e" class)]
+        [(and (list? args) (not (empty? args)) (andmap parameter? args)) (constr-label class (map parameter-type args))]
         [(not (and (list? args) (andmap (lambda (x) (or (atype? x) (rtype? x) (ptype? x))) args)))
          (error 'constr-label "given invalid arg list ~e" args)]
         [else (mangle-names (codemeth (funt "" args) #f #f class 0 empty))]))

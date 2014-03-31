@@ -28,6 +28,7 @@
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
                                                                   cenvs))))
   (display "\nsection .text\n\n" out)
+  (gen-runtime-externs out)
   (display "extern NATIVEjava.io.OutputStream.nativeWrite\n\n" out)
   (gen-debug-print-eax out)
   (gen-code-start out all-labels entry-label cenvs)
@@ -132,7 +133,7 @@
   (let ([parent (codeenv-parent cenv)]
         [member-vars (filter-not codevar-static? (codeenv-vars cenv))])
     (load-membervars-into-this out sdecls mbdecls member-vars cenvs)
-    (if [empty? parent] (printf "") (call out (constr-label parent params)))
+    (if (empty? parent) (printf "") (call out (constr-label parent empty)))
     (gen-code-method out sdecls mbdecls params bd cenvs) ))
 
 ;CLASS CREATE
@@ -145,7 +146,7 @@
     (push out "ebx")
 
     (cond 
-      [(jlstring-slit? cls args) (stringlit->chararray out sinfo (first args))
+      [(jlstring-slit? rty args) (stringlit->chararray out sinfo (first args))
                                  (push out "eax" "push char array on stack")]
       [else (push-method-args out sinfo args cenvs)])	;push args onto stack
   
@@ -462,16 +463,16 @@
 ;==============================================================================================
 
 (define (gen-code-fieldaccess out sinfo rtnaddr left field cenvs)
-  (define fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-left-type left)) cenvs))))
+  ;(define fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (comment out "Fieldaccess")
   (push out "ebx")
   
-  (gen-code-get-this out sinfo left cenvs)
-  (cond
-    [(codevar-static? fcvar) ]
-    [rtnaddr (addi out "eax" (codevar-tag fcvar))]
-    [else (mov out "eax" (string-append "[ebx+" (number->string (codevar-tag fcvar)) "]"))])
+  ;(gen-code-get-this out sinfo left cenvs)
+  ;(cond
+  ;  [(codevar-static? fcvar) ]
+  ;  [rtnaddr (addi out "eax" (codevar-tag fcvar))]
+  ;  [else (mov out "eax" (string-append "[ebx+" (number->string (codevar-tag fcvar)) "]"))])
   
   (pop out "ebx"))
 
@@ -679,7 +680,7 @@
 
 
 (define (gen-initialize-static-fields out cenvs)
-  (printf "gen-initialize-static-fields: ~a~n" cenvs)
+  ;(printf "gen-initialize-static-fields: ~a~n" cenvs)
   (define (gen-initialize-static-fields-class cenv)
     (map (lambda (cvar)
            (gen-code-recurse out empty (codevar-val cvar) cenvs) 

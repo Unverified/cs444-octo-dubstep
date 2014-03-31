@@ -185,7 +185,6 @@
     [`(not ,_) (ptype 'boolean)]))
 
 (define (loosetype-expr all-cinfo at)
-  (printf "loosetype-expr ~a~n" at)
   (define voidt (ptype 'void))
   (match at
     [`() `()]
