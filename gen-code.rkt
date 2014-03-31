@@ -367,8 +367,8 @@
        (movi out "eax" 0)
        (jmp out end-label)
        (label out success-label)
-       (movi out "eax" 0)
-       (label out end-label)]
+       (movi out "eax" 1)
+       (label out end-label "Done instanceof")]
       [else (error 'cast-rtype-interface "unimplemented")])))
 
 (define (stringlit? t)
@@ -615,9 +615,9 @@
   (gen-code-recurse out cenv sinfo ex cenvs)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
-    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
+    [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
+    [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
+    [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
     [(rtype name) (let ([cenv (find-codeenv name cenvs)]
                         [fail-label (symbol->string (gensym "castablefail"))]
@@ -636,7 +636,14 @@
                        (pop out "ebx")
                        (pop out "eax")]
                       [else (error 'cast-rtype-interface "unimplemented")]))]
-    [(atype type) (error 'cast-atype "unimplemented")]
+    [(atype type) 
+
+		;;TODO : Get run-time type of array
+		;;Get first element of array?
+		;;What if array has length null?
+		;;What if array elements not initialized?
+		;;What if array is null? 		
+		(error 'cast-atype "unimplemented")]
     ))
 ;==============================================================================================
 ;==== Helpers
@@ -708,7 +715,7 @@
   (define (gen-initialize-static-fields-class cenv)
     (map (lambda (cvar)
            (gen-code-recurse out cenv empty (codevar-val cvar) cenvs) 
-           (mov out (string-append "[" (mangle-names cvar)  "]") "eax"))
+           (mov out (string-append "[" (mangle-names cvar)  "]") "eax" "Loading static value for " (mangle-names cvar)))
          (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
   (map gen-initialize-static-fields-class cenvs)) 	
 
