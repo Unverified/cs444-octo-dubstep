@@ -95,11 +95,12 @@
      (cond [(is-class? (info-ast cinfo)) #t]
            [(is-interface? (info-ast cinfo)) #f]
            [else (error "info->codeenv givencinfo of a improper compilation unit")])
-     (* 4 (+ 1 (length (filter-not codevar-static? vars))))
+     (* 4 (+ 1 (if (is-interface? (info-ast cinfo)) 1 0) (length (filter-not codevar-static? vars))))
      (get-parent cinfo)
      vars
      (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo)) (build-ml all-info cinfo)))
-     (append array        
+     (append array
+             (list (name->id (info-name cinfo)))
              (for/list ([name  (map info-name all-info)]
                         [supers (map info-supers all-info)]
                         #:when (list? (member (info-name cinfo) supers)))
