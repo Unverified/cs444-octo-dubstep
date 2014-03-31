@@ -9,6 +9,7 @@
 (provide (struct-out codemeth))
 (provide (struct-out codeenv))
 
+(provide name->id)
 (provide info->codeenv)
 (provide find-codeenv)
 (provide find-codemeth)
@@ -81,7 +82,9 @@
 
 (define (info->codeenv all-info cinfo)
   (let* ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))]
-         [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup all-info (envs-vars (info-env cinfo)))])
+         [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup all-info (envs-vars (info-env cinfo)))]
+         [array (if (extends-array? (info-name cinfo)) (list (name->id "array")) empty)])
+    
     (codeenv
      (info-name cinfo)
      (name->id (info-name cinfo))
@@ -93,7 +96,8 @@
      vars
      (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo))
                                                                                 (envs-methods (info-env cinfo))))
-     (append (for/list ([name  (map info-name all-info)]
+     (append array        
+             (for/list ([name  (map info-name all-info)]
                         [supers (map info-supers all-info)]
                         #:when (list? (member (info-name cinfo) supers)))
                (name->id name))
@@ -101,6 +105,11 @@
                         [impls (map info-impls all-info)]
                         #:when (and (list? impls) (list? (member (info-name cinfo) impls))))
                (name->id name))))))
+
+(define (extends-array? name)
+  (ormap (curry equal? name) (list `("java" "lang" "Object")
+                                   `("java" "lang" "Cloneable")
+                                   `("java" "io" "Serializable"))))
 
 
 ;======================================================================================
@@ -117,6 +126,10 @@
 (define (find-codevar id lst)
   (cond [(not (string? id)) (error 'find-codevar "id must be of type string")]
         [else (findf (compose (curry equal? id) codevar-id) lst)]))
+
+;======================================================================================
+;==== Environment Generation Helpers
+;======================================================================================
 
 (define (get-toplevel id at)
   (define (matches-id? at)
