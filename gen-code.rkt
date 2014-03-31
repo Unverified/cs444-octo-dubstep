@@ -143,9 +143,9 @@
 
 ;CLASS CREATE
 (define (gen-code-classcreate out cenv sinfo cls rty args cenvs)
-  (let* ([cenv (find-codeenv rty cenvs)]
-         [mcvar (find-codemeth cls (codeenv-methods cenv))]
-         [csize (codeenv-size cenv)])
+  (let* ([newcenv (find-codeenv rty cenvs)]
+         [mcvar (find-codemeth cls (codeenv-methods newcenv))]
+         [csize (codeenv-size newcenv)])
 
     (comment out "CLASS CREATE " (foldr string-append "" rty))
     (push out "ebx")
@@ -156,6 +156,8 @@
       [else (push-method-args out cenv sinfo args cenvs)])	;push args onto stack
   
     (malloc out csize)
+    (mov out "ecx" (mangle-names newcenv))
+    (mov out "[eax]" "ecx")
     (push out "eax")			;push "this" onto stack
     (call out (mangle-names mcvar))
     (pop out "eax")			;pop "this" off stack and return it
@@ -226,7 +228,7 @@
     
     (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
     (call out entry-label)
-    (gen-debug-print out)
+    (mov out "ebx" "eax")
     (display "mov eax, 1\n" out)
     (display "int 0x80\n" out)
     (display "int 3\n" out)))
@@ -408,8 +410,7 @@
     
     (cond
       [(codeenv-class? cenv)
-       (movi out "ebx" 0)
-       (cmp out "eax" "ebx")
+       (cmp out "eax" "0")
        (cjmp out "je" fail-label "Null literal is automatically false")
        (gen-get-class-id out "eax")
        ;;get id list
@@ -420,7 +421,7 @@
        (movi out "eax" 0)
        (jmp out end-label)
        (label out success-label)
-       (movi out "eax" 0)
+       (movi out "eax" 1)
        (label out end-label)]
       [else (error 'cast-rtype-interface "unimplemented")])))
 
