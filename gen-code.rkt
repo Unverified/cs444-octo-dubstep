@@ -141,9 +141,9 @@
 
 ;CLASS CREATE
 (define (gen-code-classcreate out cenv sinfo cls rty args cenvs)
-  (let* ([cenv (find-codeenv rty cenvs)]
-         [mcvar (find-codemeth cls (codeenv-methods cenv))]
-         [csize (codeenv-size cenv)])
+  (let* ([newcenv (find-codeenv rty cenvs)]
+         [mcvar (find-codemeth cls (codeenv-methods newcenv))]
+         [csize (codeenv-size newcenv)])
 
     (comment out "CLASS CREATE " (foldr string-append "" rty))
     (push out "ebx")
@@ -154,6 +154,8 @@
       [else (push-method-args out cenv sinfo args cenvs)])	;push args onto stack
   
     (malloc out csize)
+    (mov out "ecx" (mangle-names newcenv))
+    (mov out "[eax]" "ecx")
     (push out "eax")			;push "this" onto stack
     (call out (mangle-names mcvar))
     (pop out "eax")			;pop "this" off stack and return it
@@ -224,7 +226,7 @@
     
     (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
     (call out entry-label)
-    (gen-debug-print out)
+    (mov out "ebx" "eax")
     (display "mov eax, 1\n" out)
     (display "int 0x80\n" out)
     (display "int 3\n" out)))
@@ -247,8 +249,8 @@
   (nl out))			;ret from method
 
 ;METHOD CALL
-(define (gen-code-methodcall out cenv sinfo left id args cenvs)
-  (define mcvar (find-codemeth id (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
+(define (gen-code-methodcall out cenv sinfo left mfunt args cenvs)
+  (define mcvar (find-codemeth mfunt (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (push out "ebx")
   (gen-code-get-this out cenv sinfo left cenvs)	;puts "this" in ebx
@@ -256,9 +258,10 @@
   (comment out "Pushing method args on stack")
   (push-method-args out cenv sinfo args cenvs)	;push all method args onto stack
   (push out "ebx" "this") 			;push the addr of "this"
-  (call out (mangle-names mcvar))					;TODO: call right label
+  (call out (mangle-names mcvar))					
   (reset-stack out (+ 1 (length args)))		;"pop" off all the args from the stack
   (pop out "ebx"))
+
 
 ;METHOD RETURN
 (define (gen-code-return out cenv sinfo expr cenvs)
@@ -301,7 +304,7 @@
 
 ;BINOP
 (define (gen-code-binop out cenv sinfo op ls rs cenvs)
-  (printf "gen-code-binop: ~a ~a ~a~n" ls op rs)
+  (comment out "gen-code-binop: " (symbol->string op))
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out cenv sinfo op ls rs cenvs)]
@@ -311,22 +314,59 @@
      (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
      (if [stringlit? rs] (gen-code-stringlit out cenv sinfo rs cenvs) (gen-code-recurse out cenv sinfo rs cenvs))
      (match op
-       ['plus  (add out "ebx" "eax")]
-       ['minus (sub out "ebx" "eax")]
-       ['star  (imul out "ebx" "eax")]
-       ['slash (divide out "ebx" "eax")]
-       ['pct   (rem out "ebx" "eax")]
-       [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out cenv sinfo op ls rs cenvs)])
-     (mov out "eax" "ebx")])
+       ['plus  (cond
+                 [(or (string-rtype? (ast-env ls)) (string-rtype? (ast-env rs)))
+                  (str-add out cenvs ls rs)]
+                 [else (add out "ebx" "eax")
+                       (mov out "eax" "ebx")])]
+       ['minus (sub out "ebx" "eax")
+               (mov out "eax" "ebx")]
+       ['star  (imul out "ebx" "eax")
+               (mov out "eax" "ebx")]
+       ['slash (divide out "ebx" "eax")
+               (mov out "eax" "ebx")]
+       ['pct   (rem out "ebx" "eax")
+               (mov out "eax" "ebx")]
+       [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (conditional out op "ebx" "eax")
+                                              (mov out "eax" "ebx")])])
   
   (pop out "ebx" "restoring"))			;restore ebx
 
+(define (str-add out cenvs ls rs)
+  ;ls is in ebx
+  ;rs is in eax
+  (display "\n\n;STRING ADDITION\n" out)
+  (push out "eax")	;push rs on stack
+  (gen-methodcall out cenvs '("java" "lang" "String") (funt "valueOf" (args->params (list ls))) "0" "ebx")
+  (mov out "ebx" "eax")	;mov valueOf result into ebx
+  (pop out "ecx")	;pop rs off stack and put in ecx
+  (gen-methodcall out cenvs '("java" "lang" "String") (funt "valueOf" (args->params (list rs))) "0" "ecx")
+
+  (display ";RUNNING CONCAT\n" out)
+  ;now know for sure that a string object is in eax (rs) and ebx (ls)
+  (gen-methodcall out cenvs '("java" "lang" "String") (funt "concat" (list (rtype '("java" "lang" "String")))) "ebx" "eax")
+  (display ";DONE\n\n" out))
+
+;generated METHOD CALL
+(define (gen-methodcall out cenvs cls mfunt thisreg argreg)
+  (define mcvar (find-codemeth mfunt (codeenv-methods (find-codeenv cls cenvs))))
+  (push out argreg)	;push arg
+  (push out thisreg) 	;push this
+  (call out (mangle-names mcvar))
+  (reset-stack out 2))
+
+(define (args->params args)
+  (map (lambda(arg) (ast-env arg)) args))
+
+(define (string-rtype? t)
+  (and (rtype? t) (equal? '("java" "lang" "String") (rtype-type t))))
+  
 
 ;Helper - CONDITIONAL
-(define (gen-code-conditional out cenv sinfo op ls rs cenvs)
+(define (conditional out op reg1 reg2)
   (let ([ltrue (symbol->string (gensym "true"))]	
         [lend (symbol->string (gensym "end"))])
-    (cmp out "ebx" "eax")				;first compare the 2 operations
+    (cmp out reg1 reg2)				;first compare the 2 operations
     (match op					;then put the correct comditional jmp to a tru label 
       ['eqeq (cjmp out "je" ltrue)]
       ['noteq (cjmp out "jne" ltrue)]
@@ -334,10 +374,10 @@
       ['lt (cjmp out "jl" ltrue)]
       ['gteq (cjmp out "jge" ltrue)]
       ['lteq (cjmp out "jle" ltrue)])
-    (movi out "ebx" 0)				;if the condition was false set eax to 0
+    (movi out reg1 0)				;if the condition was false set eax to 0
     (jmp out lend)
     (label out ltrue)				;and skip passed true code
-    (movi out "ebx" 1)				;if condition was true set eax to 1
+    (movi out reg1 1)				;if condition was true set eax to 1
     (label out lend)))
 
 ;Helper - LOGICAL
@@ -368,8 +408,7 @@
     
     (cond
       [(codeenv-class? cenv)
-       (movi out "ebx" 0)
-       (cmp out "eax" "ebx")
+       (cmp out "eax" "0")
        (cjmp out "je" fail-label "Null literal is automatically false")
        (gen-get-class-id out "eax")
        ;;get id list
@@ -380,8 +419,9 @@
        (movi out "eax" 0)
        (jmp out end-label)
        (label out success-label)
-       (movi out "eax" 0)
-       (label out end-label)]
+       (movi out "eax" 1)
+       (label out end-label "Done instanceof")]
+
       [else (error 'cast-rtype-interface "unimplemented")])))
 
 (define (stringlit? t)
@@ -577,8 +617,7 @@
          [label-end (symbol->string (gensym "while_end"))])
     (label out label-cond)
     (gen-code-recurse out cenv sinfo test cenvs)
-    (movi out "ecx" 1)				
-    (cmp out "eax" "ecx")			
+    (cmp out "eax" "1")			
     (cjmp out "jne" label-end)			
     (gen-code-recurse out cenv sinfo body cenvs)
     (jmp out label-cond)
@@ -635,9 +674,9 @@
   (gen-code-recurse out cenv sinfo ex cenvs)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
-    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
+    [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
+    [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
+    [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
     [(rtype name) (let ([cenv (find-codeenv name cenvs)]
                         [fail-label (symbol->string (gensym "castablefail"))]
@@ -656,7 +695,14 @@
                        (pop out "ebx")
                        (pop out "eax")]
                       [else (error 'cast-rtype-interface "unimplemented")]))]
-    [(atype type) (error 'cast-atype "unimplemented")]
+    [(atype type) 
+
+		;;TODO : Get run-time type of array
+		;;Get first element of array?
+		;;What if array has length null?
+		;;What if array elements not initialized?
+		;;What if array is null? 		
+		(error 'cast-atype "unimplemented")]
     ))
 ;==============================================================================================
 ;==== Helpers
@@ -728,7 +774,7 @@
   (define (gen-initialize-static-fields-class cenv)
     (map (lambda (cvar)
            (gen-code-recurse out cenv empty (codevar-val cvar) cenvs) 
-           (mov out (string-append "[" (mangle-names cvar)  "]") "eax"))
+           (mov out (string-append "[" (mangle-names cvar)  "]") "eax" "Loading static value for " (mangle-names cvar)))
          (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
   (map gen-initialize-static-fields-class cenvs))	
 
@@ -809,6 +855,10 @@
   (display (string-append "\timul " reg1 "," reg2) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
+(define (idiv out reg . comment)
+  (display (string-append "\tidiv " reg) out)
+  (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
+
 (define (cmp out reg1 reg2 . comment)
   (display (string-append "\tcmp " reg1 "," reg2) out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
@@ -828,39 +878,31 @@
   (display "\tnop" out)
   (if [> (length comment) 0] (cmt out comment) (display "\n" out)))
 
-(define (divide out reg1 reg2)
+;reg1/reg2
+(define (divide out dstreg reg2)
   (comment out "divide")
-  
-  
-  
-  ;;need to:
-  ;;put content of reg2 into eax
-  ;;put 0 into edx
-  ;;do an idiv
-  (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
-                                   (mov out "ebx" reg2))
-      (begin (mov out "eax" reg2)
-             (mov out "ebx" reg1)))
-  (mov out "edx" "0")
-  (display (string-append "idiv " "ebx" "\n") out)
-  (mov out "eax" "eax"))
+  (define set-edx-neg (symbol->string (gensym "set_edx_neg")))
+  (define end (symbol->string (gensym "end")))
 
+  (mov out "ecx" reg2)	;mov reg2 into ecx
+  (mov out "eax" dstreg);mov dstreg into eax
+			;now eax/ecx
 
-(define (rem out reg1 reg2)
-  (comment out "remainder")
-  
-  ;;need to:
-  ;;put content of reg2 into eax
-  ;;put 0 into edx
-  ;;put content of reg1 into ebx
-  ;;do an idiv
-  (if (string=? reg1 "eax") (begin (display (string-append "xchg " reg1 "," reg2 "\n") out)
-                                   (mov out "ebx" reg2))
-      (begin (mov out "eax" reg2)
-             (mov out "ebx" reg1)))
+  ;set edx to 0 or -1 based on sign of eax
+  (cmp out "eax" "0")
+  (cjmp out "jl" set-edx-neg)
   (mov out "edx" "0")
-  (display (string-append "idiv " "ebx" "\n") out)
-  (mov out "eax" "edx"))
+  (jmp out end)
+  (label out set-edx-neg)
+  (mov out "edx" "-1")
+  (label out end)
+
+  (idiv out "ecx")
+  (mov out dstreg "eax"))
+
+(define (rem out dstreg reg2)
+  (divide out dstreg reg2)
+  (mov out dstreg "edx"))
 
 
 (define (gen-debug-print out)
