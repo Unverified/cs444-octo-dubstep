@@ -14,8 +14,8 @@
 (struct stackinfo (mdecls ldecls strdecls ebpoff))
 
 (define WORD 4)
-(define ARRAY-SZ-LOC "1")	;offset in bytes to size of array
-(define ARRAY-HEADER-SZ "2")	;size of header in bytes
+(define ARRAY-SZ-LOC "2")	;offset in bytes to size of array
+(define ARRAY-HEADER-SZ "3")	;size of header in bytes
 (define ARRAY-LABEL "__ARRAY")
 
 (define (get-outfile env)
@@ -102,19 +102,19 @@
   (gen-code-recurse out cenv sinfo ex cenvs)	;puts result in eax
   (match lhs
     [(vdecl _ _ _ _ id)  (push out "eax" "declaring " id)
-                         (stackinfo-add-strdecl (stackinfo-add-ldecl sinfo id) ex)]
+                         (stackinfo-add-strdecl (stackinfo-add-ldecl sinfo id) id ex)]
     [(varuse _ id) (gen-code-varuse-write out cenv sinfo id)
-                   sinfo]
+                   (stackinfo-add-strdecl (stackinfo-rmv-modified-strdecl sinfo id) id ex)] ;need to remove any string decls if they are modified, but add them back in if they were modified to another stringlit
     [(arrayaccess _ left id) (push out "ebx" "saving")
                              (mov out "ebx" "eax")
                              (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
-                             (movt out "eax" "ebx" "")
+                             (mov out "[eax]" "ebx")
                              (pop out "ebx")
                              sinfo]
     [(fieldaccess _ left field) (push out "ebx" "saving")
                                 (mov out "ebx" "eax")
                                 (gen-code-fieldaccess out cenv sinfo #t left field cenvs)
-                                (movt out "eax" "ebx" "")
+                                (mov out "[eax]" "ebx")
                                 (pop out "ebx")
                                 sinfo
                                 
@@ -309,24 +309,26 @@
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out cenv sinfo op ls rs cenvs)]
     [(equal? op 'instanceof) (gen-code-instanceof out cenv sinfo ls rs cenvs)]
     [else
-     (if [stringlit? rs] (gen-code-stringlit out cenv sinfo rs cenvs) (gen-code-recurse out cenv sinfo rs cenvs))
-     (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
      (if [stringlit? ls] (gen-code-stringlit out cenv sinfo ls cenvs) (gen-code-recurse out cenv sinfo ls cenvs))
+     (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
+     (if [stringlit? rs] (gen-code-stringlit out cenv sinfo rs cenvs) (gen-code-recurse out cenv sinfo rs cenvs))
      (match op
-       ['plus (add out "eax" "ebx")]
-       ['minus (sub out "eax" "ebx")]
-       ['star (imul out "eax" "ebx")]
-       ['slash (divide out "eax" "ebx")]
-       ['pct (rem out "eax" "ebx")]
-       [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out cenv sinfo op ls rs cenvs)])])
+       ['plus  (add out "ebx" "eax")]
+       ['minus (sub out "ebx" "eax")]
+       ['star  (imul out "ebx" "eax")]
+       ['slash (divide out "ebx" "eax")]
+       ['pct   (rem out "ebx" "eax")]
+       [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (gen-code-conditional out cenv sinfo op ls rs cenvs)])
+     (mov out "eax" "ebx")])
   
   (pop out "ebx" "restoring"))			;restore ebx
+
 
 ;Helper - CONDITIONAL
 (define (gen-code-conditional out cenv sinfo op ls rs cenvs)
   (let ([ltrue (symbol->string (gensym "true"))]	
         [lend (symbol->string (gensym "end"))])
-    (cmp out "eax" "ebx")				;first compare the 2 operations
+    (cmp out "ebx" "eax")				;first compare the 2 operations
     (match op					;then put the correct comditional jmp to a tru label 
       ['eqeq (cjmp out "je" ltrue)]
       ['noteq (cjmp out "jne" ltrue)]
@@ -334,10 +336,10 @@
       ['lt (cjmp out "jl" ltrue)]
       ['gteq (cjmp out "jge" ltrue)]
       ['lteq (cjmp out "jle" ltrue)])
-    (movi out "eax" 0)				;if the condition was false set eax to 0
+    (movi out "ebx" 0)				;if the condition was false set eax to 0
     (jmp out lend)
     (label out ltrue)				;and skip passed true code
-    (movi out "eax" 1)				;if condition was true set eax to 1
+    (movi out "ebx" 1)				;if condition was true set eax to 1
     (label out lend)))
 
 ;Helper - LOGICAL
@@ -391,7 +393,7 @@
 
 (define (gen-code-stringlit out cenv sinfo slit cenvs)
   (match (assoc (literal-value slit) (stackinfo-strdecls sinfo))
-    [(list key value) (movf out "eax" "ebp" value)]
+    [(list key value) (movf out "eax" "ebp" (second value))]
     [_ (gen-code-classcreate out cenv sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list slit) cenvs)]))
 
 ;==============================================================================================
@@ -432,7 +434,7 @@
   (push out "ebx")
   (call out "__malloc")		;address will be in eax
   (pop out "ebx")
-  (mov out "[eax+4]" "ebx"))	;move the size of the array to the first element
+  (mov out (string-append "[eax+4*"ARRAY-SZ-LOC"]") "ebx"))	;move the size of the array to the first element
 
 ;ARRAY ACCESS
 (define (gen-code-arrayaccess out cenv sinfo rtnaddr left index cenvs) 
@@ -479,17 +481,37 @@
 
 (define (gen-code-fieldaccess out cenv sinfo rtnaddr left field cenvs)
   ;(define fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-left-type left)) cenvs))))
+  (define left-type (get-left-type left))
 
   (comment out "Fieldaccess")
   (push out "ebx")
-  
-  ;(gen-code-get-this out cenv sinfo left cenvs)
-  ;(cond
-  ;  [(codevar-static? fcvar) ]
-  ;  [rtnaddr (addi out "eax" (codevar-tag fcvar))]
-  ;  [else (mov out "eax" (string-append "[ebx+" (number->string (codevar-tag fcvar)) "]"))])
+
+  (cond
+    [(atype? left-type) (gen-atype-fieldaccess out cenv sinfo left field cenvs)]
+    [else (let ([fcvar (find-codevar field (codeenv-vars (find-codeenv (rtype-type (get-left-type left)) cenvs)))])
+            (cond
+              [(codevar-static? fcvar) (gen-static-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)]
+              [else (gen-normal-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)]))])
   
   (pop out "ebx"))
+
+
+(define (gen-atype-fieldaccess out cenv sinfo left field cenvs)
+  (cond
+    [(equal? field "length") (gen-code-get-this out cenv sinfo left cenvs)		;eax now has addr of begin of array
+                             (mov out "eax" (string-append "[eax+4*"ARRAY-SZ-LOC"]"))]	;return the length of the array
+    [else (error (string-append "Fieldacces on array type thats not length: " field))]))
+
+(define (gen-static-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)
+  (cond
+    [rtnaddr (mov out "eax" (mangle-names fcvar))]				;return the address of the static label
+    [else    (mov out "eax" (string-append "[" (mangle-names fcvar) "]"))]))	
+
+(define (gen-normal-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)
+  (gen-code-get-this out cenv sinfo left cenvs)
+  (cond
+    [rtnaddr (addi out "eax" (codevar-tag fcvar))]				;add the offset to this address
+    [else    (mov out "eax" (string-append "[ebx+" (number->string (codevar-tag fcvar)) "]"))]))
 
 (define (get-left-type left)
   (cond
@@ -582,14 +604,13 @@
 
 (define (gen-code-varuse-read out cenv sinfo id cenvs)
   (cond
-    [(use-membrdecl? cenv sinfo id) (mov out "eax" "[ebp+8]")
+    [(use-membrdecl? cenv sinfo id) (mov out "eax" "[ebp+8]")	;if its a member variable then we need to get if from the this
                                     (mov out "eax" (string-append "[eax+" (get-var-mem-loc cenv sinfo id) "]"))]
     [else (mov out "eax" (string-append "[" (get-var-mem-loc cenv sinfo id) "]"))]))
 
-;(mov out (string-append "[" (get-var-mem-loc (varuse-id id) sinfo) "]") "eax"
 (define (gen-code-varuse-write out cenv sinfo id)
   (cond
-    [(use-membrdecl? cenv sinfo id) (mov out "ecx" "[ebp+8]")
+    [(use-membrdecl? cenv sinfo id) (mov out "ecx" "[ebp+8]")	;if its a member variable then we need to get if from the this
                                     (mov out (string-append "[ecx+" (get-var-mem-loc cenv sinfo id) "]") "eax")]
     [else (mov out (string-append "[" (get-var-mem-loc cenv sinfo id) "]") "eax")]))
 
@@ -644,14 +665,17 @@
     [(and (list? mdecl) (list? ldecl)) (error "We have clashing decls in m and l")]
     [(list? mdecl) (string-append "ebp" (second mdecl))] ;method param, get off stack
     [(list? ldecl) (string-append "ebp" (second ldecl))] ;local variable, get off stack
-    [(codevar? membr-decl) (number->string (codevar-tag membr-decl))] ;member/static variable, get offset/label
+    [(and (codevar? membr-decl) (codevar-static? membr-decl)) (mangle-names membr-decl)] ;static variable, use label
+    [(codevar? membr-decl) (number->string (codevar-tag membr-decl))] ;member variable, use offset into this
     [else (error "Could find a declaration for a variable? No test should be like that.")]))
 
+;determines if the use of id is a member variable (ie no local/static)
 (define (use-membrdecl? cenv sinfo id)
   (define mdecl (assoc id (stackinfo-mdecls sinfo)))
   (define ldecl (assoc id (stackinfo-ldecls sinfo)))
   (define membr-decl (find-codevar id (codeenv-vars cenv)))
-  (and (not (or (list? mdecl) (list? ldecl))) (codevar? membr-decl)))
+  (and (not (or (list? mdecl) (list? ldecl))) 
+       (and (codevar? membr-decl) (not (codevar-static? membr-decl)))))
 
 (define (stackinfo-add-ldecl sinfo id)
   (define ldecls (stackinfo-ldecls sinfo))
@@ -661,15 +685,21 @@
              (stackinfo-strdecls sinfo)
              (+ ebpoff WORD)))
 
-(define (stackinfo-add-strdecl sinfo ex)
+(define (stackinfo-add-strdecl sinfo id ex)
   (cond
     [(and (literal? ex) (equal? (literal-type ex) (rtype '("java" "lang" "String"))))
      (stackinfo (stackinfo-mdecls sinfo)
                 (stackinfo-ldecls sinfo)
-                (cons (list (literal-value ex) (second (first (stackinfo-ldecls sinfo)))) 
+                (cons (list (literal-value ex) (list id (second (first (stackinfo-ldecls sinfo))))) 
                       (stackinfo-strdecls sinfo))
                 (stackinfo-ebpoff sinfo))]
     [else sinfo]))
+
+(define (stackinfo-rmv-modified-strdecl sinfo id)
+  (stackinfo (stackinfo-mdecls sinfo)
+                (stackinfo-ldecls sinfo)
+                (filter-not (lambda(strdecl) (equal? id (first (second strdecl)))) (stackinfo-strdecls sinfo))
+                (stackinfo-ebpoff sinfo)))
 
 
 ;;the register points to the object. The caller preserves the register. 
