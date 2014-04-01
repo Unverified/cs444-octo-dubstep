@@ -127,7 +127,7 @@
 ;CONSTRUCTOR
 (define (gen-code-constructor out cenv params bd cenvs)
   (let ([parent (codeenv-parent cenv)]
-        [member-vars (filter-not codevar-static? (codeenv-vars cenv))]
+        [member-vars (reverse (filter-not (lambda(x) (or (codevar-static? x) (empty? (codevar-val x)))) (codeenv-vars cenv)))]
         [sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty empty 4)])
     (push out "ebp")			
     (mov out "ebp" "esp")
@@ -201,7 +201,7 @@
 
 ;ENTRY POINT
 (define (gen-code-start out labels cenvs)
-  (let ([entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs))))])  
+  (let ([entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs))) "gen-code-start")])  
     (display "global _start\n" out)
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
       
@@ -213,7 +213,7 @@
     (display (string-append ARRAY-LABEL ":\n") out)
     (display (string-append "\tdd " (number->string (name->id "array")) "\n") out)
     
-    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x) "\n") out))
+    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x "gen-code-start2") "\n") out))
               (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
                           (reverse (codeenv-methods (find-codeenv '("java" "lang" "Object") cenvs)))))
     
@@ -260,7 +260,7 @@
   (comment out "Pushing method args on stack")
   (push-method-args out cenv sinfo args cenvs)	;push all method args onto stack
   (push out "ebx" "this") 			;push the addr of "this"
-  (call out (mangle-names mcvar))					
+  (call out (mangle-names mcvar "gen-code-methodcall"))					
   (reset-stack out (+ 1 (length args)))		;"pop" off all the args from the stack
   (pop out "ebx"))
 
@@ -329,6 +329,8 @@
                (mov out "eax" "ebx")]
        ['pct   (rem out "ebx" "eax")
                (mov out "eax" "ebx")]
+       ['bar (display "or eax,ebx\n" out)]
+       ['amp (display "and eax,ebx\n" out)]
        [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (conditional out op "ebx" "eax")
                                               (mov out "eax" "ebx")])])
   
@@ -354,11 +356,11 @@
   (define mcvar (find-codemeth mfunt (codeenv-methods (find-codeenv cls cenvs))))
   (push out argreg)	;push arg
   (push out thisreg) 	;push this
-  (call out (mangle-names mcvar))
+  (call out (mangle-names mcvar "gen-methodcall" cls mfunt))
   (reset-stack out 2))
 
 (define (args->params args)
-  (map (lambda(arg) (ast-env arg)) args))
+  (map (lambda(arg) (if (equal? (ptype 'null) (ast-env arg)) (rtype '("java" "lang" "Object")) (ast-env arg))) args))
 
 (define (string-rtype? t)
   (and (rtype? t) (equal? '("java" "lang" "String") (rtype-type t))))
@@ -543,8 +545,8 @@
 
 (define (gen-static-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)
   (cond
-    [rtnaddr (mov out "eax" (mangle-names fcvar))]				;return the address of the static label
-    [else    (mov out "eax" (string-append "[" (mangle-names fcvar) "]"))]))	
+    [rtnaddr (mov out "eax" (mangle-names fcvar "gen-static-fieldaccess"))]				;return the address of the static label
+    [else    (mov out "eax" (string-append "[" (mangle-names fcvar "gen-static-fieldaccess2") "]"))]))	
 
 (define (gen-normal-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)
   (gen-code-get-this out cenv sinfo left cenvs)
@@ -703,7 +705,7 @@
     [(and (list? mdecl) (list? ldecl)) (error "We have clashing decls in m and l")]
     [(list? mdecl) (string-append "ebp" (second mdecl))] ;method param, get off stack
     [(list? ldecl) (string-append "ebp" (second ldecl))] ;local variable, get off stack
-    [(and (codevar? membr-decl) (codevar-static? membr-decl)) (mangle-names membr-decl)] ;static variable, use label
+    [(and (codevar? membr-decl) (codevar-static? membr-decl)) (mangle-names membr-decl "get-var-mem-loc")] ;static variable, use label
     [(codevar? membr-decl) (number->string (codevar-tag membr-decl))] ;member variable, use offset into this
     [else (error "Could find a declaration for a variable? No test should be like that.")]))
 
@@ -761,7 +763,7 @@
   (define (gen-initialize-static-fields-class cenv)
     (map (lambda (cvar)
            (gen-code-recurse out cenv empty (codevar-val cvar) cenvs) 
-           (mov out (string-append "[" (mangle-names cvar)  "]") "eax"))
+           (mov out (string-append "[" (mangle-names cvar "gen-initialize-static-fields")  "]") "eax"))
          (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
   (map gen-initialize-static-fields-class cenvs))	
 
@@ -771,7 +773,10 @@
 
 (define (malloc out nbytes)
   (movi out "eax" nbytes)
-  (call out "__malloc"))
+  (call out "__malloc")
+  (comment out "zero out block")
+  (mov out "ecx" "0")
+  (for-each (lambda(i) (mov out (string-append "[eax+" (number->string (* i WORD)) "]") "ecx")) (build-list (/ nbytes WORD) values)))
 
 ;==============================================================================================
 ;==== Conditions
