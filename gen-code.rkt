@@ -167,7 +167,7 @@
 
 ;Take string literal and create a char array, eax will contain address of char array
 (define (stringlit->chararray out cenv sinfo slit)
-  (define c-str (rest (reverse (rest (reverse (string->list (literal-value slit)))))))	;remove string quotes (ie '(" a b c ") -> '(a b c))
+  (define c-str (string->list (literal-value slit)))
   (comment out "Converting String to char[]")
   (arraycreate-sz out cenv sinfo (ptype 'char) (length c-str))
   (comment out "Adding chars to char[]")
@@ -702,6 +702,8 @@
                       [(codeenv-class? cenv)
                        (push out "eax")
                        (push out "ebx")
+                       (cmp out "eax" "0")
+                       (cjmp out "je" success-label)
                        (gen-get-class-id out "eax")
                        ;;get id list
                        (let ([id-list (codeenv-casts cenv)])
@@ -923,12 +925,18 @@
 ;reg1/reg2
 (define (divide out dstreg reg2)
   (comment out "divide")
+  (define no-exception (symbol->string (gensym "noexception")))
   (define set-edx-neg (symbol->string (gensym "set_edx_neg")))
   (define end (symbol->string (gensym "end")))
 
   (mov out "ecx" reg2)	;mov reg2 into ecx
   (mov out "eax" dstreg);mov dstreg into eax
 			;now eax/ecx
+
+  (cmp out "ecx" "0")
+  (cjmp out "jne" no-exception)
+  (call out "__exception")
+  (label out no-exception)
 
   ;set edx to 0 or -1 based on sign of eax
   (cmp out "eax" "0")

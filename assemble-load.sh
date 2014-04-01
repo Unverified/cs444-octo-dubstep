@@ -1,7 +1,7 @@
 #! /bin/bash
 
 for a in output/*.o; do
-	rm ${a}
+	rm -f ${a}
 done
 cp stdlib/runtime.s output/
 
