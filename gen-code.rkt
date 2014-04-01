@@ -799,7 +799,7 @@
 (define (gen-check-if-castable out id-list register check-register success-label)
   (cond
     [(empty? id-list) 
-     (nop out "failure; the next instruction should be the failure code")]
+     (comment out "failure; the next instruction should be the failure code")]
     [else
      (movi out check-register (first id-list))
      (cmp out check-register register)
