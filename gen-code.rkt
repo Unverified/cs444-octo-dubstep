@@ -474,7 +474,8 @@
   (cond
     [(rtype? ty) (mov out "esi" (mangle-names (find-codeenv (rtype-type ty) cenvs)))
                  (mov out "[eax+4]" "esi")]
-    [(ptype? ty) (mov out "[eax+4]" "0")]
+    [(ptype? ty) (mov out "ecx" "0")
+                 (mov out "[eax+4]" "ecx")]
     [(atype? ty) (error 'gen-code-arraycreate "how?")])
   
   (pop out "ebx"))
