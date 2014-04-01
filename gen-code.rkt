@@ -199,7 +199,12 @@
 
 ;ENTRY POINT
 (define (gen-code-start out labels cenvs)
-  (let ([entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs))))])  
+  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))])
+    (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
+        (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
+        'ok)
+    
+    
     (display "global _start\n" out)
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
       
@@ -225,7 +230,7 @@
     (gen-initialize-static-fields out cenvs)
     
     (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
-    (call out entry-label)
+    (call out (mangle-names entry-meth))
     (mov out "ebx" "eax")
     (display "mov eax, 1\n" out)
     (display "int 0x80\n" out)
@@ -466,10 +471,10 @@
   (mov out "esi" ARRAY-LABEL)
   (mov out "[eax]" "esi")
   (cond
-    [(rtype? ty) (mov out "esi" (rtype-type ty) )
+    [(rtype? ty) (mov out "esi" (mangle-names (find-codeenv (rtype-type ty) cenvs)))
                  (mov out "[eax+4]" "esi")]
     [(ptype? ty) (mov out "[eax+4]" 0)]
-    [(atype? ty) (error 'gen-code-arraycreate "how?")]
+    [(atype? ty) (error 'gen-code-arraycreate "how?")])
   
   (pop out "ebx"))
 

@@ -40,7 +40,7 @@
                           (or (check-protected all-cinfo C rt (envs-methods cenv) (envs-methods rt-env) meth-funt )
                               (equal? (remove-last C) (remove-last (rtype-type rt))))) b]
                     [else (c-errorf "Trying to access method that is not public.")])]
-      [_ (c-errorf "No Function of that name ~a" meth-funt)]))
+      [_ (c-errorf "No Function of that name ~a within ~a" meth-funt (envs-types rt-env))]))
 
   (define (type-static-method rt)
     (define rt-env (get-rt-env rt))
