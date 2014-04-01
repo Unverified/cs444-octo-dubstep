@@ -734,6 +734,8 @@
 			(pop out "ebx")
 			(pop out "eax")]
 			[else (error 'cast-atype-interface "unimplemented")]))]
+	[(atype (ptype name))
+		(comment out "Casting ptype array to ptype array - should be handled at compile time?")]
     ))
 ;==============================================================================================
 ;==== Helpers
