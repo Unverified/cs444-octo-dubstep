@@ -442,7 +442,7 @@
 			(movi out "eax" 1)				
 			(pop out "ebx")]
 			[else (error 'cast-atype-interface "unimplemented")]))]
-	[(atype (ptype name))
+	[(atype (ptype _))
 	   (movi out "eax" 1)]))
 
 
