@@ -432,7 +432,6 @@
 		      [success-label (symbol->string (gensym "instanceofsuccess"))])
 		(cond
 			[(codeenv-class? cenv) 
-			(push out "eax")
 			(push out "ebx")		
 			(gen-get-array-class-id out "eax")
 			(let ([id-list (codeenv-casts cenv)])
@@ -441,9 +440,10 @@
 			(movi out "eax" 0)
 			(label out success-label "Valid Cast")
 			(movi out "eax" 1)				
-			(pop out "ebx")
-			(pop out "eax")]
-			[else (error 'cast-atype-interface "unimplemented")]))]))
+			(pop out "ebx")]
+			[else (error 'cast-atype-interface "unimplemented")]))]
+	[(atype (ptype name))
+	   (movi out "eax" 1)))
 
 
 (define (stringlit? t)
