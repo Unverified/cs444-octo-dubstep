@@ -693,7 +693,6 @@
 
 (define (gen-rtype-cast out cenvs from to)
   (let ([cenv (find-codeenv to cenvs)]
-        [oenv (find-codeenv from cenvs)]
         [fail-label (symbol->string (gensym "cast_fail"))]
         [success-label (symbol->string (gensym "cast_success"))]
         [nullcast-label (symbol->string (gensym "cast_end"))])
@@ -702,7 +701,10 @@
     (cmp out "eax" "0")
     (cjmp out "je" nullcast-label)
     
-    (if (codeenv-class? oenv) 'ok (mov "eax" "[eax]" "deref interface"))
+    (cond [(or (ptype? from) (atype? from)) 'ok]
+          [else (if (codeenv-class? (find-codeenv (rtype-type from) cenvs)) 
+                    'ok 
+                    (mov "eax" "[eax]" "deref interface"))])
     (cond
       [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
                                (push out "eax")
@@ -720,7 +722,7 @@
             (mov "edx" "[edx]")
             
             (for-each (lambda (x) (let ([off1 (number->string (codemeth-off x))]
-                                        [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods oenv))))])
+                                        [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods (find-codeenv (rtype-type from) cenvs)))))])
                                     (mov "ecx" (string-append "[edx" off2 "]")
                                          (mov (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
             (label out success-label "Valid Cast")])
@@ -758,7 +760,7 @@
     [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (printf "~a~n" (ast-env ex))(gen-rtype-cast out cenvs (rtype-type (ast-env ex)) name)]
+    [(rtype name) (printf "~a~n" (ast-env ex))(gen-rtype-cast out cenvs (ast-env ex) name)]
     [(atype (rtype name)) (gen-atype-cast out cenvs name)]
     [(atype (ptype name)) (comment out "Casting ptype array to ptype array - should be handled at compile time?")]
     ))
