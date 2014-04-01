@@ -758,7 +758,7 @@
     [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (gen-rtype-cast out cenvs (ast-env ex) name)]
+    [(rtype name) (printf "~a~n" (ast-env ex))(gen-rtype-cast out cenvs (rtype-type (ast-env ex)) name)]
     [(atype (rtype name)) (gen-atype-cast out cenvs name)]
     [(atype (ptype name)) (comment out "Casting ptype array to ptype array - should be handled at compile time?")]
     ))
