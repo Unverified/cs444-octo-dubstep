@@ -427,7 +427,7 @@
        (movi out "eax" 1)
        (label out end-label "Done instanceof")]
 
-      [else (error 'cast-rtype-interface "unimplemented")])))
+      [else (error 'cast-atype-interface "unimplemented")])))
 
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
@@ -473,7 +473,7 @@
   (cond
     [(rtype? ty) (mov out "esi" (mangle-names (find-codeenv (rtype-type ty) cenvs)))
                  (mov out "[eax+4]" "esi")]
-    [(ptype? ty) (mov out "[eax+4]" 0)]
+    [(ptype? ty) (mov out "[eax+4]" "0")]
     [(atype? ty) (error 'gen-code-arraycreate "how?")])
   
   (pop out "ebx"))
@@ -700,14 +700,23 @@
                        (pop out "ebx")
                        (pop out "eax")]
                       [else (error 'cast-rtype-interface "unimplemented")]))]
-    [(atype type) 
-
-		;;TODO : Get run-time type of array
-		;;Get first element of array?
-		;;What if array has length null?
-		;;What if array elements not initialized?
-		;;What if array is null? 		
-		(error 'cast-atype "unimplemented")]
+    [(atype (rtype name))
+		(let ([cenv (find-codeenv name cenvs)]
+		      [fail-label (symbol->string (gensym "castfail"))]
+		      [success-label (symbol->string (gensym "castablesuccess"))])
+		(cond
+			[(codeenv-class? cenv) 
+			(push out "eax")
+			(push out "ebx")		
+			(gen-get-array-class-id out "eax")
+			(let ([id-list (codeenv-casts cenv)])
+			  (gen-check-if-castable out id-list "eax" "ebx" success-label))
+			(label out fail-label)
+			(call out "__exception" "Bad Cast")
+			(label out success-label "Valid Cast")
+			(pop out "ebx")
+			(pop out "eax")]
+			[else (error 'cast-atype-interface "unimplemented")]))]
     ))
 ;==============================================================================================
 ;==== Helpers
@@ -763,6 +772,16 @@
   (movf out register register "" "Getting static class info")
   (movf out register register "" "Getting the class number"))
 
+
+(define (gen-get-array-class-info out register)
+	(display (string-append "\t" "lea " register " [" register "+" (number->string WORD) "]" ";Getting static class info from array") out))
+
+
+;;The register points to the array. The caller preserves the register.
+(define (gen-get-array-class-id out register)
+	(movf out  register register "+4" "Getting static array info")
+	(movf out register register "" "Getting the class number"))
+
 (define (gen-check-if-castable out id-list register check-register success-label)
   (cond
     [(empty? id-list) 
@@ -772,6 +791,7 @@
      (cmp out check-register register)
      (cjmp out "je" success-label)
      (gen-check-if-castable out (rest id-list) register check-register success-label)])) 
+
 
 
 (define (gen-initialize-static-fields out cenvs)
