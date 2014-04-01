@@ -466,9 +466,9 @@
   (mov out "esi" ARRAY-LABEL)
   (mov out "[eax]" "esi")
   (cond
-    [(rtype? ty) (mov out "esi" (rtype-type ty) )
+    [(rtype? ty) (movf out "esi" (mangle-names (find-codeenv (rtype-type ty) cenvs)) "")
                  (mov out "[eax+4]" "esi")]
-    [(ptype? ty) (mov out "[eax+4]" 0)]
+    [(ptype? ty) (mov out "[eax+4]" "0")]
     [(atype? ty) (error 'gen-code-arraycreate "how?")])
   
   (pop out "ebx"))
@@ -769,12 +769,12 @@
 
 
 (define (gen-get-array-class-info out register)
-	(display (string-append "\t" "lea " register " [" register "+" WORD "]" ";Getting static class info from array") out))
+	(display (string-append "\t" "lea " register " [" register "+" (number->string WORD) "]" ";Getting static class info from array") out))
 
 
 ;;The register points to the array. The caller preserves the register.
 (define (gen-get-array-class-id out register)
-	(movf out register (string-append register register "4" "Getting static array info"))
+	(movf out  register register "+4" "Getting static array info")
 	(movf out register register "" "Getting the class number"))
 
 (define (gen-check-if-castable out id-list register check-register success-label)
