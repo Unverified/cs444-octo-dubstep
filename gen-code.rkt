@@ -422,8 +422,8 @@
        (label out end-label "Done instanceof"))]
     [(atype (rtype name))
 	(let ([cenv (find-codeenv name cenvs)]
-		      [fail-label (symbol->string (gensym "castfail"))]
-		      [success-label (symbol->string (gensym "castablesuccess"))])
+		      [fail-label (symbol->string (gensym "instanceoffail"))]
+		      [success-label (symbol->string (gensym "instanceofsuccess"))])
 		(cond
 			[(codeenv-class? cenv) 
 			(push out "eax")
