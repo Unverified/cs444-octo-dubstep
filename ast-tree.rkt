@@ -234,10 +234,9 @@
                       [else (comb-nlit (ptype 'boolean) =)])]                
         ['noteq (cond [(and (type-bool? lht) (type-bool? rht)) (comb-blit (compose not equal?))]
                       [else (comb-nlit (ptype 'boolean) (compose not =))])]
-        ['barbar (comb-blit (lambda (x y) (or x y)))]
-        ['ampamp (comb-blit (lambda (x y) (and x y)))]     
-        [_      (printf "~a unimplemented~n" op)
-                (error "unimplemented!")]))))
+        [(or 'barbar 'bar)  (comb-blit (lambda (x y) (or x y)))]
+        [(or 'ampamp 'amp) (comb-blit (lambda (x y) (and x y)))]
+        [_ (error 'reduce-binop "~e is not implemented!" op)]))))
 
 ;(: reduce-unop : environment Symbol literal -> literal )
 ;only care about the types boolean, int, char, byte, short

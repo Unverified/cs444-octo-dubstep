@@ -37,9 +37,7 @@
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
   (display (string-append "global " (mangle-names cenv) "\n\n") out)
   (display (string-append (mangle-names cenv) ":\n") out)
-  
   (for-each (curryr display out) (list "\tdd " (codeenv-guid cenv) "\t; set up the guid\n")))
-
 
 (define (gen-code all-labels cenvs cenv)
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
@@ -201,7 +199,11 @@
 
 ;ENTRY POINT
 (define (gen-code-start out labels cenvs)
-  (let ([entry-label (mangle-names (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs))) "gen-code-start")])  
+  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))])
+    (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
+        (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
+        'ok)
+    
     (display "global _start\n" out)
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
       
@@ -213,7 +215,7 @@
     (display (string-append ARRAY-LABEL ":\n") out)
     (display (string-append "\tdd " (number->string (name->id "array")) "\n") out)
     
-    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x "gen-code-start2") "\n") out))
+    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x) "\n") out))
               (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
                           (reverse (codeenv-methods (find-codeenv '("java" "lang" "Object") cenvs)))))
     
@@ -227,7 +229,7 @@
     (gen-initialize-static-fields out cenvs)
     
     (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
-    (call out entry-label)
+    (call out (mangle-names entry-meth))
     (mov out "ebx" "eax")
     (display "mov eax, 1\n" out)
     (display "int 0x80\n" out)
@@ -260,7 +262,7 @@
   (comment out "Pushing method args on stack")
   (push-method-args out cenv sinfo args cenvs)	;push all method args onto stack
   (push out "ebx" "this") 			;push the addr of "this"
-  (call out (mangle-names mcvar "gen-code-methodcall"))					
+  (call out (mangle-names mcvar))					
   (reset-stack out (+ 1 (length args)))		;"pop" off all the args from the stack
   (pop out "ebx"))
 
@@ -356,7 +358,7 @@
   (define mcvar (find-codemeth mfunt (codeenv-methods (find-codeenv cls cenvs))))
   (push out argreg)	;push arg
   (push out thisreg) 	;push this
-  (call out (mangle-names mcvar "gen-methodcall" cls mfunt))
+  (call out (mangle-names mcvar))
   (reset-stack out 2))
 
 (define (args->params args)
@@ -424,8 +426,9 @@
        (jmp out end-label)
        (label out success-label)
        (movi out "eax" 1)
-       (label out end-label)]
-      [else (error 'cast-rtype-interface "unimplemented")])))
+       (label out end-label "Done instanceof")]
+
+      [else (error 'cast-atype-interface "unimplemented")])))
 
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
@@ -466,6 +469,13 @@
   (label out no-exception)
   
   (gen-arraycreate-code out)
+  (mov out "esi" ARRAY-LABEL)
+  (mov out "[eax]" "esi")
+  (cond
+    [(rtype? ty) (mov out "esi" (mangle-names (find-codeenv (rtype-type ty) cenvs)))
+                 (mov out "[eax+4]" "esi")]
+    [(ptype? ty) (mov out "[eax+4]" "0")]
+    [(atype? ty) (error 'gen-code-arraycreate "how?")])
   
   (pop out "ebx"))
 
@@ -545,8 +555,8 @@
 
 (define (gen-static-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)
   (cond
-    [rtnaddr (mov out "eax" (mangle-names fcvar "gen-static-fieldaccess"))]				;return the address of the static label
-    [else    (mov out "eax" (string-append "[" (mangle-names fcvar "gen-static-fieldaccess2") "]"))]))	
+    [rtnaddr (mov out "eax" (mangle-names fcvar))]				;return the address of the static label
+    [else    (mov out "eax" (string-append "[" (mangle-names fcvar) "]"))]))	
 
 (define (gen-normal-fieldaccess out cenv sinfo rtnaddr left fcvar cenvs)
   (gen-code-get-this out cenv sinfo left cenvs)
@@ -670,9 +680,9 @@
   (gen-code-recurse out cenv sinfo ex cenvs)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
-    [(ptype 'byte) (display "movsx eax, al\t; cast to a byte\n" out)]
-    [(ptype 'short) (display "movsx eax, ax\t; cast to a short\n" out)]
-    [(ptype 'char) (display "movzx eax, ax\t; cast to a char\n" out)]
+    [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
+    [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
+    [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
     [(rtype name) (let ([cenv (find-codeenv name cenvs)]
                         [fail-label (symbol->string (gensym "castablefail"))]
@@ -691,7 +701,23 @@
                        (pop out "ebx")
                        (pop out "eax")]
                       [else (error 'cast-rtype-interface "unimplemented")]))]
-    [(atype type) (error 'cast-atype "unimplemented")]
+    [(atype (rtype name))
+		(let ([cenv (find-codeenv name cenvs)]
+		      [fail-label (symbol->string (gensym "castfail"))]
+		      [success-label (symbol->string (gensym "castablesuccess"))])
+		(cond
+			[(codeenv-class? cenv) 
+			(push out "eax")
+			(push out "ebx")		
+			(gen-get-array-class-id out "eax")
+			(let ([id-list (codeenv-casts cenv)])
+			  (gen-check-if-castable out id-list "eax" "ebx" success-label))
+			(label out fail-label)
+			(call out "__exception" "Bad Cast")
+			(label out success-label "Valid Cast")
+			(pop out "ebx")
+			(pop out "eax")]
+			[else (error 'cast-atype-interface "unimplemented")]))]
     ))
 ;==============================================================================================
 ;==== Helpers
@@ -705,7 +731,7 @@
     [(and (list? mdecl) (list? ldecl)) (error "We have clashing decls in m and l")]
     [(list? mdecl) (string-append "ebp" (second mdecl))] ;method param, get off stack
     [(list? ldecl) (string-append "ebp" (second ldecl))] ;local variable, get off stack
-    [(and (codevar? membr-decl) (codevar-static? membr-decl)) (mangle-names membr-decl "get-var-mem-loc")] ;static variable, use label
+    [(and (codevar? membr-decl) (codevar-static? membr-decl)) (mangle-names membr-decl)] ;static variable, use label
     [(codevar? membr-decl) (number->string (codevar-tag membr-decl))] ;member variable, use offset into this
     [else (error "Could find a declaration for a variable? No test should be like that.")]))
 
@@ -747,6 +773,16 @@
   (movf out register register "" "Getting static class info")
   (movf out register register "" "Getting the class number"))
 
+
+(define (gen-get-array-class-info out register)
+	(display (string-append "\t" "lea " register " [" register "+" (number->string WORD) "]" ";Getting static class info from array") out))
+
+
+;;The register points to the array. The caller preserves the register.
+(define (gen-get-array-class-id out register)
+	(movf out  register register "+4" "Getting static array info")
+	(movf out register register "" "Getting the class number"))
+
 (define (gen-check-if-castable out id-list register check-register success-label)
   (cond
     [(empty? id-list) 
@@ -758,12 +794,13 @@
      (gen-check-if-castable out (rest id-list) register check-register success-label)])) 
 
 
+
 (define (gen-initialize-static-fields out cenvs)
   ;(printf "gen-initialize-static-fields: ~a~n" cenvs)
   (define (gen-initialize-static-fields-class cenv)
     (map (lambda (cvar)
            (gen-code-recurse out cenv empty (codevar-val cvar) cenvs) 
-           (mov out (string-append "[" (mangle-names cvar "gen-initialize-static-fields")  "]") "eax"))
+           (mov out (string-append "[" (mangle-names cvar)  "]") "eax" "Loading static value for " (mangle-names cvar)))
          (reverse (filter (lambda (x) (and (not (empty? (codevar-val x))) (codevar-static? x))) (codeenv-vars cenv)))))
   (map gen-initialize-static-fields-class cenvs))	
 
