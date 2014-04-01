@@ -86,13 +86,16 @@ do
     rm -f $FAILED_TEST_DIR/$A/$test_name
     echo "Compiled, running assembly"
     bash assemble-load.sh
-    ./main
+    ./main > $FAILED_TEST_DIR/temp.out
     test_output=$?
     expected_output=`cat $out_file`
     if [ "$test_output" == "$expected_output" ]
     then
+       rm $FAILED_TEST_DIR/temp.out
+       rm -f $FAILED_TEST_DIR/$A/$test_name
       echo "Test Passed!"
     else
+      mv $FAILED_TEST_DIR/temp.out $FAILED_TEST_DIR/$A/$test_name
       echo "Test Failed! ./main returned: $test_output, Expected: $expected_output"
       if [ "$stop_on_fail" == "true" ]
       then

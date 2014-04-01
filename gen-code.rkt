@@ -125,7 +125,7 @@
 ;CONSTRUCTOR
 (define (gen-code-constructor out cenv params bd cenvs)
   (let ([parent (codeenv-parent cenv)]
-        [member-vars (filter-not codevar-static? (codeenv-vars cenv))]
+        [member-vars (reverse (filter-not (lambda(x) (or (codevar-static? x) (empty? (codevar-val x)))) (codeenv-vars cenv)))]
         [sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty empty 4)])
     (push out "ebp")			
     (mov out "ebp" "esp")
@@ -203,7 +203,6 @@
     (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
         (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
         'ok)
-    
     
     (display "global _start\n" out)
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
@@ -332,6 +331,8 @@
                (mov out "eax" "ebx")]
        ['pct   (rem out "ebx" "eax")
                (mov out "eax" "ebx")]
+       ['bar (display "or eax,ebx\n" out)]
+       ['amp (display "and eax,ebx\n" out)]
        [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (conditional out op "ebx" "eax")
                                               (mov out "eax" "ebx")])])
   
@@ -361,7 +362,7 @@
   (reset-stack out 2))
 
 (define (args->params args)
-  (map (lambda(arg) (ast-env arg)) args))
+  (map (lambda(arg) (if (equal? (ptype 'null) (ast-env arg)) (rtype '("java" "lang" "Object")) (ast-env arg))) args))
 
 (define (string-rtype? t)
   (and (rtype? t) (equal? '("java" "lang" "String") (rtype-type t))))
@@ -404,15 +405,14 @@
   (comment out "Getting lhs of instanceof")
   (gen-code-recurse out cenv sinfo ls cenvs)
   (comment out "We now have lhs of instanceof")
-  (let*
+  (match rs
+  [(rtype name)
+  (let
       ([fail-label (symbol->string (gensym "instanceoffail"))]
        [success-label (symbol->string (gensym "instanceofsuccess"))]
        [end-label (symbol->string (gensym "instanceofend"))]
-       [name (rtype-type rs)]
        [cenv (find-codeenv name cenvs)] )
     
-    (cond
-      [(codeenv-class? cenv)
        (cmp out "eax" "0")
        (cjmp out "je" fail-label "Null literal is automatically false")
        (gen-get-class-id out "eax")
@@ -425,9 +425,26 @@
        (jmp out end-label)
        (label out success-label)
        (movi out "eax" 1)
-       (label out end-label "Done instanceof")]
+       (label out end-label "Done instanceof"))]
+    [(atype (rtype name))
+	(let ([cenv (find-codeenv name cenvs)]
+		      [fail-label (symbol->string (gensym "instanceoffail"))]
+		      [success-label (symbol->string (gensym "instanceofsuccess"))])
+		(cond
+			[(codeenv-class? cenv) 
+			(push out "ebx")		
+			(gen-get-array-class-id out "eax")
+			(let ([id-list (codeenv-casts cenv)])
+			  (gen-check-if-castable out id-list "eax" "ebx" success-label))
+			(label out fail-label)
+			(movi out "eax" 0)
+			(label out success-label "Valid Cast")
+			(movi out "eax" 1)				
+			(pop out "ebx")]
+			[else (error 'cast-atype-interface "unimplemented")]))]
+	[(atype (ptype name))
+	   (movi out "eax" 1)]))
 
-      [else (error 'cast-atype-interface "unimplemented")])))
 
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
@@ -473,7 +490,8 @@
   (cond
     [(rtype? ty) (mov out "esi" (mangle-names (find-codeenv (rtype-type ty) cenvs)))
                  (mov out "[eax+4]" "esi")]
-    [(ptype? ty) (mov out "[eax+4]" "0")]
+    [(ptype? ty) (mov out "ecx" "0")
+                 (mov out "[eax+4]" "ecx")]
     [(atype? ty) (error 'gen-code-arraycreate "how?")])
   
   (pop out "ebx"))
@@ -717,6 +735,8 @@
 			(pop out "ebx")
 			(pop out "eax")]
 			[else (error 'cast-atype-interface "unimplemented")]))]
+	[(atype (ptype name))
+		(comment out "Casting ptype array to ptype array - should be handled at compile time?")]
     ))
 ;==============================================================================================
 ;==== Helpers
@@ -809,7 +829,10 @@
 
 (define (malloc out nbytes)
   (movi out "eax" nbytes)
-  (call out "__malloc"))
+  (call out "__malloc")
+  (comment out "zero out block")
+  (mov out "ecx" "0")
+  (for-each (lambda(i) (mov out (string-append "[eax+" (number->string (* i WORD)) "]") "ecx")) (build-list (/ nbytes WORD) values)))
 
 ;==============================================================================================
 ;==== Conditions
