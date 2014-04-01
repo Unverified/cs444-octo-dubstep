@@ -88,17 +88,21 @@
 (define (info->codeenv all-info cinfo)
   (let* ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))]
          [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup all-info (envs-vars (info-env cinfo)))]
+         [meths (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo)) (build-ml all-info cinfo)))]
          [array (if (extends-array? (info-name cinfo)) (list (name->id "array")) empty)])
     (codeenv
      (info-name cinfo)
      (name->id (info-name cinfo))
      (cond [(is-class? (info-ast cinfo)) #t]
            [(is-interface? (info-ast cinfo)) #f]
-           [else (error "info->codeenv givencinfo of a improper compilation unit")])
-     (* 4 (+ 1 (if (is-interface? (info-ast cinfo)) 1 0) (length (filter-not codevar-static? vars))))
+           [else (error 'info->codeenv "given info of a improper compilation unit ~e" (info-name cinfo))])
+     
+     (* 4 (if (is-interface? (info-ast cinfo))
+              (add1 (length meths))
+              (add1 (length (filter-not codevar-static? vars)))))
      (get-parent cinfo)
      vars
-     (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo)) (build-ml all-info cinfo)))
+     meths
      (append array
              (list (name->id (info-name cinfo)))
              (for/list ([name  (map info-name all-info)]
