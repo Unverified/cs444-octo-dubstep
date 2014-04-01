@@ -97,22 +97,25 @@
 ;==============================================================================================
 
 (define (gen-code-varassign out cenv sinfo lhs ex cenvs)
-  (gen-code-recurse out cenv sinfo ex cenvs)	;puts result in eax
   (match lhs
-    [(vdecl _ _ _ _ id)  (push out "eax" "declaring " id)
+    [(vdecl _ _ _ _ id)  (gen-code-recurse out cenv sinfo ex cenvs)
+                         (push out "eax" "declaring " id)
                          (stackinfo-add-strdecl (stackinfo-add-ldecl sinfo id) id ex)]
-    [(varuse _ id) (gen-code-varuse-write out cenv sinfo id)
+    [(varuse _ id) (gen-code-recurse out cenv sinfo ex cenvs)
+                   (gen-code-varuse-write out cenv sinfo id)
                    (stackinfo-add-strdecl (stackinfo-rmv-modified-strdecl sinfo id) id ex)] ;need to remove any string decls if they are modified, but add them back in if they were modified to another stringlit
     [(arrayaccess _ left id) (push out "ebx" "saving")
-                             (mov out "ebx" "eax")
                              (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
-                             (mov out "[eax]" "ebx")
+                             (mov out "ebx" "eax")
+                             (gen-code-recurse out cenv sinfo ex cenvs)
+                             (mov out "[ebx]" "eax")
                              (pop out "ebx")
                              sinfo]
     [(fieldaccess _ left field) (push out "ebx" "saving")
-                                (mov out "ebx" "eax")
                                 (gen-code-fieldaccess out cenv sinfo #t left field cenvs)
-                                (mov out "[eax]" "ebx")
+                                (mov out "ebx" "eax")
+                                (gen-code-recurse out cenv sinfo ex cenvs)
+                                (mov out "[ebx]" "eax")
                                 (pop out "ebx")
                                 sinfo
                                 
@@ -511,37 +514,29 @@
   (push out "ebx")
   
   (comment out "ARRAY ACCESS")
+  (gen-code-recurse out cenv sinfo left cenvs)	
+  (mov out "ebx" "eax")			
   (gen-code-recurse out cenv sinfo index cenvs)
-  (mov out "ebx" "eax")			;ebx now holds the index offset
-  (gen-code-recurse out cenv sinfo left cenvs)	;eax now holds the array address
   
   (comment out "Checking index not negative")
-  (cmp out "ebx" "0")
+  (cmp out "eax" "0")
   (cjmp out "jge" lbl-sz-ok1)
   (call out "__exception")
   (label out lbl-sz-ok1)
   
   (comment out "Checking index not >= array size")
-  (cmp out "ebx" (string-append "[eax+4*"ARRAY-SZ-LOC"]"))
+  (cmp out "eax" (string-append "[ebx+4*"ARRAY-SZ-LOC"]"))
   (cjmp out "jl" lbl-sz-ok2)
   (call out "__exception")
   (label out lbl-sz-ok2)
   
-  (gen-arrayaccess-code out rtnaddr)
-  
-  (pop out "ebx"))  
-
-(define (gen-arrayaccess-index out index)
-  (movi out "ebx" index)
-  (gen-arrayaccess-code out #t))
-
-(define (gen-arrayaccess-code out rtnaddr)
-  (add out "ebx" ARRAY-HEADER-SZ)
-  (imul out "ebx" "4")
+  (add out "eax" ARRAY-HEADER-SZ)
+  (imul out "eax" "4")
   (cond
     [rtnaddr (add out "eax" "ebx")]
-    [else (mov out "eax" "[eax+ebx]")]))
-
+    [else (mov out "eax" "[ebx+eax]")])
+  
+  (pop out "ebx"))  
 
 ;==============================================================================================
 ;==== Field Access Generation
@@ -716,13 +711,13 @@
             (malloc out (codeenv-size cenv))
             (pop out "edx")
             
-            (mov "[eax]" "edx")
-            (mov "edx" "[edx]")
+            (mov out "[eax]" "edx")
+            (mov out "edx" "[edx]")
             
             (for-each (lambda (x) (let ([off1 (number->string (codemeth-off x))]
                                         [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods oenv))))])
-                                    (mov "ecx" (string-append "[edx" off2 "]")
-                                         (mov (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
+                                    (mov out "ecx" (string-append "[edx" off2 "]")
+                                         (mov out (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
             (label out success-label "Valid Cast")])
     (label out nullcast-label)
     (pop out "ebx")))
@@ -752,13 +747,14 @@
 (define (gen-code-cast out cenv sinfo c ex cenvs)
   ;(printf "gen-code-cast ~a~n" ex)
   (gen-code-recurse out cenv sinfo ex cenvs)
+
   (match c
     [(ptype 'int)  (comment out "cast to int")]
     [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
     [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (printf "~a~n" (ast-env ex))(gen-rtype-cast out cenvs (rtype-type (ast-env ex)) name)]
+    [(rtype name) (printf "~a~n" (ast-env ex)) (gen-rtype-cast out cenvs (rtype-type (ast-env ex)) name)]
     [(atype (rtype name)) (gen-atype-cast out cenvs name)]
     [(atype (ptype name)) (comment out "Casting ptype array to ptype array - should be handled at compile time?")]
     ))
