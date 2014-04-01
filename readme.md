@@ -16,6 +16,6 @@ https://docs.google.com/document/d/1wV_jODaORTP2pLpCLQSXW1TffoUt-E1LFd3h4P-pFqc/
 <br>
 
 <strong>Assignment 5 Written</Strong><br>
-link to be created
+https://docs.google.com/document/d/14y5t-QxM-W9TEqV0sAcaIhHwCA0J_0K9JSgfXx6e3fk/edit?usp=sharing
 <br>
 

@@ -97,26 +97,27 @@
 ;==============================================================================================
 
 (define (gen-code-varassign out cenv sinfo lhs ex cenvs)
-  (gen-code-recurse out cenv sinfo ex cenvs)	;puts result in eax
   (match lhs
-    [(vdecl _ _ _ _ id)  (push out "eax" "declaring " id)
+    [(vdecl _ _ _ _ id)  (gen-code-recurse out cenv sinfo ex cenvs)
+                         (push out "eax" "declaring " id)
                          (stackinfo-add-strdecl (stackinfo-add-ldecl sinfo id) id ex)]
-    [(varuse _ id) (gen-code-varuse-write out cenv sinfo id)
+    [(varuse _ id) (gen-code-recurse out cenv sinfo ex cenvs)
+                   (gen-code-varuse-write out cenv sinfo id)
                    (stackinfo-add-strdecl (stackinfo-rmv-modified-strdecl sinfo id) id ex)] ;need to remove any string decls if they are modified, but add them back in if they were modified to another stringlit
     [(arrayaccess _ left id) (push out "ebx" "saving")
-                             (mov out "ebx" "eax")
                              (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
-                             (mov out "[eax]" "ebx")
+                             (mov out "ebx" "eax")
+                             (gen-code-recurse out cenv sinfo ex cenvs)
+                             (mov out "[ebx]" "eax")
                              (pop out "ebx")
                              sinfo]
     [(fieldaccess _ left field) (push out "ebx" "saving")
-                                (mov out "ebx" "eax")
                                 (gen-code-fieldaccess out cenv sinfo #t left field cenvs)
-                                (mov out "[eax]" "ebx")
+                                (mov out "ebx" "eax")
+                                (gen-code-recurse out cenv sinfo ex cenvs)
+                                (mov out "[ebx]" "eax")
                                 (pop out "ebx")
-                                sinfo
-                                
-                                ]))
+                                sinfo]))
 
 ;==============================================================================================
 ;==== Class Generation
@@ -442,7 +443,7 @@
 			(movi out "eax" 1)				
 			(pop out "ebx")]
 			[else (error 'cast-atype-interface "unimplemented")]))]
-	[(atype (ptype name))
+	[(atype (ptype _))
 	   (movi out "eax" 1)]))
 
 
@@ -511,36 +512,29 @@
   (push out "ebx")
   
   (comment out "ARRAY ACCESS")
+  (gen-code-recurse out cenv sinfo left cenvs)	
+  (mov out "ebx" "eax")				
   (gen-code-recurse out cenv sinfo index cenvs)
-  (mov out "ebx" "eax")			;ebx now holds the index offset
-  (gen-code-recurse out cenv sinfo left cenvs)	;eax now holds the array address
   
   (comment out "Checking index not negative")
-  (cmp out "ebx" "0")
+  (cmp out "eax" "0")
   (cjmp out "jge" lbl-sz-ok1)
   (call out "__exception")
   (label out lbl-sz-ok1)
   
   (comment out "Checking index not >= array size")
-  (cmp out "ebx" (string-append "[eax+4*"ARRAY-SZ-LOC"]"))
+  (cmp out "eax" (string-append "[ebx+4*"ARRAY-SZ-LOC"]"))
   (cjmp out "jl" lbl-sz-ok2)
   (call out "__exception")
   (label out lbl-sz-ok2)
   
-  (gen-arrayaccess-code out rtnaddr)
-  
-  (pop out "ebx"))  
-
-(define (gen-arrayaccess-index out index)
-  (movi out "ebx" index)
-  (gen-arrayaccess-code out #t))
-
-(define (gen-arrayaccess-code out rtnaddr)
-  (add out "ebx" ARRAY-HEADER-SZ)
-  (imul out "ebx" "4")
+  (add out "eax" ARRAY-HEADER-SZ)
+  (imul out "eax" "4")
   (cond
     [rtnaddr (add out "eax" "ebx")]
-    [else (mov out "eax" "[eax+ebx]")]))
+    [else (mov out "eax" "[ebx+eax]")])
+  
+  (pop out "ebx"))  
 
 
 ;==============================================================================================
@@ -829,7 +823,7 @@
 (define (gen-check-if-castable out id-list register check-register success-label)
   (cond
     [(empty? id-list) 
-     (nop out "failure; the next instruction should be the failure code")]
+     (comment out "failure; the next instruction should be the failure code")]
     [else
      (movi out check-register (first id-list))
      (cmp out check-register register)
