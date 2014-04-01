@@ -443,7 +443,7 @@
 			(pop out "ebx")]
 			[else (error 'cast-atype-interface "unimplemented")]))]
 	[(atype (ptype name))
-	   (movi out "eax" 1)))
+	   (movi out "eax" 1)]))
 
 
 (define (stringlit? t)
