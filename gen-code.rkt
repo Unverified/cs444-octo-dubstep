@@ -405,15 +405,14 @@
   (comment out "Getting lhs of instanceof")
   (gen-code-recurse out cenv sinfo ls cenvs)
   (comment out "We now have lhs of instanceof")
-  (let*
+  (match rs
+  [(rtype name)
+  (let
       ([fail-label (symbol->string (gensym "instanceoffail"))]
        [success-label (symbol->string (gensym "instanceofsuccess"))]
        [end-label (symbol->string (gensym "instanceofend"))]
-       [name (rtype-type rs)]
        [cenv (find-codeenv name cenvs)] )
     
-    (cond
-      [(codeenv-class? cenv)
        (cmp out "eax" "0")
        (cjmp out "je" fail-label "Null literal is automatically false")
        (gen-get-class-id out "eax")
@@ -426,9 +425,26 @@
        (jmp out end-label)
        (label out success-label)
        (movi out "eax" 1)
-       (label out end-label "Done instanceof")]
+       (label out end-label "Done instanceof"))]
+    [(atype (rtype name))
+	(let ([cenv (find-codeenv name cenvs)]
+		      [fail-label (symbol->string (gensym "instanceoffail"))]
+		      [success-label (symbol->string (gensym "instanceofsuccess"))])
+		(cond
+			[(codeenv-class? cenv) 
+			(push out "ebx")		
+			(gen-get-array-class-id out "eax")
+			(let ([id-list (codeenv-casts cenv)])
+			  (gen-check-if-castable out id-list "eax" "ebx" success-label))
+			(label out fail-label)
+			(movi out "eax" 0)
+			(label out success-label "Valid Cast")
+			(movi out "eax" 1)				
+			(pop out "ebx")]
+			[else (error 'cast-atype-interface "unimplemented")]))]
+	[(atype (ptype name))
+	   (movi out "eax" 1)]))
 
-      [else (error 'cast-atype-interface "unimplemented")])))
 
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
@@ -719,6 +735,8 @@
 			(pop out "ebx")
 			(pop out "eax")]
 			[else (error 'cast-atype-interface "unimplemented")]))]
+	[(atype (ptype name))
+		(comment out "Casting ptype array to ptype array - should be handled at compile time?")]
     ))
 ;==============================================================================================
 ;==== Helpers
