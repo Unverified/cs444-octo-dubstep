@@ -125,7 +125,7 @@
 ;CONSTRUCTOR
 (define (gen-code-constructor out cenv params bd cenvs)
   (let ([parent (codeenv-parent cenv)]
-        [member-vars (filter-not codevar-static? (codeenv-vars cenv))]
+        [member-vars (reverse (filter-not (lambda(x) (or (codevar-static? x) (empty? (codevar-val x)))) (codeenv-vars cenv)))]
         [sinfo (stackinfo (get-method-arg-decls (reverse params) 12) empty empty 4)])
     (push out "ebp")			
     (mov out "ebp" "esp")
@@ -203,7 +203,6 @@
     (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
         (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
         'ok)
-    
     
     (display "global _start\n" out)
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
@@ -332,6 +331,8 @@
                (mov out "eax" "ebx")]
        ['pct   (rem out "ebx" "eax")
                (mov out "eax" "ebx")]
+       ['bar (display "or eax,ebx\n" out)]
+       ['amp (display "and eax,ebx\n" out)]
        [(or 'eqeq 'noteq 'gt 'lt 'gteq 'lteq) (conditional out op "ebx" "eax")
                                               (mov out "eax" "ebx")])])
   
@@ -361,7 +362,7 @@
   (reset-stack out 2))
 
 (define (args->params args)
-  (map (lambda(arg) (ast-env arg)) args))
+  (map (lambda(arg) (if (equal? (ptype 'null) (ast-env arg)) (rtype '("java" "lang" "Object")) (ast-env arg))) args))
 
 (define (string-rtype? t)
   (and (rtype? t) (equal? '("java" "lang" "String") (rtype-type t))))
@@ -825,7 +826,10 @@
 
 (define (malloc out nbytes)
   (movi out "eax" nbytes)
-  (call out "__malloc"))
+  (call out "__malloc")
+  (comment out "zero out block")
+  (mov out "ecx" "0")
+  (for-each (lambda(i) (mov out (string-append "[eax+" (number->string (* i WORD)) "]") "ecx")) (build-list (/ nbytes WORD) values)))
 
 ;==============================================================================================
 ;==== Conditions
