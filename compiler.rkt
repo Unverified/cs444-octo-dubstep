@@ -30,7 +30,7 @@
 ;Get all the files from the command line
 (define files-to-compile (vector->list (current-command-line-arguments)))
 ;(define files-to-compile (list "tests/in/a3/J2_interfaces/J2_interface.java" "tests/in/a3/J2_interfaces/Main.java"))
-;(define files-to-compile (list "tests/in/code/tester.java"))
+;(define files-to-compile (list "tests/in/a2/J1_4_InterfaceMethod_FromObject/Main.java"))
 
 ;==============================================================================================
 ;==== Compiler Results
@@ -142,6 +142,8 @@
 
 (printf "~n============== Environments ==============~n")
 (define class-info (map (lambda (x) (set-cinfo-env x (gen-class-envs (info-ast x)))) links))
+(define object-methods (envs-methods (info-env (find-info '("java" "lang" "Object") class-info))))
+(define object-mtypes (filter (compose1 funt? first) (envs-types (info-env (find-info '("java" "lang" "Object") class-info)))))
 
 (printf "~n============== Heirarchy Checker ==========~n")
 (define class-info2 (check-heirarchies class-info)) ;alters the env in each info struct
@@ -152,7 +154,15 @@
 (for-each print-info class-info3)
 
 (printf "~n~n============== Disambiguator ==========~n")
-(define disambig-cinfo (map (curryr disambiguate names) class-info3))
+
+(define disambig-cinfo (map (curryr disambiguate names) 
+                            (map (lambda (x)
+                                   (if (is-interface? (info-ast x))
+                                       (struct-copy info x [env (struct-copy envs (info-env x) 
+                                                                             [methods (append (envs-methods (info-env x)) object-methods)]
+                                                                             [types (append (envs-types (info-env x)) object-mtypes)])])
+                                       x))
+                                 class-info3)))
 
 
 (printf "~n~n=========== Type Checking ==========~n")
