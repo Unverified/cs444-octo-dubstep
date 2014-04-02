@@ -25,6 +25,16 @@
     [else (printempty)(write-method-table out (add1 off) methlst)]
   ))
 
+(define (generate-cast-num classes)
+  (cond [(empty? classes) 0]
+        [else (+ (arithmetic-shift 1 (first classes)) (generate-cast-num (rest classes)))]))
+
+(define (write-cast-fields out iter classids)
+  (cond [(> iter (quotient (name->id "length") 32)) 'ok]
+        [else (let-values ([(larger smaller) (partition (curry < 32) classids)])
+                (fprintf out "\tdd ~a\t; ~b~n" (generate-cast-num smaller) (generate-cast-num smaller))
+                (write-cast-fields out (add1 iter) (map (curryr - 32) classids)))]))
+
 (define (gen-static out all-labels cenv)
   (printf "starting header for ~a~n" (codeenv-name cenv)) 
   (define dis-list (curry for-each (curryr display out)))
@@ -41,7 +51,8 @@
   (display "\n\nsection .data\n" out)
   ;; write the table header so we can find stuff
   (dis-list (list "\n" (mangle-names cenv) ":\n" 
-                  "\tdd " (mangle-names cenv) "METHODTABLE\t ; the unique id of this class \n"))
+                  "\tdd " (mangle-names cenv) "METHODTABLE\t ; seletor in the method arrays \n"))
+  (write-cast-fields out 0 (codeenv-casts cenv))
   
   ;; method pointers
   (dis-list (list "\n\n"(mangle-names cenv) "METHODTABLE:\n"))

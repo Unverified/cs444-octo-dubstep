@@ -112,15 +112,17 @@
      vars
      meths
      (append array
-             (list (name->id (info-name cinfo)))
-             (for/list ([name  (map info-name all-info)]
-                        [supers (map info-supers all-info)]
-                        #:when (list? (member (info-name cinfo) supers)))
-               (name->id name))
-             (for/list ([name  (map info-name all-info)]
-                        [impls (map info-impls all-info)]
-                        #:when (and (list? impls) (list? (member (info-name cinfo) impls))))
-               (name->id name))))))
+             (if (equal? '("java" "lang" "Object") (info-name cinfo))
+                 (map (compose1 name->id info-name) all-info)
+                 (append (list (name->id (info-name cinfo)))
+                         (for/list ([name  (map info-name all-info)]
+                                    [supers (map info-supers all-info)]
+                                    #:when (list? (member (info-name cinfo) supers)))
+                           (name->id name))
+                         (for/list ([name  (map info-name all-info)]
+                                    [impls (map info-impls all-info)]
+                                    #:when (and (list? impls) (list? (member (info-name cinfo) impls))))
+                           (name->id name))))))))
 
 (define (extends-array? name)
   (ormap (curry equal? name) (list `("java" "lang" "Object")
