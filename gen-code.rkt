@@ -112,7 +112,7 @@
 			     (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
 			  ;   (printf "done gen-code-arrayaccess~n")
 			     (mov out "ebx" "eax")			   
-			     (gen-code-cast out cenv sinfo (atype-type (ast-env left)) ex cenvs)
+			     (gen-code-cast out cenv sinfo (atype-type (ast-env left)) ex cenvs) ;;eax should now contain value of casted object
 			  		     
 			     (mov out "[ebx]" "eax")
 			     (pop out "ebx" "restoring")
