@@ -3,7 +3,10 @@
 (require "generation-structures.rkt")
 (require "mangle-names.rkt")
 (provide gen-static)
+(provide cast-off-shift)
 (provide write-cast-fields)
+
+(define cast-off-shift (compose1 (curryr quotient/remainder 32) name->id))
 
 (define (write-info-name out cenv)
   (map (curryr display out) (codeenv-name cenv)))
@@ -15,9 +18,6 @@
   (for-each (lambda (x) (for-each (curryr display out)
                                   (list "\tdd " x "\t; " (string-join x ".") "\n")))
             lst))
-
-(define cast-off-shift (compose1 (curryr quotient/remainder 32) name->id))
-
 
 (define (write-method-table out off methlst)
   (define (printempty) (display "\tdd 0\n" out))
