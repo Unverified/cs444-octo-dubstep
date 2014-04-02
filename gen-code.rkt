@@ -54,7 +54,7 @@
               (match (codemeth-def x)
                 [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out cenv params bd cenvs)]
                 [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out cenv params bd cenvs)]))
-            (filter codemeth-ref? (codeenv-methods cenv))))
+            (filter (lambda (x) (and (codemeth-ref? x) (not (codemeth-native? x)))) (codeenv-methods cenv))))
 
 (define (gen-code-recurse out cenv sinfo t cenvs)
   (match t
@@ -202,7 +202,8 @@
 
 ;ENTRY POINT
 (define (gen-code-start out labels cenvs)
-  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))])
+  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))]
+        [method-table (string-append (mangle-names (find-codeenv '("java" "lang" "Object") cenvs)) "METHODTABLE")])
     (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
         (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
         'ok)
@@ -211,17 +212,14 @@
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
       
     (for-each (lambda (x) (display (string-append "extern " x "\n") out)) labels)
-    (display "extern NATIVEjava.io.OutputStream.nativeWrite\n" out) 
+    (display (string-append "extern " method-table "\n") out)
     (gen-runtime-externs out)
     
     (display "section .data\n\n" out)
     (display (string-append ARRAY-LABEL ":\n") out)
-    (display (string-append "\tdd " (number->string (name->id "array")) "\n") out)
+    (display (string-append "\tdd " method-table "\n") out)
     
-    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x) "\n") out))
-              (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
-                          (reverse (codeenv-methods (find-codeenv '("java" "lang" "Object") cenvs)))))
-    
+    (display "\n" out)
     (display "section .text\n\n" out)
     (gen-debug-print-eax out)
     

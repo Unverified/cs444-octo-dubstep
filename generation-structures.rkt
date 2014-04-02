@@ -34,7 +34,7 @@
 ;; tag depends on how static is set, 
 ;; true means its the origin class, false is an offset
 (struct codevar (id ref? static? tag val) #:transparent)
-(struct codemeth (id ref? static? origin off def) #:transparent)
+(struct codemeth (id ref? static? native? origin off def) #:transparent)
 ;; type is either 'inter or 'class
 (struct codeenv (name guid class? size parent vars methods casts) #:transparent)
 
@@ -50,6 +50,7 @@
                (codemeth (first asc)
                          (equal? local (eval-scope (second asc)))
                          (is-static? (eval-ast (second asc)))
+                         (is-native? (eval-ast (second asc)))
                          origin
                          off
                          (loosetype-expr cinfos (get-toplevel (first asc) (info-ast (find-info origin cinfos)))))))))
