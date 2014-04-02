@@ -29,14 +29,13 @@
   (printf "starting header for ~a~n" (codeenv-name cenv)) 
   (define dis-list (curry for-each (curryr display out)))
   (define my-contrib (map mangle-names (cons cenv (append (filter (lambda (x) (and (codevar-ref? x) (codevar-static? x))) (codeenv-vars cenv))
-                                                          (filter codemeth-ref? (codeenv-methods cenv))))))
+                                                          (filter (lambda (x) (and (codemeth-ref? x) (not (codemeth-native? x)))) (codeenv-methods cenv))))))
   
   (for-each (lambda (x) (display (string-append "global " x "\n") out)) my-contrib)
   (display "\n" out)
   (for-each (lambda (x) (display (string-append "extern " x "\n") out)) 
             (cons (string-append (mangle-names cenv) "METHODTABLE")
                   (filter (compose1 false? (curryr member my-contrib)) all-labels)))
-  
   
   ;; want to write in a data section
   (display "\n\nsection .data\n" out)
