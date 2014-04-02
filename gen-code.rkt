@@ -420,12 +420,10 @@
   (comment out "Getting lhs of instanceof")
   (gen-code-recurse out cenv sinfo ls cenvs)
   (comment out "We now have lhs of instanceof")
-  (let*
+  (let
     ([fail-label (symbol->string (gensym "instanceoffail"))]
      [success-label (symbol->string (gensym "instanceofsuccess"))]
-     [end-label (symbol->string (gensym "instanceofend"))]
-     [name (get-instanceof-name rs)]
-     [cenv (find-codeenv name cenvs)] )
+     [end-label (symbol->string (gensym "instanceofend"))] )
     
      ;null check
      (cmp out "eax" "0")
@@ -439,7 +437,10 @@
        [_ (error "In gen-code-instanceof, ls type is no rtype, atype, or null: " (ast-env ls))])
 
      ;check if castable
-     (gen-check-if-castable out (codeenv-casts cenv) "eax" "ebx" success-label)
+     (cond
+       [(rtype? rs) (gen-check-if-castable out (codeenv-casts (find-codeenv (rtype-type rs) cenvs)) "eax" success-label)]
+       [(atype? rs) (gen-check-if-array-castable out "eax" success-label)]
+       [else (error "In gen-code-instanceof, rs is not an rtype or atype: " rs)])
 
      ;instance of false
      (label out fail-label)
@@ -714,7 +715,7 @@
       [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
                                (push out "eax")
                                (gen-get-class-id out "eax")
-                               (gen-check-if-castable out id-list "eax" "ebx" success-label)
+                               (gen-check-if-castable out id-list "eax" success-label)
                                (label out fail-label)
                                (call out "__exception" "Bad Cast")
                                (label out success-label "Valid cast")
@@ -747,7 +748,7 @@
     (cond [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
                                    (push out "eax")		
                                    (gen-get-array-class-id out "eax")
-                                   (gen-check-if-castable out id-list "eax" "ebx" success-label)
+                                   (gen-check-if-castable out id-list "eax" success-label)
                                    (label out fail-label)
                                    (call out "__exception" "Bad Cast")
                                    (label out success-label "Valid Cast")
@@ -824,7 +825,7 @@
 ;;the register points to the object. The caller preserves the register. 
 (define (gen-get-class-id out register)
   (movf out register register "" "Getting static class info")
-  (movf out register register "" "Getting the class number"))
+  (movf out register register "+4" "Getting the class number"))
 
 
 (define (gen-get-array-class-info out register)
@@ -836,17 +837,20 @@
 	(movf out  register register "+4" "Getting static array info")
 	(movf out register register "" "Getting the class number"))
 
-(define (gen-check-if-castable out id-list register check-register success-label)
+(define (gen-check-if-castable out id-list register success-label)
   (cond
     [(empty? id-list) 
      (nop out "failure; the next instruction should be the failure code")]
     [else
-     (movi out check-register (first id-list))
-     (cmp out check-register register)
+     (movi out "ecx" (first id-list))
+     (cmp out register "ecx")
      (cjmp out "je" success-label)
-     (gen-check-if-castable out (rest id-list) register check-register success-label)])) 
+     (gen-check-if-castable out (rest id-list) register success-label)])) 
 
-
+(define (gen-check-if-array-castable out register success-label)
+  (mov out "ecx" (string-append "["ARRAY-LABEL"+4]"))
+  (cmp out register "ecx")
+  (cjmp out "je" success-label))
 
 (define (gen-initialize-static-fields out cenvs)
   ;(printf "gen-initialize-static-fields: ~a~n" cenvs)
