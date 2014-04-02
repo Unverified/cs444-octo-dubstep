@@ -346,10 +346,10 @@
   ;rs is in eax
   (display "\n\n;STRING ADDITION\n" out)
   (push out "eax")	;push rs on stack
-  (gen-methodcall out cenvs '("java" "lang" "String") (funt "valueOf" (args->params (list ls))) "0" "ebx")
+  (gen-methodcall out cenvs '("java" "lang" "String") (funt "valueOf" (list (get-valueOf-param ls))) "0" "ebx")
   (mov out "ebx" "eax")	;mov valueOf result into ebx
   (pop out "ecx")	;pop rs off stack and put in ecx
-  (gen-methodcall out cenvs '("java" "lang" "String") (funt "valueOf" (args->params (list rs))) "0" "ecx")
+  (gen-methodcall out cenvs '("java" "lang" "String") (funt "valueOf" (list (get-valueOf-param rs))) "0" "ecx")
 
   (display ";RUNNING CONCAT\n" out)
   ;now know for sure that a string object is in eax (rs) and ebx (ls)
@@ -364,8 +364,11 @@
   (call out (mangle-names mcvar))
   (reset-stack out 2))
 
-(define (args->params args)
-  (map (lambda(arg) (if (equal? (ptype 'null) (ast-env arg)) (rtype '("java" "lang" "Object")) (ast-env arg))) args))
+(define (get-valueOf-param arg)
+  (match (ast-env arg)
+    [(or (ptype (not 'null))
+         (rtype '("java" "lang" "String"))) (ast-env arg)]
+    [_ (rtype '("java" "lang" "Object"))]))
 
 (define (string-rtype? t)
   (and (rtype? t) (equal? '("java" "lang" "String") (rtype-type t))))
@@ -530,6 +533,8 @@
   (call out "__exception")
   (label out lbl-sz-ok2)
   
+;TODO: PUT IN TYPE CHECK
+
   (add out "eax" ARRAY-HEADER-SZ)
   (imul out "eax" "4")
   (cond
@@ -688,7 +693,6 @@
 
 (define (gen-rtype-cast out cenvs from to)
   (let ([cenv (find-codeenv to cenvs)]
-        [oenv (find-codeenv from cenvs)]
         [fail-label (symbol->string (gensym "cast_fail"))]
         [success-label (symbol->string (gensym "cast_success"))]
         [nullcast-label (symbol->string (gensym "cast_end"))])
@@ -697,7 +701,10 @@
     (cmp out "eax" "0")
     (cjmp out "je" nullcast-label)
     
-    (if (codeenv-class? oenv) 'ok (mov "eax" "[eax]" "deref interface"))
+    (cond [(or (ptype? from) (atype? from)) 'ok]
+          [else (if (codeenv-class? (find-codeenv (rtype-type from) cenvs)) 
+                    'ok 
+                    (mov "eax" "[eax]" "deref interface"))])
     (cond
       [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
                                (push out "eax")
@@ -715,7 +722,7 @@
             (mov out "edx" "[edx]")
             
             (for-each (lambda (x) (let ([off1 (number->string (codemeth-off x))]
-                                        [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods oenv))))])
+                                        [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods (find-codeenv (rtype-type from) cenvs)))))])
                                     (mov out "ecx" (string-append "[edx" off2 "]")
                                          (mov out (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
             (label out success-label "Valid Cast")])
@@ -754,7 +761,7 @@
     [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (printf "~a~n" (ast-env ex)) (gen-rtype-cast out cenvs (rtype-type (ast-env ex)) name)]
+    [(rtype name) (printf "~a~n" (ast-env ex))(gen-rtype-cast out cenvs (ast-env ex) name)]
     [(atype (rtype name)) (gen-atype-cast out cenvs name)]
     [(atype (ptype name)) (comment out "Casting ptype array to ptype array - should be handled at compile time?")]
     ))
