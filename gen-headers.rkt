@@ -16,6 +16,9 @@
                                   (list "\tdd " x "\t; " (string-join x ".") "\n")))
             lst))
 
+(define cast-off-shift (compose1 (curryr quotient/remainder 32) name->id))
+
+
 (define (write-method-table out off methlst)
   (define (printempty) (display "\tdd 0\n" out))
   (cond
