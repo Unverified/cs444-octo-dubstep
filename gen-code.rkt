@@ -266,7 +266,7 @@
 
 ;METHOD CALL
 (define (gen-code-methodcall out cenv sinfo left mfunt args cenvs)
-  (define mcvar (find-codemeth mfunt (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
+  (define cmeth (find-codemeth mfunt (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (push out "ebx")
   (gen-code-get-this out cenv sinfo left cenvs)	;puts "this" in ebx
@@ -274,7 +274,13 @@
   (comment out "Pushing method args on stack")
   (push-method-args out cenv sinfo args cenvs)	;push all method args onto stack
   (push out "ebx" "this") 			;push the addr of "this"
-  (call out (mangle-names mcvar))					
+  (cond
+    [(rtype? left) (call out (mangle-names cmeth))]
+    [else (mov out "ebx" "[ebx]")	;get the static loc
+          (mov out "ebx" "[ebx]")	;get the methof table loc
+          (mov out "ebx" (string-append"[ebx+"(number->string(codemeth-off cmeth))"]"))	;get the label address of the mthod to call
+          (comment out "YO: " (number->string (codemeth-off cmeth)))
+          (call out "ebx")])
   (reset-stack out (+ 1 (length args)))		;"pop" off all the args from the stack
   (pop out "ebx"))
 
@@ -429,18 +435,18 @@
      (cmp out "eax" "0")
      (cjmp out "je" fail-label "Null literal is automatically false")
 
+     ;check if castable
+     (cond
+       [(rtype? rs) (gen-check-if-castable out (codeenv-casts (find-codeenv (rtype-type rs) cenvs)) "eax" success-label)]
+       [(atype? rs) (gen-check-if-array-castable out "eax" success-label)]
+       [else (error "In gen-code-instanceof, rs is not an rtype or atype: " rs)])
+
      ;get ls class id
      (match (ast-env ls)
        [(or (rtype _)
             (atype _)) (gen-get-class-id out "eax")]
        [(ptype 'null) (comment out "ls is null, cmp/jmp will catch it.")]
        [_ (error "In gen-code-instanceof, ls type is no rtype, atype, or null: " (ast-env ls))])
-
-     ;check if castable
-     (cond
-       [(rtype? rs) (gen-check-if-castable out (codeenv-casts (find-codeenv (rtype-type rs) cenvs)) "eax" success-label)]
-       [(atype? rs) (gen-check-if-array-castable out "eax" success-label)]
-       [else (error "In gen-code-instanceof, rs is not an rtype or atype: " rs)])
 
      ;instance of false
      (label out fail-label)
