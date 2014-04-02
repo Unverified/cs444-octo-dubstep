@@ -90,6 +90,7 @@
             (gen-code-block-helper sinfo (rest statements))]))
   
   (define bsinfo (gen-code-block-helper sinfo statements))
+  ;(printf "gen-code-block - \tsinfo : ~a~n\t bsinfo:~a~n" sinfo bsinfo)
   (reset-stack out (- (length (stackinfo-ldecls bsinfo)) (length (stackinfo-ldecls sinfo)))))
 
 ;==============================================================================================
@@ -104,13 +105,18 @@
     [(varuse _ id) (gen-code-recurse out cenv sinfo ex cenvs)
                    (gen-code-varuse-write out cenv sinfo id)
                    (stackinfo-add-strdecl (stackinfo-rmv-modified-strdecl sinfo id) id ex)] ;need to remove any string decls if they are modified, but add them back in if they were modified to another stringlit
-    [(arrayaccess _ left id) (push out "ebx" "saving")
-                             (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
-                             (mov out "ebx" "eax")
-                             (gen-code-recurse out cenv sinfo ex cenvs)
-                             (mov out "[ebx]" "eax")
-                             (pop out "ebx")
-                             sinfo]
+
+    [(arrayaccess _  left id)
+			     ;(printf "gen-code-varassign arrayaccess case: ~a~n" sinfo)
+			     (push out "ebx" "saving")
+			     (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
+			  ;   (printf "done gen-code-arrayaccess~n")
+			     (mov out "ebx" "eax")			   
+			     (gen-code-cast out cenv sinfo (atype-type (ast-env left)) ex cenvs)
+			  		     
+			     (mov out "[ebx]" "eax")
+			     (pop out "ebx" "restoring")
+			     sinfo]
     [(fieldaccess _ left field) (push out "ebx" "saving")
                                 (gen-code-fieldaccess out cenv sinfo #t left field cenvs)
                                 (mov out "ebx" "eax")
@@ -499,7 +505,7 @@
     [(ptype? ty) (mov out "ecx" "0")
                  (mov out "[eax+4]" "ecx")]
     [(atype? ty) (error 'gen-code-arraycreate "how?")])
-  
+
   (pop out "ebx"))
 
 (define (gen-arraycreate-code out)
@@ -532,7 +538,7 @@
   (cjmp out "jl" lbl-sz-ok2)
   (call out "__exception")
   (label out lbl-sz-ok2)
-  
+
 ;TODO: PUT IN TYPE CHECK
 
   (add out "eax" ARRAY-HEADER-SZ)
@@ -725,7 +731,8 @@
                                         [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods (find-codeenv (rtype-type from) cenvs)))))])
                                     (mov out "ecx" (string-append "[edx" off2 "]")
                                          (mov out (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
-            (label out success-label "Valid Cast")])
+            (label out success-label "Valid Cast")
+	    (pop out "eax")])
     (label out nullcast-label)
     (pop out "ebx")))
 
@@ -751,10 +758,10 @@
     (pop out "ebx")))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
+;;puts the casted object into eax
 (define (gen-code-cast out cenv sinfo c ex cenvs)
   ;(printf "gen-code-cast ~a~n" ex)
   (gen-code-recurse out cenv sinfo ex cenvs)
-
   (match c
     [(ptype 'int)  (comment out "cast to int")]
     [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
