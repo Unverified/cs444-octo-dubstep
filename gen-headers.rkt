@@ -6,7 +6,9 @@
 (provide cast-off-shift)
 (provide write-cast-fields)
 
-(define cast-off-shift (compose1 (curryr quotient/remainder 32) (curry + 32) name->id))
+(define (cast-off-shift name) 
+  (let-values ([(off shf) (quotient/remainder (name->id name) 32)])
+    (values (* 4 (off + 1)) shf)))
 
 (define (write-info-name out cenv)
   (map (curryr display out) (codeenv-name cenv)))
