@@ -6,7 +6,7 @@
 (provide cast-off-shift)
 (provide write-cast-fields)
 
-(define cast-off-shift (compose1 (curryr quotient/remainder 32) name->id))
+(define cast-off-shift (compose1 (curryr quotient/remainder 32) (curry + 32) name->id))
 
 (define (write-info-name out cenv)
   (map (curryr display out) (codeenv-name cenv)))
@@ -66,7 +66,6 @@
   ;; static variable pointers
   (display "\n" out)
   (for-each (lambda (x) (display (string-append (mangle-names x) ": dd 0\t; \n") out))
-            (filter (lambda (x) (and (codevar-ref? x) (codevar-static? x))) (codeenv-vars cenv)))
-  
+            (filter (lambda (x) (and (codevar-ref? x) (codevar-static? x))) (codeenv-vars cenv))) 
   (printf "done header for ~a~n" (codeenv-name cenv)))
 
