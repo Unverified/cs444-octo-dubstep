@@ -234,7 +234,7 @@
                       [else (comb-nlit (ptype 'boolean) =)])]                
         ['noteq (cond [(and (type-bool? lht) (type-bool? rht)) (comb-blit (compose not equal?))]
                       [else (comb-nlit (ptype 'boolean) (compose not =))])]
-        [(or 'barbar 'bar)  (comb-blit (lambda (x y) (or x y)))]
+        ['bar  (comb-blit (lambda (x y) (or x y)))]
         [(or 'ampamp 'amp) (comb-blit (lambda (x y) (and x y)))]
         [_ (error 'reduce-binop "~e is not implemented!" op)]))))
 
@@ -251,11 +251,45 @@
 (define (simplify-ast t)
   (match t
     [`() (error "simplify-ast matched an empty list, it should not get to this point.")] 
+    
+    [(binop e 'barbar lhs rhs) (let ([left (simplify-ast lhs)])
+                                 (cond
+                                   [(not (literal? lhs)) (binop e 'barbar left (simplify-ast rhs))]
+                                   [(and (equal? (ptype 'boolean) (literal-type left)) (literal-value left))
+                                    (literal e (ptype 'boolean) #t)]
+                                   [else (simplify-ast rhs)]))]
+    
+    [(binop e 'ampamp lhs rhs) (let ([left (simplify-ast lhs)])
+                                 (cond
+                                   [(not (literal? left)) (binop e 'ampamp left (simplify-ast rhs))]
+                                   [(and (equal? (ptype 'boolean) (literal-type left)) (false? (literal-value left)))
+                                    (literal e (ptype 'boolean) #f)]
+                                   [else (simplify-ast rhs)]))]
+    
+    [(binop e 'slash lhs rhs) (let ([left (simplify-ast lhs)]
+                                    [right (simplify-ast rhs)])
+                                (cond [(not (and (literal? left) (literal? right))) (binop e 'slash left right)]
+                                      [(= (literal-value right) 0) (binop e 'slash left right)]
+                                      [else (reduce-binop e 'slash left right)]))] 
+    
+    [(binop e 'pct lhs rhs) (let ([left (simplify-ast lhs)]
+                                  [right (simplify-ast rhs)])
+                              (cond [(not (and (literal? left) (literal? right))) (binop e 'pct left right)]
+                                    [(= (literal-value right) 0) (binop e 'pct left right)]
+                                    [else (reduce-binop e 'pct left right)]))]
+    
     [(binop e op lhs rhs) (let ([left (simplify-ast lhs)]
                                 [right (simplify-ast rhs)])
                             (if (and (literal? left) (literal? right))
                                 (reduce-binop e op left right)
                                 (binop e op left right)))]
+
+    [(binop e op lhs rhs) (let ([left (simplify-ast lhs)]
+                                [right (simplify-ast rhs)])
+                            (if (and (literal? left) (literal? right))
+                                (reduce-binop e op left right)
+                                (binop e op left right)))]
+    
     
     [(unop e op rhs) (let ([right (simplify-ast rhs)])
                        (if (literal? right) 
