@@ -9,16 +9,23 @@
 (provide (struct-out codemeth))
 (provide (struct-out codeenv))
 
+
 (provide name->id)
+(provide funt->off)
+
 (provide info->codeenv)
 (provide find-codeenv)
 (provide find-codemeth)
 (provide find-codevar)
 
-(define counter (let ([count 0]) (lambda () (set! count (add1 count)) count)))
+(define n-counter (let ([count 0]) (lambda () (set! count (add1 count)) count)))
+(define f-counter (let ([count -1]) (lambda () (set! count (add1 count)) count)))
 
-(define store (make-hash))
-(define (name->id name) (hash-ref! store name (thunk (counter))))
+(define namestore (make-hash))
+(define funtstore (make-hash))
+
+(define (name->id  name) (hash-ref! namestore name (thunk (n-counter))))
+(define (funt->off fid) (hash-ref! funtstore fid (thunk (f-counter))))
 
 ;======================================================================================
 ;==== Code Environment Generation
@@ -27,7 +34,7 @@
 ;; tag depends on how static is set, 
 ;; true means its the origin class, false is an offset
 (struct codevar (id ref? static? tag val) #:transparent)
-(struct codemeth (id ref? static? origin off def) #:transparent)
+(struct codemeth (id ref? static? native? origin off def) #:transparent)
 ;; type is either 'inter or 'class
 (struct codeenv (name guid class? size parent vars methods casts) #:transparent)
 
@@ -37,14 +44,15 @@
                 (assoc key asoc))]))
 
 (define (assoclst->codemeth local lookup cinfos lst)
-  (reverse (for/list ([off (range 1 (add1 (length lst)))]
-                      [asc (reverse-normalize lst)])
-             (let ([origin (first (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup"))))])
+  (reverse (for/list ([asc (reverse-normalize lst)])
+             (let ([origin (first (hash-ref lookup (eval-scope (second asc)) (thunk (error (eval-scope (second asc)) " not in lookup"))))]
+                   [off (* 4 (funt->off (first asc)))])
                (codemeth (first asc)
                          (equal? local (eval-scope (second asc)))
                          (is-static? (eval-ast (second asc)))
+                         (is-native? (eval-ast (second asc)))
                          origin
-                         (* 4 off)
+                         off
                          (loosetype-expr cinfos (get-toplevel (first asc) (info-ast (find-info origin cinfos)))))))))
 
 (define (assoclst->codevars local lookup cinfos lst)
@@ -104,15 +112,17 @@
      vars
      meths
      (append array
-             (list (name->id (info-name cinfo)))
-             (for/list ([name  (map info-name all-info)]
-                        [supers (map info-supers all-info)]
-                        #:when (list? (member (info-name cinfo) supers)))
-               (name->id name))
-             (for/list ([name  (map info-name all-info)]
-                        [impls (map info-impls all-info)]
-                        #:when (and (list? impls) (list? (member (info-name cinfo) impls))))
-               (name->id name))))))
+             (if (equal? '("java" "lang" "Object") (info-name cinfo))
+                 (map (compose1 name->id info-name) all-info)
+                 (append (list (name->id (info-name cinfo)))
+                         (for/list ([name  (map info-name all-info)]
+                                    [supers (map info-supers all-info)]
+                                    #:when (list? (member (info-name cinfo) supers)))
+                           (name->id name))
+                         (for/list ([name  (map info-name all-info)]
+                                    [impls (map info-impls all-info)]
+                                    #:when (and (list? impls) (list? (member (info-name cinfo) impls))))
+                           (name->id name))))))))
 
 (define (extends-array? name)
   (ormap (curry equal? name) (list `("java" "lang" "Object")

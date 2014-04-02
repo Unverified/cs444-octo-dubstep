@@ -14,12 +14,14 @@
         [(and (list? args) (not (empty? args)) (andmap parameter? args)) (constr-label class (map parameter-type args))]
         [(not (and (list? args) (andmap (lambda (x) (or (atype? x) (rtype? x) (ptype? x))) args)))
          (error 'constr-label "given invalid arg list ~e" args)]
-        [else (mangle-names (codemeth (funt "" args) #f #f class 0 empty))]))
+        [else (mangle-names (codemeth (funt "" args) #f #f #f class 0 empty))]))
 
 ;;mangling names
 (define (mangle-names thing)
   (cond [(funt? thing) (apply string-append (cons (funt-id thing) (map get-mangled-type-name (funt-argt thing))))]
-        [(list? thing) (string-join thing "_")]
+        [(list? thing) (string-join thing ".")]
+        [(and (codemeth? thing) (codemeth-native? thing)) 
+         (string-append "NATIVE" (mangle-names (codemeth-origin thing)) "." (funt-id (codemeth-id thing)))]
 	[(codemeth? thing) (string-append (mangle-names (codemeth-origin thing)) "_" (mangle-names (codemeth-id thing)) "_method")]
 	[(codevar? thing) (string-append (mangle-names (codevar-tag thing)) "_" (codevar-id thing) "_var")]
         [(codeenv? thing) (string-append (mangle-names (codeenv-name thing)) "_" (number->string (codeenv-guid thing)) "_class")]

@@ -26,11 +26,11 @@
   (define-values (classes interfaces) (partition codeenv-class? cenvs))
   (define all-labels (remove-duplicates (map mangle-names (append (filter (lambda (x) (and (codevar-static? x) (codevar-ref? x))) (append-map codeenv-vars classes))
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
-                                                                  cenvs))))
+                                                                  classes))))
   
   (gen-code-start out all-labels cenvs)
   
-  (for-each gen-interface interfaces)
+  ;(for-each gen-interface interfaces)
   (for-each (curry gen-code (cons ARRAY-LABEL all-labels) cenvs) classes))
 
 (define (gen-interface cenv)
@@ -54,7 +54,7 @@
               (match (codemeth-def x)
                 [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out cenv params bd cenvs)]
                 [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out cenv params bd cenvs)]))
-            (filter codemeth-ref? (codeenv-methods cenv))))
+            (filter (lambda (x) (and (codemeth-ref? x) (not (codemeth-native? x)))) (codeenv-methods cenv))))
 
 (define (gen-code-recurse out cenv sinfo t cenvs)
   (match t
@@ -90,6 +90,7 @@
             (gen-code-block-helper sinfo (rest statements))]))
   
   (define bsinfo (gen-code-block-helper sinfo statements))
+  ;(printf "gen-code-block - \tsinfo : ~a~n\t bsinfo:~a~n" sinfo bsinfo)
   (reset-stack out (- (length (stackinfo-ldecls bsinfo)) (length (stackinfo-ldecls sinfo)))))
 
 ;==============================================================================================
@@ -104,13 +105,18 @@
     [(varuse _ id) (gen-code-recurse out cenv sinfo ex cenvs)
                    (gen-code-varuse-write out cenv sinfo id)
                    (stackinfo-add-strdecl (stackinfo-rmv-modified-strdecl sinfo id) id ex)] ;need to remove any string decls if they are modified, but add them back in if they were modified to another stringlit
-    [(arrayaccess _ left id) (push out "ebx" "saving")
-                             (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
-                             (mov out "ebx" "eax")
-                             (gen-code-recurse out cenv sinfo ex cenvs)
-                             (mov out "[ebx]" "eax")
-                             (pop out "ebx")
-                             sinfo]
+
+    [(arrayaccess _  left id)
+			     ;(printf "gen-code-varassign arrayaccess case: ~a~n" sinfo)
+			     (push out "ebx" "saving")
+			     (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
+			  ;   (printf "done gen-code-arrayaccess~n")
+			     (mov out "ebx" "eax")			   
+			     (gen-code-cast out cenv sinfo (atype-type (ast-env left)) ex cenvs) ;;eax should now contain value of casted object
+			  		     
+			     (mov out "[ebx]" "eax")
+			     (pop out "ebx" "restoring")
+			     sinfo]
     [(fieldaccess _ left field) (push out "ebx" "saving")
                                 (gen-code-fieldaccess out cenv sinfo #t left field cenvs)
                                 (mov out "ebx" "eax")
@@ -206,7 +212,8 @@
 
 ;ENTRY POINT
 (define (gen-code-start out labels cenvs)
-  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))])
+  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))]
+        [method-table (string-append (mangle-names (find-codeenv '("java" "lang" "Object") cenvs)) "METHODTABLE")])
     (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
         (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
         'ok)
@@ -215,17 +222,15 @@
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
       
     (for-each (lambda (x) (display (string-append "extern " x "\n") out)) labels)
-    (display "extern NATIVEjava.io.OutputStream.nativeWrite\n" out) 
+    (display (string-append "extern " method-table "\n") out)
     (gen-runtime-externs out)
     
     (display "section .data\n\n" out)
     (display (string-append ARRAY-LABEL ":\n") out)
-    (display (string-append "\tdd " (number->string (name->id "array")) "\n") out)
+    (display (string-append "\tdd " method-table "\n") out)
+    (write-cast-fields out 0 (list (name->id "array")))
     
-    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x) "\n") out))
-              (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
-                          (reverse (codeenv-methods (find-codeenv '("java" "lang" "Object") cenvs)))))
-    
+    (display "\n" out)
     (display "section .text\n\n" out)
     (gen-debug-print-eax out)
     
@@ -498,7 +503,7 @@
     [(ptype? ty) (mov out "ecx" "0")
                  (mov out "[eax+4]" "ecx")]
     [(atype? ty) (error 'gen-code-arraycreate "how?")])
-  
+
   (pop out "ebx"))
 
 (define (gen-arraycreate-code out)
@@ -531,7 +536,7 @@
   (cjmp out "jl" lbl-sz-ok2)
   (call out "__exception")
   (label out lbl-sz-ok2)
-  
+
 ;TODO: PUT IN TYPE CHECK
 
   (add out "eax" ARRAY-HEADER-SZ)
@@ -725,7 +730,8 @@
                                         [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods (find-codeenv (rtype-type from) cenvs)))))])
                                     (mov out "ecx" (string-append "[edx" off2 "]")
                                          (mov out (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
-            (label out success-label "Valid Cast")])
+            (label out success-label "Valid Cast")
+	    (pop out "eax")])
     (label out nullcast-label)
     (pop out "ebx")))
 
@@ -751,10 +757,10 @@
     (pop out "ebx")))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
+;;puts the casted object into eax
 (define (gen-code-cast out cenv sinfo c ex cenvs)
   ;(printf "gen-code-cast ~a~n" ex)
   (gen-code-recurse out cenv sinfo ex cenvs)
-
   (match c
     [(ptype 'int)  (comment out "cast to int")]
     [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
