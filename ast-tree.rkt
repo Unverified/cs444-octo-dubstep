@@ -242,8 +242,8 @@
 ;only care about the types boolean, int, char, byte, short
 (define (reduce-unop env op rhs)
   (match (list op (literal-type rhs))
-    [`(minus ,(or (ptype 'int) (ptype 'byte) (ptype 'short))) (literal env (ptype 'int) (- (literal-value rhs)))]
-    [`(minus ,(ptype 'char)) (literal env (ptype 'int) (- (literal-value rhs)))]
+    [`(minus ,(or (ptype 'int) (ptype 'byte) (ptype 'short))) (literal env (ptype 'int) (cast-int (- (literal-value rhs))))]
+    [`(minus ,(ptype 'char)) (literal env (ptype 'int) (cast-char (- (literal-value rhs))))]
     [`(not ,(ptype 'boolean)) (literal env (ptype 'boolean) (false? (literal-value rhs)))]
     [`(,op ,rht) (printf "(~a ~a)" op rht)
                  (error "unimplemented!")]))

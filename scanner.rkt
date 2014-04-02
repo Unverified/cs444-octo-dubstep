@@ -77,8 +77,8 @@
   ;(: match-octal : Nat (Listof Char) -> (Listof Char))
   (define (match-octal pos cl)
     (cond [(empty? cl) empty]
-          [(and (= pos 2) (num-0to3? (first cl))) (cons (first cl) (match-octal 2 (rest cl)))]
-          [(and (> pos 0) (num-oct? (first cl))) (cons (first cl) (match-octal (sub1 pos) (rest cl)))]
+          [(and (>= pos 3) (num-0to3? (first cl))) (cons (first cl) (match-octal 2 (rest cl)))]
+          [(and (> pos 0) (num-oct? (first cl))) (cons (first cl) (match-octal (if (> pos 2) 1 (sub1 pos)) (rest cl)))]
           [else empty]))
   ;(: list->octal : (Listof Char) -> Nat)
   (define (list->octal cl)
@@ -93,7 +93,14 @@
     [`(#\\ #\" ,x ...) (cons #\" (escape-chars x))]
     [`(#\\ #\' ,x ...) (cons #\' (escape-chars x))]
     [`(#\\ #\\ ,x ...) (cons #\\ (escape-chars x))]
-    [`(#\\ ,x ...)     (let* ([octal (match-octal 2 x)]
+    [`(#\\ ,x ...)     (let* ([octal (match-octal 3 x)]
                               [value (list->octal octal)])
                          (cons value (escape-chars (list-tail x (length octal)))))]
     [x (cons (first x) (escape-chars (rest x)))]))
+
+
+
+
+
+
+

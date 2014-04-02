@@ -5,7 +5,7 @@ public class J1_typecheck_instanceof {
 
     public static int test() {
 	if(!(new Object() instanceof Object)) return 0;		// 0
-	if(new Object[0] instanceof Object[]) return 1;		// 1
+	if(!(new Object[0] instanceof Object[])) return 1;	// 1
 	if(!(new Object[0] instanceof Object)) return 2;	// 2
 	if(null instanceof Object) return 3;			// 3
 	if(!(new Integer(17) instanceof Number)) return 4;	// 5
