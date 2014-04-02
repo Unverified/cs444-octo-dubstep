@@ -3,6 +3,7 @@
 (require "generation-structures.rkt")
 (require "mangle-names.rkt")
 (provide gen-static)
+(provide write-cast-fields)
 
 (define (write-info-name out cenv)
   (map (curryr display out) (codeenv-name cenv)))

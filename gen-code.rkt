@@ -26,11 +26,11 @@
   (define-values (classes interfaces) (partition codeenv-class? cenvs))
   (define all-labels (remove-duplicates (map mangle-names (append (filter (lambda (x) (and (codevar-static? x) (codevar-ref? x))) (append-map codeenv-vars classes))
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
-                                                                  cenvs))))
+                                                                  classes))))
   
   (gen-code-start out all-labels cenvs)
   
-  (for-each gen-interface interfaces)
+  ;(for-each gen-interface interfaces)
   (for-each (curry gen-code (cons ARRAY-LABEL all-labels) cenvs) classes))
 
 (define (gen-interface cenv)
@@ -224,6 +224,7 @@
     (display "section .data\n\n" out)
     (display (string-append ARRAY-LABEL ":\n") out)
     (display (string-append "\tdd " method-table "\n") out)
+    (write-cast-fields out 0 (list (name->id "array")))
     
     (display "\n" out)
     (display "section .text\n\n" out)
