@@ -423,40 +423,23 @@
 ;;helper - INSTANCEOF
 ;;this code is mostly copied from the gen-code-cast function
 (define (gen-code-instanceof out cenv sinfo ls rs cenvs)
+  (define endlabel (symbol->string (gensym "instanceof_end")))
+
   (comment out "Getting lhs of instanceof")
   (gen-code-recurse out cenv sinfo ls cenvs)
   (comment out "We now have lhs of instanceof")
-  (let
-    ([fail-label (symbol->string (gensym "instanceoffail"))]
-     [success-label (symbol->string (gensym "instanceofsuccess"))]
-     [end-label (symbol->string (gensym "instanceofend"))] )
-    
-     ;null check
-     (cmp out "eax" "0")
-     (cjmp out "je" fail-label "Null literal is automatically false")
-
-     ;check if castable
-     (cond
-       [(rtype? rs) (gen-check-if-castable out (codeenv-casts (find-codeenv (rtype-type rs) cenvs)) "eax" success-label)]
-       [(atype? rs) (gen-check-if-array-castable out "eax" success-label)]
-       [else (error "In gen-code-instanceof, rs is not an rtype or atype: " rs)])
-
-     ;get ls class id
-     (match (ast-env ls)
-       [(or (rtype _)
-            (atype _)) (gen-get-class-id out "eax")]
-       [(ptype 'null) (comment out "ls is null, cmp/jmp will catch it.")]
-       [_ (error "In gen-code-instanceof, ls type is no rtype, atype, or null: " (ast-env ls))])
-
-     ;instance of false
-     (label out fail-label)
-     (movi out "eax" 0)
-     (jmp out end-label)
-
-     ;instance of true
-     (label out success-label)
-     (movi out "eax" 1)
-     (label out end-label "Done instanceof")))
+   
+  ;null check
+  (cmp out "eax" "0")
+  (cjmp out "je" endlabel "Null literal is automatically false")
+  
+  (let-values ([(off shift) (cast-off-shift (if (rtype? rs) (rtype-type rs) "array"))])
+    (mov out "eax" "[eax]")
+    (mov out "eax" (string-append "[eax+"(number->string off)"]"))
+    (display (string-append "sal eax,"(number->string shift)"\n") out)
+    (display "and eax,1\n" out))
+  
+  (label out endlabel))
 
 (define (get-instanceof-name rs)
   (match rs
