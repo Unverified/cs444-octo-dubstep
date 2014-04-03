@@ -697,65 +697,23 @@
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
     [(rtype '("java" "lang" "String")) (gen-code-classcreate out cenv sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list (literal empty type val)) cenvs)]))
 
-(define (gen-rtype-cast out cenvs from to)
-  (let ([cenv (find-codeenv to cenvs)]
-        [fail-label (symbol->string (gensym "cast_fail"))]
-        [success-label (symbol->string (gensym "cast_success"))]
-        [nullcast-label (symbol->string (gensym "cast_end"))])
-    (push out "ebx")
-    ;; if eax is 0 need to branch over everything else
+(define (gen-object-cast out typename)
+  (let-values ([(offset shift) (cast-off-shift typename)]
+               [(end-label) (symbol->string (gensym "cast_end"))])  
+    (push out "eax")
     (cmp out "eax" "0")
-    (cjmp out "je" nullcast-label)
+    (cjmp out "je" end-label)
     
-    (cond [(or (ptype? from) (atype? from)) 'ok]
-          [else (if (codeenv-class? (find-codeenv (rtype-type from) cenvs)) 
-                    'ok 
-                    (mov "eax" "[eax]" "deref interface"))])
-    (cond
-      [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
-                               (push out "eax")
-                               (gen-get-class-id out "eax")
-                               (gen-check-if-castable out id-list "eax" "ebx" success-label)
-                               (label out fail-label)
-                               (call out "__exception" "Bad Cast")
-                               (label out success-label "Valid cast")
-                               (pop out "eax"))]
-      [else (push out "eax")    
-            (malloc out (codeenv-size cenv))
-            (pop out "edx")
-            
-            (mov out "[eax]" "edx")
-            (mov out "edx" "[edx]")
-            
-            (for-each (lambda (x) (let ([off1 (number->string (codemeth-off x))]
-                                        [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods (find-codeenv (rtype-type from) cenvs)))))])
-                                    (mov out "ecx" (string-append "[edx" off2 "]")
-                                         (mov out (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
-            (label out success-label "Valid Cast")
-	    (pop out "eax")])
-    (label out nullcast-label)
-    (pop out "ebx")))
-
-(define (gen-atype-cast out cenvs name)
-  (let ([cenv (find-codeenv name cenvs)]
-        [fail-label (symbol->string (gensym "cast_fail"))]
-        [success-label (symbol->string (gensym "cast_success"))]
-        [nullcast-label (symbol->string (gensym "cast_end"))])
-    ;; if eax is 0 need to branch over everything else    
-    (push out "ebx")
+    (mov out "eax" "[eax]")
+    (mov out "eax" (string-append "[eax+" (number->string offset) "]"))
+    (display (string-append "\tand eax, " (number->string shift) " << 1") out)
+    
     (cmp out "eax" "0")
-    (cjmp out "je" nullcast-label) 
-    (cond [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
-                                   (push out "eax")		
-                                   (gen-get-array-class-id out "eax")
-                                   (gen-check-if-castable out id-list "eax" "ebx" success-label)
-                                   (label out fail-label)
-                                   (call out "__exception" "Bad Cast")
-                                   (label out success-label "Valid Cast")
-                                   (pop out "eax"))]
-          [else (error 'cast-atype-interface "unimplemented")])
-    (label out nullcast-label)
-    (pop out "ebx")))
+    (cjmp out "jne" end-label)
+    (call out "__exception" "Bad Cast")
+
+    (label out end-label)
+    (pop out "eax")))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
 ;;puts the casted object into eax
@@ -764,14 +722,14 @@
   (gen-code-recurse out cenv sinfo ex cenvs)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
+    [(ptype 'boolean) (comment out "cast to boolean, can this be an issue?")]
     [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
     [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (printf "~a~n" (ast-env ex))(gen-rtype-cast out cenvs (ast-env ex) name)]
-    [(atype (rtype name)) (gen-atype-cast out cenvs name)]
-    [(atype (ptype name)) (comment out "Casting ptype array to ptype array - should be handled at compile time?")]
-    ))
+    [(rtype name) (gen-object-cast out name)]
+    [(atype (rtype name)) (gen-object-cast out "array") #| test array type aswell |#]
+    [(atype (ptype name)) (gen-object-cast out "array") #| test array type aswell |#]))
 ;==============================================================================================
 ;==== Helpers
 ;==============================================================================================
