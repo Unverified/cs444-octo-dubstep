@@ -217,14 +217,16 @@
 ;==== Method Generation
 ;==============================================================================================
 
+(define (get-entry-label cenvs)
+  (if (empty? cenvs)
+      (error 'get-entry-label "static test() not defined within program")
+      (let ([point (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))])
+        (cond [(and (codemeth? point) (codemeth-static? point)) (mangle-names point)]
+              [else (get-entry-label (rest cenvs))]))))
+
 ;ENTRY POINT
 (define (gen-code-start out labels cenvs)
-  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))]
-        [method-table (string-append (mangle-names (find-codeenv '("java" "lang" "Object") cenvs)) "METHODTABLE")])
-    (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
-        (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
-        'ok)
-    
+  (let ([method-table (string-append (mangle-names (find-codeenv '("java" "lang" "Object") cenvs)) "METHODTABLE")])   
     (display "global _start\n" out)
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
       
@@ -249,7 +251,7 @@
     (gen-initialize-static-fields out cenvs)
     
     (comment out "@@@@@@@@@@@ Done static initialization! @@@@@@@")
-    (call out (mangle-names entry-meth))
+    (call out (get-entry-label cenvs))
     (mov out "ebx" "eax")
     (display "mov eax, 1\n" out)
     (display "int 0x80\n" out)
