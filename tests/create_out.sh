@@ -2,29 +2,42 @@
 
 A=a1
 
-for file in in/$A/J1*
+for i in 5
 do
-  dir_array=(`echo $file | tr '/' ' '`)
-  let in_file_pos=${#dir_array[@]}-1
-  file_name=${dir_array[$in_file_pos]}
+  for file in in/a$i/J1*
+  do
+    dir_array=(`echo $file | tr '/' ' '`)
+    let in_file_pos=${#dir_array[@]}-1
+    file_name=${dir_array[$in_file_pos]}
 
-  echo "123" > "out/$A/$file_name"
+    echo "123" > "out/a$i/$file_name"
+  done
+
+  for file in in/a$i/J2*
+  do
+    dir_array=(`echo $file | tr '/' ' '`)
+    let in_file_pos=${#dir_array[@]}-1
+    file_name=${dir_array[$in_file_pos]}
+
+    echo "123" > "out/a$i/$file_name"
+  done
+
+  for file in in/a$i/Je*
+  do
+    dir_array=(`echo $file | tr '/' ' '`)
+    let in_file_pos=${#dir_array[@]}-1
+    file_name=${dir_array[$in_file_pos]}
+
+    echo "-1" > "out/a$i/$file_name"
+  done
+
+  for file in in/a$i/J1e*
+  do
+    dir_array=(`echo $file | tr '/' ' '`)
+    let in_file_pos=${#dir_array[@]}-1
+    file_name=${dir_array[$in_file_pos]}
+
+    echo "-1" > "out/a$i/$file_name"
+  done
+
 done
-
-for file in in/$A/J2*
-do
-  dir_array=(`echo $file | tr '/' ' '`)
-  let in_file_pos=${#dir_array[@]}-1
-  file_name=${dir_array[$in_file_pos]}
-
-  echo "123" > "out/$A/$file_name"
-done
-
-#for file in in/$A/Je*
-#do
-#  dir_array=(`echo $file | tr '/' ' '`)
-#  let in_file_pos=${#dir_array[@]}-1
-#  file_name=${dir_array[$in_file_pos]}
-#
-#  echo "-1" > "out/$A/$file_name"
-#done
