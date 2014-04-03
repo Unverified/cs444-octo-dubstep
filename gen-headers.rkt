@@ -9,7 +9,7 @@
 
 (define (cast-off-shift name) 
   (let-values ([(off shf) (quotient/remainder (name->id name) 32)])
-    (values (* 4 (off + 2)) shf)))
+    (values (* 4 (+ off 2)) shf)))
 
 (define (write-info-name out cenv)
   (map (curryr display out) (codeenv-name cenv)))
