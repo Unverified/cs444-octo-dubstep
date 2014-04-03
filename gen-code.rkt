@@ -331,7 +331,8 @@
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out cenv sinfo op ls rs cenvs)]
-    [(equal? op 'instanceof) (gen-code-instanceof out cenv sinfo ls rs cenvs)]
+    [(equal? op 'instanceof) (gen-code-recurse out cenv sinfo ls cenvs) 
+                             (gen-code-instanceof out cenv sinfo rs cenvs)]
     [else
      (if [stringlit? ls] (gen-code-stringlit out cenv sinfo ls cenvs) (gen-code-recurse out cenv sinfo ls cenvs))
      (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
@@ -423,15 +424,11 @@
 
 ;;helper - INSTANCEOF
 ;;this code is mostly copied from the gen-code-cast function
-(define (gen-code-instanceof out cenv sinfo ls rs cenvs)
+(define (gen-code-instanceof out cenv sinfo rs cenvs)
   (define checklabel (symbol->string (gensym "instanceof_check")))
   (define endlabel (symbol->string (gensym "instanceof_end")))
   (define rs-static (if (atype? rs) ARRAY-LABEL (mangle-names (find-codeenv (rtype-type rs) cenvs))))
   (define cast-fields-len (if (atype? rs) 1 (length (get-cast-fields out 0 (codeenv-casts (find-codeenv (rtype-type rs) cenvs))))))
-
-  (comment out "Getting lhs of instanceof")
-  (gen-code-recurse out cenv sinfo ls cenvs)
-  (comment out "We now have lhs of instanceof")
 
   ;null check
   (cmp out "eax" "0")
@@ -711,28 +708,33 @@
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
     [(rtype '("java" "lang" "String")) (gen-code-classcreate out cenv sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list (literal empty type val)) cenvs)]))
 
-(define (gen-object-cast out typename)
-  (let-values ([(offset shift) (cast-off-shift typename)]
-               [(end-label) (symbol->string (gensym "cast_end"))])  
+(define (gen-object-cast out cenv sinfo rs cenvs)
+  ;(let-values ([(offset shift) (cast-off-shift typename)]
+  ;             [(end-label) (symbol->string (gensym "cast_end"))])  
+    (define end-label (symbol->string (gensym "cast_end")))
     (push out "eax")
-    (cmp out "eax" "0")
-    (cjmp out "je" end-label)
     
-    (mov out "eax" "[eax]")
-    (mov out "eax" (string-append "[eax+" (number->string offset) "]"))
-    (display (string-append "\tand eax, " (number->string shift) " << 1\n") out)
+    ;at this point the object we are cast is in eax, so check if eax is an instance of cast
+    (gen-code-instanceof out cenv sinfo rs cenvs)
+
+    ;(cmp out "eax" "0")
+    ;(cjmp out "je" end-label)
+    ;(mov out "eax" "[eax]")
+    ;(mov out "eax" (string-append "[eax+" (number->string offset) "]"))
+    ;(display (string-append "\tand eax, " (number->string shift) " << 1\n") out)
     
     (cmp out "eax" "0")
     (cjmp out "jne" end-label)
     (call out "__exception" "Bad Cast")
 
     (label out end-label)
-    (pop out "eax")))
+    (pop out "eax"))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
 ;;puts the casted object into eax
 (define (gen-code-cast out cenv sinfo c ex cenvs)
   ;(printf "gen-code-cast ~a~n" ex)
+  (push out "ebx")
   (gen-code-recurse out cenv sinfo ex cenvs)
   (match c
     [(ptype 'int)  (comment out "cast to int")]
@@ -742,9 +744,11 @@
     [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
     [(ptype 'boolean) (comment out "cast to boolean")]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (gen-object-cast out name)]
-    [(atype (rtype name)) (gen-object-cast out "array") #| test array type aswell |#]
-    [(atype (ptype name)) (gen-object-cast out "array") #| test array type aswell |#]))
+    [_ (gen-object-cast out cenv sinfo c cenvs)])
+  (pop out "ebx"))
+    ;[(rtype name) (gen-object-cast out name)]
+    ;[(atype (rtype name)) (gen-object-cast out "array") #| test array type aswell |#]
+    ;[(atype (ptype name)) (gen-object-cast out "array") #| test array type aswell |#]))
 ;==============================================================================================
 ;==== Helpers
 ;==============================================================================================
