@@ -224,6 +224,7 @@
     (display "section .data\n\n" out)
     (display (string-append ARRAY-LABEL ":\n") out)
     (display (string-append "\tdd " method-table "\n") out)
+    (display (string-append "\tdd " (number->string (name->id "array")) "\t; guid\n") out)
     (write-cast-fields out 0 (list (name->id "array")))
     
     (display "\n" out)
