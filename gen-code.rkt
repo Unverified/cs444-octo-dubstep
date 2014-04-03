@@ -214,7 +214,7 @@
   (if (empty? cenvs)
       (error 'get-entry-label "static test() not defined within program")
       (let ([point (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))])
-        (cond [(not (and (codemeth? point) (codemeth-static? point))) (mangle-names point)]
+        (cond [(and (codemeth? point) (codemeth-static? point)) (mangle-names point)]
               [else (get-entry-label (rest cenvs))]))))
 
 ;ENTRY POINT
