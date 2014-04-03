@@ -23,6 +23,9 @@
       [(not (compare-method-modifier-lists m2 m1)) (c-errorf "shadowed methods mods are messed yo")]
       [else #t])))
 
+(define (public? meth)
+  (equal? 'public (method-scope meth)))
+
 (define (abstract? meth)
   (equal? (list 'abstract) (method-mod meth)))
 
@@ -88,25 +91,24 @@
         [implements (get-implements (info-ast cinfo))])
     (let* ([superclass-info (check-class-info classpath (lookup-cunit-env gen-full-class-info classpath root extends))]
            [interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements))]
-           [linked-envs (foldl (curry combine-envs combine-impl-meths) env-empty (map info-env (cons superclass-info interface-infos)))]
-           [cenv (combine-envs combine-all-meths linked-envs (info-env cinfo))])
+           [final-env (combine-class-infos cinfo superclass-info interface-infos)])
 
       (if (empty? extends) (void) (check-constructor-super (info-env superclass-info)))
       
       ((compose1 
         (curryr set-cinfo-ast (gen-top-ast-env (info-env superclass-info) (info-env cinfo) (info-env cinfo) (info-ast cinfo)))
-        (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) cenv))
+        (curryr set-cinfo-env (check-for-abstract (info-ast cinfo) final-env))
         (curryr set-cinfo-supers (filter-not empty? (info-path superclass-info)))
         (curryr set-cinfo-impls (remove-duplicates (append (info-impls superclass-info) (append-map info-path interface-infos)))))
        cinfo))))
 
 (define (gen-full-interface-info root cinfo subimpls)
-  (let ([implpath (extend-path (info-name cinfo) subimpls)]
-        [extends  (get-extends (info-ast cinfo))])
-    (define interface-infos (check-interfaces-info implpath (map (curry lookup-cunit-env gen-full-interface-info implpath root) extends)))
+  (let* ([implpath (extend-path (info-name cinfo) subimpls)]
+         [extends  (get-extends (info-ast cinfo))]
+         [interface-infos (check-interfaces-info implpath (map (curry lookup-cunit-env gen-full-interface-info implpath root) extends))])
 
     ((compose1
-     (curryr set-cinfo-env (foldr (curry combine-envs combine-all-meths) (info-env cinfo) (check-empty-interface-envs root (info-env cinfo) (map info-env interface-infos))))
+     (curryr set-cinfo-env (combine-interface-infos root cinfo interface-infos))
      (curryr set-cinfo-impls 'Interface)
      (curryr set-cinfo-supers (append-map info-path interface-infos)))
      cinfo)))
@@ -115,50 +117,78 @@
   (cond [(occurs? newele sub-path) (c-errorf "Cycle detected ~a" (map (curryr string-join ".") (cons newele sub-path)))]
         [else (cons newele sub-path)]))
 
-(define (check-empty-interface-envs root cenv interface-envs)
-  (cond
-    [(envs? (combine-envs combine-all-meths (info-env (find-info (list "java" "lang" "Object") root)) cenv)) interface-envs]
-    [else interface-envs]))
+;(define (check-empty-interface-envs root cenv interface-envs)
+;  (cond
+;    [(envs? (combine-envs combine-all-meths (info-env (find-info (list "java" "lang" "Object") root)) cenv)) interface-envs]
+;    [else interface-envs]))
 
 
 (define (check-heirarchies class-info)
  (map (curry check-heriarchy class-info) class-info))
 
-(define (combine-all-meths take-from par env)
-  (match par
-    [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
-    [`(,x ,y) (cond
-                [(can-shadow-1? (eval-ast (second x)) (eval-ast (second y))) env]
-                [else (c-errorf "Cannot shadow method")])]))
+; COMBINING METHODS
 
-(define (combine-impl-meths take-from par env)
-  (match par
-    [`(,#f ,x) (env-append env (envs (list (assoc (first x) (envs-types take-from))) empty (list x) empty))]
-    [`(,c ,impl) (let ([c-ast (eval-ast (second c))]
-                       [impl-ast (eval-ast (second impl))]
-                       [p (assoc (first impl) (envs-types take-from))])
-                   (cond
-                     [(and (abstract? c-ast) (abstract? impl-ast) (can-shadow-2? c-ast impl-ast))
-                      (envs (cons p (remove p (envs-types env)))
-                            (envs-vars env)
-                            (cons impl (remove impl (envs-methods env)))
-                            (envs-constructors env))]
-                     [else (combine-all-meths take-from par env)]))]))
+;gets all abstract methods from info
+(define (get-abs-meths info)
+  (filter (lambda(x) (abstract? (eval-ast (second x)))) (envs-methods (info-env info))))
 
-(define (combine-fields take-from par env)
-  (match par
-    [`(,key ,value) (env-append env (envs (list (assoc key (envs-types take-from))) (list par) empty empty))]))
+;checks if duplicates in take-from and combine-in have the same return type / modifier and adds the one with the lowest scope
+(define (combine-abs-meths take-from combine-in)
+  (define methods (map first take-from))
+  (define method-pairs (map (lambda (x) (list (assoc x combine-in) (assoc x take-from))) methods))
 
-;combines two environments by merging in methods and fields. Checks that methods are shadowed properly
-(define (combine-envs combmeth-proc take-from combine-in)
-  (define methods (map first (envs-methods take-from)))
-  (define method-pairs (map (lambda (x) (list (assoc x (envs-methods combine-in)) (assoc x (envs-methods take-from)))) methods))
+  (define (combine-proc pair all-meths)
+    (match pair
+      [`(,#f ,t) (cons t all-meths)]
+      [`(,c ,t) (cond 
+                  [(can-shadow-2? (eval-ast (second c)) (eval-ast (second t)))
+                   (if (public? (eval-ast (second t))) (cons t (remove c all-meths)) all-meths)]
+                  [else (c-errorf "Cannot shadow method c: ~a, t: ~a" c t)])])) 
+
+  (foldr combine-proc combine-in method-pairs))
+
+(define (combine-envs take-from combine-in)
+  (combine-env-meths combine-in (envs-methods take-from) (envs-types take-from)))
+
+;takes all methods in meths and adds them into env, if the meth already exists in env is checks if it can shadow.
+(define (combine-env-meths env meths types)
+  (define methods (map first meths))
+  (define method-pairs (map (lambda (x) (list (assoc x (envs-methods env)) (assoc x meths))) methods))
+
+  (define (combine-proc par env)
+    (match par
+      [`(,#f ,y) (env-append env (envs (list (assoc (first y) types)) empty (list y) empty))]
+      [`(,x ,y) (cond
+                  [(can-shadow-1? (eval-ast (second x)) (eval-ast (second y))) env]
+                  [else (c-errorf "Cannot shadow method")])]))
+
+  (foldr combine-proc env method-pairs))
+
+;combines a class info with its super and implements infos
+(define (combine-class-infos cinfo superinfo implinfos)
+  (define (combine-fields types par env)
+    (match par
+      [`(,key ,value) (env-append env (envs (list (assoc key types)) (list par) empty empty))]))
+
+  ;combine all the non abstract methods in superinfo into class-env, a full shadow check is perform here (ie scope, return type, and modifier are checked)
+  (define non-abs-supermeths (filter-not (lambda(x) (abstract? (eval-ast (second x)))) (envs-methods (info-env superinfo))))
+  (define class-env (combine-env-meths (info-env cinfo) non-abs-supermeths (envs-types (info-env superinfo))))
+
+  ;get all the abstract methods from superinfo and all the methods from implinfos
+  ; - combines them into one list of abstract methods
+  ; - if there are duplicate methods then the return type and modifiers are checked and the one with the lowest scope is choosen.
+  (define abs-methods (foldl combine-abs-meths (get-abs-meths superinfo) (map get-abs-meths implinfos)))
+  (define all-types (append (envs-types (info-env superinfo)) (append-map envs-types (map info-env implinfos))))
   
-  (foldr (curry combine-fields take-from) 
-         (foldr (curry combmeth-proc take-from) 
-                combine-in 
-                method-pairs) 
-         (envs-vars take-from)))
+  ;add the fields, and the abstract methods
+  (foldr (curry combine-fields (envs-types (info-env superinfo)))
+         (combine-env-meths class-env abs-methods all-types)
+         (envs-vars (info-env superinfo))))
+
+(define (combine-interface-infos root iinfo superinfos)
+  ;check that there are not shadow conflicts with any Object methods (but dont actually drag them in)
+  (combine-envs (info-env (find-info (list "java" "lang" "Object") root)) (info-env iinfo))
+  (foldl combine-envs (info-env iinfo) (map info-env superinfos)))
 
 ;======================================================================================
 ;==== Error Checking Helpers 
