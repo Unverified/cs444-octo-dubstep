@@ -175,7 +175,7 @@
 (printf "~n~n=========== Reachability ==========~n")
 (for-each reachability final-info)
 
-;(printf "~n~n=========== Code Generation ==========~n")
-;(gen-all-code (map (curry info->codeenv final-info) final-info))
+(printf "~n~n=========== Code Generation ==========~n")
+(gen-all-code (map (curry info->codeenv final-info) final-info))
 
 (compiled)

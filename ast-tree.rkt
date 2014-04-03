@@ -51,6 +51,7 @@
 (provide run-nonempty)
 (provide ast-print-struct)
 (provide is-static?)
+(provide is-native?)
 
 (provide cunit-scope)
 (provide simplify-ast)
@@ -242,8 +243,8 @@
 ;only care about the types boolean, int, char, byte, short
 (define (reduce-unop env op rhs)
   (match (list op (literal-type rhs))
-    [`(minus ,(or (ptype 'int) (ptype 'byte) (ptype 'short))) (literal env (ptype 'int) (- (literal-value rhs)))]
-    [`(minus ,(ptype 'char)) (literal env (ptype 'int) (- (literal-value rhs)))]
+    [`(minus ,(or (ptype 'int) (ptype 'byte) (ptype 'short))) (literal env (ptype 'int) (cast-int (- (literal-value rhs))))]
+    [`(minus ,(ptype 'char)) (literal env (ptype 'int) (cast-char (- (literal-value rhs))))]
     [`(not ,(ptype 'boolean)) (literal env (ptype 'boolean) (false? (literal-value rhs)))]
     [`(,op ,rht) (printf "(~a ~a)" op rht)
                  (error "unimplemented!")]))
@@ -694,10 +695,20 @@
     [(varassign _ lft _) (is-static? lft)]       
     [_ (let-values ([(type _) (struct-info ast)]
                     [(err)  (open-output-string)])
-         (display "is-static undefined for case " err)
+         (display "undefined for case " err)
          (display type err)
-         (error (get-output-string err)))]
+         (error 'is-static? (get-output-string err)))]
   ))
+
+(define (is-native? ast)
+  (match ast
+    [(constructor _ _ _ _) #f]
+    [(method _ _ mod _ _ _) (list? (member 'native mod))]   
+    [_ (let-values ([(type _) (struct-info ast)]
+                    [(err)  (open-output-string)])
+         (display "undefined for case " err)
+         (display type err)
+         (error 'is-native? (get-output-string err)))]))
 
 ;==============================================================================================
 ;==== Print

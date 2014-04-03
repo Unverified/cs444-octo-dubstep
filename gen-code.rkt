@@ -26,11 +26,11 @@
   (define-values (classes interfaces) (partition codeenv-class? cenvs))
   (define all-labels (remove-duplicates (map mangle-names (append (filter (lambda (x) (and (codevar-static? x) (codevar-ref? x))) (append-map codeenv-vars classes))
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
-                                                                  cenvs))))
+                                                                  classes))))
   
   (gen-code-start out all-labels cenvs)
   
-  (for-each gen-interface interfaces)
+  ;(for-each gen-interface interfaces)
   (for-each (curry gen-code (cons ARRAY-LABEL all-labels) cenvs) classes))
 
 (define (gen-interface cenv)
@@ -54,7 +54,7 @@
               (match (codemeth-def x)
                 [(constructor env sp (methoddecl _ id params) bd) (gen-code-constructor out cenv params bd cenvs)]
                 [(method env sp md ty (methoddecl _ id params) bd) (gen-code-method out cenv params bd cenvs)]))
-            (filter codemeth-ref? (codeenv-methods cenv))))
+            (filter (lambda (x) (and (codemeth-ref? x) (not (codemeth-native? x)))) (codeenv-methods cenv))))
 
 (define (gen-code-recurse out cenv sinfo t cenvs)
   (match t
@@ -90,6 +90,7 @@
             (gen-code-block-helper sinfo (rest statements))]))
   
   (define bsinfo (gen-code-block-helper sinfo statements))
+  ;(printf "gen-code-block - \tsinfo : ~a~n\t bsinfo:~a~n" sinfo bsinfo)
   (reset-stack out (- (length (stackinfo-ldecls bsinfo)) (length (stackinfo-ldecls sinfo)))))
 
 ;==============================================================================================
@@ -104,13 +105,18 @@
     [(varuse _ id) (gen-code-recurse out cenv sinfo ex cenvs)
                    (gen-code-varuse-write out cenv sinfo id)
                    (stackinfo-add-strdecl (stackinfo-rmv-modified-strdecl sinfo id) id ex)] ;need to remove any string decls if they are modified, but add them back in if they were modified to another stringlit
-    [(arrayaccess _ left id) (push out "ebx" "saving")
-                             (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
-                             (mov out "ebx" "eax")
-                             (gen-code-recurse out cenv sinfo ex cenvs)
-                             (mov out "[ebx]" "eax")
-                             (pop out "ebx")
-                             sinfo]
+
+    [(arrayaccess _  left id)
+			     ;(printf "gen-code-varassign arrayaccess case: ~a~n" sinfo)
+			     (push out "ebx" "saving")
+			     (gen-code-arrayaccess out cenv sinfo #t left id cenvs)
+			  ;   (printf "done gen-code-arrayaccess~n")
+			     (mov out "ebx" "eax")			   
+			     (gen-code-cast out cenv sinfo (atype-type (ast-env left)) ex cenvs) ;;eax should now contain value of casted object
+			  		     
+			     (mov out "[ebx]" "eax")
+			     (pop out "ebx" "restoring")
+			     sinfo]
     [(fieldaccess _ left field) (push out "ebx" "saving")
                                 (gen-code-fieldaccess out cenv sinfo #t left field cenvs)
                                 (mov out "ebx" "eax")
@@ -135,12 +141,17 @@
 
     (push out "ebx" "saving")	
     (load-membervars-into-this out cenv member-vars cenvs)
+    (if (empty? parent) (printf "") (call-super out parent))
     (pop out "ebx" "restoring")
 
-    (if (empty? parent) (printf "") (call out (constr-label parent empty)))
     (gen-code-recurse out cenv sinfo bd cenvs)
     (pop out "ebp")
     (ret out)))
+
+(define (call-super out parent)
+  (push out "ebx" "put this on stack for super call")
+  (call out (constr-label parent empty))
+  (pop out "ebx" "get this junk off the stack"))
 
 ;CLASS CREATE
 (define (gen-code-classcreate out cenv sinfo cls rty args cenvs)
@@ -170,7 +181,6 @@
 ;Take string literal and create a char array, eax will contain address of char array
 (define (stringlit->chararray out cenv sinfo slit)
   (define c-str (string->list (literal-value slit)))
-  (comment out "Converting String to char[]")
   (arraycreate-sz out cenv sinfo (ptype 'char) (length c-str))
   (comment out "Adding chars to char[]")
   (copy-to-chararray out c-str 0))
@@ -202,7 +212,8 @@
 
 ;ENTRY POINT
 (define (gen-code-start out labels cenvs)
-  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))])
+  (let ([entry-meth (find-codemeth (funt "test" empty) (codeenv-methods (first cenvs)))]
+        [method-table (string-append (mangle-names (find-codeenv '("java" "lang" "Object") cenvs)) "METHODTABLE")])
     (if (not (and (codemeth? entry-meth) (codemeth-static? entry-meth)))
         (error 'gen-code-start "static test() not defined within ~e" (codeenv-name (first cenvs)))
         'ok)
@@ -211,17 +222,16 @@
     (display (string-append "global " ARRAY-LABEL "\n\n") out)
       
     (for-each (lambda (x) (display (string-append "extern " x "\n") out)) labels)
-    (display "extern NATIVEjava.io.OutputStream.nativeWrite\n" out) 
+    (display (string-append "extern " method-table "\n") out)
     (gen-runtime-externs out)
     
     (display "section .data\n\n" out)
     (display (string-append ARRAY-LABEL ":\n") out)
-    (display (string-append "\tdd " (number->string (name->id "array")) "\n") out)
+    (display (string-append "\tdd " method-table "\n") out)
+    (display (string-append "\tdd " (number->string (name->id "array")) "\t; guid\n") out)
+    (write-cast-fields out 0 (list (name->id "array")))
     
-    (for-each (lambda (x) (display (string-append "\tdd " (mangle-names x) "\n") out))
-              (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
-                          (reverse (codeenv-methods (find-codeenv '("java" "lang" "Object") cenvs)))))
-    
+    (display "\n" out)
     (display "section .text\n\n" out)
     (gen-debug-print-eax out)
     
@@ -257,7 +267,7 @@
 
 ;METHOD CALL
 (define (gen-code-methodcall out cenv sinfo left mfunt args cenvs)
-  (define mcvar (find-codemeth mfunt (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
+  (define cmeth (find-codemeth mfunt (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (push out "ebx")
   (gen-code-get-this out cenv sinfo left cenvs)	;puts "this" in ebx
@@ -265,7 +275,13 @@
   (comment out "Pushing method args on stack")
   (push-method-args out cenv sinfo args cenvs)	;push all method args onto stack
   (push out "ebx" "this") 			;push the addr of "this"
-  (call out (mangle-names mcvar))					
+  (cond
+    [(rtype? left) (call out (mangle-names cmeth))]
+    [else (mov out "ebx" "[ebx]")	;get the static loc
+          (mov out "ebx" "[ebx]")	;get the methof table loc
+          (mov out "ebx" (string-append"[ebx+"(number->string(codemeth-off cmeth))"]"))	;get the label address of the mthod to call
+          (comment out "YO: " (number->string (codemeth-off cmeth)))
+          (call out "ebx")])
   (reset-stack out (+ 1 (length args)))		;"pop" off all the args from the stack
   (pop out "ebx"))
 
@@ -315,7 +331,8 @@
   (push out "ebx" "saving")		;save ebx (cause we gonna use it)
   (cond
     [(or (equal? op 'barbar) (equal? op 'ampamp)) (gen-code-logical out cenv sinfo op ls rs cenvs)]
-    [(equal? op 'instanceof) (gen-code-instanceof out cenv sinfo ls rs cenvs)]
+    [(equal? op 'instanceof) (gen-code-recurse out cenv sinfo ls cenvs) 
+                             (gen-code-instanceof out cenv sinfo rs cenvs)]
     [else
      (if [stringlit? ls] (gen-code-stringlit out cenv sinfo ls cenvs) (gen-code-recurse out cenv sinfo ls cenvs))
      (mov out "ebx" "eax" "save binop rs result")			;move result from above into eax
@@ -407,55 +424,54 @@
 
 ;;helper - INSTANCEOF
 ;;this code is mostly copied from the gen-code-cast function
-(define (gen-code-instanceof out cenv sinfo ls rs cenvs)
-  (comment out "Getting lhs of instanceof")
-  (gen-code-recurse out cenv sinfo ls cenvs)
-  (comment out "We now have lhs of instanceof")
-  (match rs
-  [(rtype name)
-  (let
-      ([fail-label (symbol->string (gensym "instanceoffail"))]
-       [success-label (symbol->string (gensym "instanceofsuccess"))]
-       [end-label (symbol->string (gensym "instanceofend"))]
-       [cenv (find-codeenv name cenvs)] )
-    
-       (cmp out "eax" "0")
-       (cjmp out "je" fail-label "Null literal is automatically false")
-       (gen-get-class-id out "eax")
-       ;;get id list
-       (let ([id-list (codeenv-casts cenv)])
-         (printf "id-list for : ~a ~a~n" name id-list)
-         (gen-check-if-castable out id-list "eax" "ebx" success-label))
-       (label out fail-label)
-       (movi out "eax" 0)
-       (jmp out end-label)
-       (label out success-label)
-       (movi out "eax" 1)
-       (label out end-label "Done instanceof"))]
-    [(atype (rtype name))
-	(let ([cenv (find-codeenv name cenvs)]
-		      [fail-label (symbol->string (gensym "instanceoffail"))]
-		      [success-label (symbol->string (gensym "instanceofsuccess"))])
-		(cond
-			[(codeenv-class? cenv) 
-			(push out "ebx")		
-			(gen-get-array-class-id out "eax")
-			(let ([id-list (codeenv-casts cenv)])
-			  (gen-check-if-castable out id-list "eax" "ebx" success-label))
-			(label out fail-label)
-			(movi out "eax" 0)
-			(label out success-label "Valid Cast")
-			(movi out "eax" 1)				
-			(pop out "ebx")]
-			[else (error 'cast-atype-interface "unimplemented")]))]
-	[(atype (ptype name))
-	   (movi out "eax" 1)]))
+(define (gen-code-instanceof out cenv sinfo rs cenvs)
+  (define checklabel (symbol->string (gensym "instanceof_check")))
+  (define endlabel (symbol->string (gensym "instanceof_end")))
+  (define rs-static (if (atype? rs) ARRAY-LABEL (mangle-names (find-codeenv (rtype-type rs) cenvs))))
+  (define cast-fields-len (if (atype? rs) 1 (length (get-cast-fields out 0 (codeenv-casts (find-codeenv (rtype-type rs) cenvs))))))
 
+  ;null check
+  (cmp out "eax" "0")
+  (cjmp out "je" endlabel "Null literal is automatically false")
+
+  ;get offset and shift into rs cast bits, based on ls guid
+  (mov out "eax" "[eax]")
+  (mov out "eax" "[eax+4]" "get guid")
+  (mov out "ebx" "32")
+  (divide out "eax" "ebx")
+  (comment out "eax == off, edx == shift")
+
+  (cmp out "eax" (number->string cast-fields-len) "check if there are enough cast field entries in static")
+  (cjmp out "jl" checklabel)
+  (mov out "eax" "0")
+  (jmp out endlabel)
+  (label out checklabel)
+
+  (add out "eax" "2")	;add 2 to skip the METHODTABLE and guid
+  (imul out "eax" "4")	;mult by 4 to get in bytes
+
+  (mov out "ecx" rs-static)
+  (mov out "eax" "[ecx+eax]" "rs static block + off")
+
+  (define shift-loop (symbol->string (gensym "shift_loop")))
+  (mov out "ecx" "edx" "put shift amount into ecx")
+  (label out shift-loop)
+  (display "\tsar eax,1\n" out)		;this joker doesnt allow anything but number values, so i hade to put it in a loop
+  (display (string-append "    loop " shift-loop "\n") out)
+
+  (display "and eax,1\n" out)
+  
+  (label out endlabel))
+
+(define (get-instanceof-name rs)
+  (match rs
+    [(or (rtype name)
+         (atype (rtype name))) name]
+    [(atype (ptype _)) '("java" "lang" "Object")]
+    [_ (error "In get-instanceof-name, rs is not an rtype or atype: " rs)]))
 
 (define (stringlit? t)
   (and (literal? t) (equal? (literal-type t) (rtype '("java" "lang" "String")))))
-
-
 
 (define (gen-code-stringlit out cenv sinfo slit cenvs)
   (match (assoc (literal-value slit) (stackinfo-strdecls sinfo))
@@ -499,7 +515,7 @@
     [(ptype? ty) (mov out "ecx" "0")
                  (mov out "[eax+4]" "ecx")]
     [(atype? ty) (error 'gen-code-arraycreate "how?")])
-  
+
   (pop out "ebx"))
 
 (define (gen-arraycreate-code out)
@@ -532,7 +548,7 @@
   (cjmp out "jl" lbl-sz-ok2)
   (call out "__exception")
   (label out lbl-sz-ok2)
-  
+
 ;TODO: PUT IN TYPE CHECK
 
   (add out "eax" ARRAY-HEADER-SZ)
@@ -656,6 +672,7 @@
     (label out label-update)
     (gen-code-recurse out cenv new-sinfo update cenvs)
     (label out label-cond)
+    (mov out "eax" "1")	; set eax to true so if the clause is empty the loop will continue
     (gen-code-recurse out cenv new-sinfo clause cenvs)
     (movi out "ecx" 1)				
     (cmp out "eax" "ecx")			
@@ -691,80 +708,47 @@
     [(ptype 'boolean) (movi out "eax" (if val 1 0) "literal val bool")]
     [(rtype '("java" "lang" "String")) (gen-code-classcreate out cenv sinfo (funt "" (list (atype (ptype 'char)))) '("java" "lang" "String") (list (literal empty type val)) cenvs)]))
 
-(define (gen-rtype-cast out cenvs from to)
-  (let ([cenv (find-codeenv to cenvs)]
-        [fail-label (symbol->string (gensym "cast_fail"))]
-        [success-label (symbol->string (gensym "cast_success"))]
-        [nullcast-label (symbol->string (gensym "cast_end"))])
-    (push out "ebx")
-    ;; if eax is 0 need to branch over everything else
-    (cmp out "eax" "0")
-    (cjmp out "je" nullcast-label)
+(define (gen-object-cast out cenv sinfo rs cenvs)
+  ;(let-values ([(offset shift) (cast-off-shift typename)]
+  ;             [(end-label) (symbol->string (gensym "cast_end"))])  
+    (define end-label (symbol->string (gensym "cast_end")))
+    (push out "eax")
     
-    (cond [(or (ptype? from) (atype? from)) 'ok]
-          [else (if (codeenv-class? (find-codeenv (rtype-type from) cenvs)) 
-                    'ok 
-                    (mov "eax" "[eax]" "deref interface"))])
-    (cond
-      [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
-                               (push out "eax")
-                               (gen-get-class-id out "eax")
-                               (gen-check-if-castable out id-list "eax" "ebx" success-label)
-                               (label out fail-label)
-                               (call out "__exception" "Bad Cast")
-                               (label out success-label "Valid cast")
-                               (pop out "eax"))]
-      [else (push out "eax")    
-            (malloc out (codeenv-size cenv))
-            (pop out "edx")
-            
-            (mov out "[eax]" "edx")
-            (mov out "edx" "[edx]")
-            
-            (for-each (lambda (x) (let ([off1 (number->string (codemeth-off x))]
-                                        [off2 (number->string (codemeth-off (find-codemeth (codemeth-id x) (codeenv-methods (find-codeenv (rtype-type from) cenvs)))))])
-                                    (mov out "ecx" (string-append "[edx" off2 "]")
-                                         (mov out (string-append "[eax+" off1 "]") "ecx")))) (codeenv-methods cenv))
-            (label out success-label "Valid Cast")])
-    (label out nullcast-label)
-    (pop out "ebx")))
+    ;at this point the object we are cast is in eax, so check if eax is an instance of cast
+    (gen-code-instanceof out cenv sinfo rs cenvs)
 
-(define (gen-atype-cast out cenvs name)
-  (let ([cenv (find-codeenv name cenvs)]
-        [fail-label (symbol->string (gensym "cast_fail"))]
-        [success-label (symbol->string (gensym "cast_success"))]
-        [nullcast-label (symbol->string (gensym "cast_end"))])
-    ;; if eax is 0 need to branch over everything else    
-    (push out "ebx")
+    ;(cmp out "eax" "0")
+    ;(cjmp out "je" end-label)
+    ;(mov out "eax" "[eax]")
+    ;(mov out "eax" (string-append "[eax+" (number->string offset) "]"))
+    ;(display (string-append "\tand eax, " (number->string shift) " << 1\n") out)
+    
     (cmp out "eax" "0")
-    (cjmp out "je" nullcast-label) 
-    (cond [(codeenv-class? cenv) (let ([id-list (codeenv-casts cenv)])
-                                   (push out "eax")		
-                                   (gen-get-array-class-id out "eax")
-                                   (gen-check-if-castable out id-list "eax" "ebx" success-label)
-                                   (label out fail-label)
-                                   (call out "__exception" "Bad Cast")
-                                   (label out success-label "Valid Cast")
-                                   (pop out "eax"))]
-          [else (error 'cast-atype-interface "unimplemented")])
-    (label out nullcast-label)
-    (pop out "ebx")))
+    (cjmp out "jne" end-label)
+    (call out "__exception" "Bad Cast")
+
+    (label out end-label)
+    (pop out "eax"))
 
 ;;gen-code-cast: output stack-info type ast (listof codeenv) -> void
+;;puts the casted object into eax
 (define (gen-code-cast out cenv sinfo c ex cenvs)
   ;(printf "gen-code-cast ~a~n" ex)
+  (push out "ebx")
   (gen-code-recurse out cenv sinfo ex cenvs)
-
   (match c
     [(ptype 'int)  (comment out "cast to int")]
+    [(ptype 'boolean) (comment out "cast to boolean, can this be an issue?")]
     [(ptype 'byte) (display "\tmovsx eax, al\t; cast to a byte\n" out)]
     [(ptype 'short) (display "\tmovsx eax, ax\t; cast to a short\n" out)]
     [(ptype 'char) (display "\tmovzx eax, ax\t; cast to a char\n" out)]
+    [(ptype 'boolean) (comment out "cast to boolean")]
     [(rtype '("java" "lang" "Object")) (comment out "cast to object")]
-    [(rtype name) (printf "~a~n" (ast-env ex))(gen-rtype-cast out cenvs (ast-env ex) name)]
-    [(atype (rtype name)) (gen-atype-cast out cenvs name)]
-    [(atype (ptype name)) (comment out "Casting ptype array to ptype array - should be handled at compile time?")]
-    ))
+    [_ (gen-object-cast out cenv sinfo c cenvs)])
+  (pop out "ebx"))
+    ;[(rtype name) (gen-object-cast out name)]
+    ;[(atype (rtype name)) (gen-object-cast out "array") #| test array type aswell |#]
+    ;[(atype (ptype name)) (gen-object-cast out "array") #| test array type aswell |#]))
 ;==============================================================================================
 ;==== Helpers
 ;==============================================================================================
@@ -817,7 +801,7 @@
 ;;the register points to the object. The caller preserves the register. 
 (define (gen-get-class-id out register)
   (movf out register register "" "Getting static class info")
-  (movf out register register "" "Getting the class number"))
+  (movf out register register "+4" "Getting the class number"))
 
 
 (define (gen-get-array-class-info out register)
@@ -829,17 +813,20 @@
 	(movf out  register register "+4" "Getting static array info")
 	(movf out register register "" "Getting the class number"))
 
-(define (gen-check-if-castable out id-list register check-register success-label)
+(define (gen-check-if-castable out id-list register success-label)
   (cond
     [(empty? id-list) 
      (nop out "failure; the next instruction should be the failure code")]
     [else
-     (movi out check-register (first id-list))
-     (cmp out check-register register)
+     (movi out "ecx" (first id-list))
+     (cmp out register "ecx")
      (cjmp out "je" success-label)
-     (gen-check-if-castable out (rest id-list) register check-register success-label)])) 
+     (gen-check-if-castable out (rest id-list) register success-label)])) 
 
-
+(define (gen-check-if-array-castable out register success-label)
+  (mov out "ecx" (string-append "["ARRAY-LABEL"+4]"))
+  (cmp out register "ecx")
+  (cjmp out "je" success-label))
 
 (define (gen-initialize-static-fields out cenvs)
   ;(printf "gen-initialize-static-fields: ~a~n" cenvs)
