@@ -8,7 +8,7 @@
 
 (define (cast-off-shift name) 
   (let-values ([(off shf) (quotient/remainder (name->id name) 32)])
-    (values (* 4 (off + 1)) shf)))
+    (values (* 4 (off + 2)) shf)))
 
 (define (write-info-name out cenv)
   (map (curryr display out) (codeenv-name cenv)))
@@ -28,8 +28,7 @@
     [(empty? methlst) (printempty)(write-method-table out (add1 off) methlst)]
     [(= (* 4 off) (codemeth-off (first methlst))) (display (string-append "\tdd " (mangle-names (first methlst)) "\n") out)
                                                   (write-method-table out (add1 off) (rest methlst))]
-    [else (printempty)(write-method-table out (add1 off) methlst)]
-  ))
+    [else (printempty)(write-method-table out (add1 off) methlst)]))
 
 (define (generate-cast-num classes)
   (cond [(empty? classes) 0]
@@ -58,6 +57,7 @@
   ;; write the table header so we can find stuff
   (dis-list (list "\n" (mangle-names cenv) ":\n" 
                   "\tdd " (mangle-names cenv) "METHODTABLE\t ; seletor in the method arrays \n"))
+  (dis-list (list "\tdd" (codeenv-guid cenv) "\t; guid\n"))
   (write-cast-fields out 0 (codeenv-casts cenv))
   
   ;; method pointers
