@@ -706,7 +706,7 @@
     
     (mov out "eax" "[eax]")
     (mov out "eax" (string-append "[eax+" (number->string offset) "]"))
-    (display (string-append "\tand eax, " (number->string shift) " << 1") out)
+    (display (string-append "\tand eax, " (number->string shift) " << 1\n") out)
     
     (cmp out "eax" "0")
     (cjmp out "jne" end-label)
