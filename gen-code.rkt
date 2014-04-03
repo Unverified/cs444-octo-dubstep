@@ -228,6 +228,7 @@
     (display "section .data\n\n" out)
     (display (string-append ARRAY-LABEL ":\n") out)
     (display (string-append "\tdd " method-table "\n") out)
+    (display (string-append "\tdd " (number->string (name->id "array")) "\t; guid\n") out)
     (write-cast-fields out 0 (list (name->id "array")))
     
     (display "\n" out)
@@ -423,21 +424,45 @@
 ;;helper - INSTANCEOF
 ;;this code is mostly copied from the gen-code-cast function
 (define (gen-code-instanceof out cenv sinfo ls rs cenvs)
+  (define checklabel (symbol->string (gensym "instanceof_check")))
   (define endlabel (symbol->string (gensym "instanceof_end")))
+  (define rs-static (if (atype? rs) ARRAY-LABEL (mangle-names (find-codeenv (rtype-type rs) cenvs))))
+  (define cast-fields-len (if (atype? rs) 1 (length (get-cast-fields out 0 (codeenv-casts (find-codeenv (rtype-type rs) cenvs))))))
 
   (comment out "Getting lhs of instanceof")
   (gen-code-recurse out cenv sinfo ls cenvs)
   (comment out "We now have lhs of instanceof")
-   
+
   ;null check
   (cmp out "eax" "0")
   (cjmp out "je" endlabel "Null literal is automatically false")
-  
-  (let-values ([(off shift) (cast-off-shift (if (rtype? rs) (rtype-type rs) "array"))])
-    (mov out "eax" "[eax]")
-    (mov out "eax" (string-append "[eax+"(number->string off)"]"))
-    (display (string-append "sal eax,"(number->string shift)"\n") out)
-    (display "and eax,1\n" out))
+
+  ;get offset and shift into rs cast bits, based on ls guid
+  (mov out "eax" "[eax]")
+  (mov out "eax" "[eax+4]" "get guid")
+  (mov out "ebx" "32")
+  (divide out "eax" "ebx")
+  (comment out "eax == off, edx == shift")
+
+  (cmp out "eax" (number->string cast-fields-len) "check if there are enough cast field entries in static")
+  (cjmp out "jl" checklabel)
+  (mov out "eax" "0")
+  (jmp out endlabel)
+  (label out checklabel)
+
+  (add out "eax" "2")	;add 2 to skip the METHODTABLE and guid
+  (imul out "eax" "4")	;mult by 4 to get in bytes
+
+  (mov out "ecx" rs-static)
+  (mov out "eax" "[ecx+eax]" "rs static block + off")
+
+  (define shift-loop (symbol->string (gensym "shift_loop")))
+  (mov out "ecx" "edx" "put shift amount into ecx")
+  (label out shift-loop)
+  (display "\tsar eax,1\n" out)		;this joker doesnt allow anything but number values, so i hade to put it in a loop
+  (display (string-append "    loop " shift-loop "\n") out)
+
+  (display "and eax,1\n" out)
   
   (label out endlabel))
 
