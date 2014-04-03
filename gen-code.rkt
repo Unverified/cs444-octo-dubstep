@@ -26,18 +26,25 @@
   (define-values (classes interfaces) (partition codeenv-class? cenvs))
   (define all-labels (remove-duplicates (map mangle-names (append (filter (lambda (x) (and (codevar-static? x) (codevar-ref? x))) (append-map codeenv-vars classes))
                                                                   (filter codemeth-ref? (append-map codeenv-methods classes))
-                                                                  classes))))
+                                                                  classes
+                                                                  interfaces))))
   
   (gen-code-start out all-labels cenvs)
   
-  ;(for-each gen-interface interfaces)
+  (for-each (curry gen-interface (cons ARRAY-LABEL all-labels) cenvs) interfaces)
   (for-each (curry gen-code (cons ARRAY-LABEL all-labels) cenvs) classes))
 
-(define (gen-interface cenv)
+;I did it this was so that we dont generate the externs for the interface methods so that if anyone tries to use the interface method labels we will know 
+(define (gen-interface all-labels cenvs cenv)
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
-  (display (string-append "global " (mangle-names cenv) "\n\n") out)
-  (display (string-append (mangle-names cenv) ":\n") out)
-  (for-each (curryr display out) (list "\tdd " (codeenv-guid cenv) "\t; set up the guid\n")))
+  (define interface-class-label (mangle-names cenv))
+
+  (display (string-append "global " interface-class-label "\n") out)
+  (display "section .data\n\n" out)
+  (display (string-append interface-class-label ":\n") out)
+  (display (string-append "\tdd 0\t; no method table for interfaces\n") out)
+  (display (string-append "\tdd " (number->string (codeenv-guid cenv)) "\t; guid\n") out)
+  (write-cast-fields out 0 (codeenv-casts cenv)))
 
 (define (gen-code all-labels cenvs cenv)
   (define out (open-output-file (get-outfile cenv) #:exists 'replace))
@@ -713,6 +720,10 @@
   ;             [(end-label) (symbol->string (gensym "cast_end"))])  
     (define end-label (symbol->string (gensym "cast_end")))
     (push out "eax")
+
+  ;null check
+  (cmp out "eax" "0")
+  (cjmp out "je" end-label "Null literal is automatically false")
     
     ;at this point the object we are cast is in eax, so check if eax is an instance of cast
     (gen-code-instanceof out cenv sinfo rs cenvs)
