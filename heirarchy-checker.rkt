@@ -88,8 +88,9 @@
         [implements (get-implements (info-ast cinfo))])
     (let* ([superclass-info (check-class-info classpath (lookup-cunit-env gen-full-class-info classpath root extends))]
            [interface-infos (check-interfaces-info empty (map (curry lookup-cunit-env gen-full-interface-info empty root) implements))]
-           [linked-envs (foldl (curry combine-envs combine-impl-meths) env-empty (map info-env (cons superclass-info interface-infos)))]
-           [cenv (combine-envs combine-all-meths linked-envs (info-env cinfo))])
+           [linked-envs (foldl (curry combine-envs combine-impl-meths) env-empty (map info-env interface-infos))]
+           [cenv (combine-envs combine-impl-meths linked-envs (combine-envs combine-all-meths (info-env superclass-info) (info-env cinfo))
+                               )])
 
       (if (empty? extends) (void) (check-constructor-super (info-env superclass-info)))
       
