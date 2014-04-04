@@ -94,9 +94,10 @@
                                 (build-ml all-info (find-info (get-parent cinfo) all-info)))]))
 
 (define (info->codeenv all-info cinfo)
+(if (equal? '("CompB") (info-name cinfo)) (envs-print (info-env cinfo)) (printf "") )
   (let* ([lookup (make-immutable-hash (map (lambda (x) (list (cunit-scope (info-ast x)) (info-name x))) all-info))]
          [vars (assoclst->codevars (cunit-scope (info-ast cinfo)) lookup all-info (envs-vars (info-env cinfo)))]
-         [meths (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo)) (build-ml all-info cinfo)))]
+         [meths (assoclst->codemeth (cunit-scope (info-ast cinfo)) lookup all-info (append (envs-constructors (info-env cinfo)) (envs-methods (info-env cinfo))))]; (build-ml all-info cinfo)))]
          [array (if (extends-array? (info-name cinfo)) (list (name->id "array")) empty)])
     (codeenv
      (info-name cinfo)

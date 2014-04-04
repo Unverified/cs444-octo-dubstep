@@ -19,7 +19,7 @@
 (define ARRAY-LABEL "__ARRAY")
 
 (define (get-outfile env)
-  (string-append "output/" (foldr string-append "" (codeenv-name env)) ".s"))
+  (string-append "output/" (foldr string-append "" (codeenv-name env)) (number->string (codeenv-guid env))".s"))
 
 (define (gen-all-code cenvs)
   (define out (open-output-file (string->path "output/-start.s") #:exists 'replace))
@@ -276,6 +276,10 @@
 
 ;METHOD CALL
 (define (gen-code-methodcall out cenv sinfo left mfunt args cenvs)
+  (printf "funt: ~a~n~n" mfunt)
+  (for-each (lambda(x)(printf "~a~n~n" x)) (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs)))
+
+
   (define cmeth (find-codemeth mfunt (codeenv-methods (find-codeenv (rtype-type (get-left-type left)) cenvs))))
 
   (push out "ebx")

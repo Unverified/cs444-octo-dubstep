@@ -2,6 +2,7 @@
 (require "environments.rkt")
 (require "generation-structures.rkt")
 (require "mangle-names.rkt")
+(require "ast-tree.rkt")
 (provide gen-static)
 (provide cast-off-shift)
 (provide write-cast-fields)
@@ -22,12 +23,15 @@
                                   (list "\tdd " x "\t; " (string-join x ".") "\n")))
             lst))
 
+(define (abstract? cmeth)
+  (equal? (list 'abstract) (method-mod (codemeth-def cmeth))))
+
 (define (write-method-table out off methlst)
   (define (printempty) (display "\tdd 0\n" out))
   (cond
     [(> off (funt->off "LENGTH")) (void)]
     [(empty? methlst) (printempty)(write-method-table out (add1 off) methlst)]
-    [(= (* 4 off) (codemeth-off (first methlst))) (display (string-append "\tdd " (mangle-names (first methlst)) "\n") out)
+    [(and (not (abstract? (first methlst))) (= (* 4 off) (codemeth-off (first methlst)))) (display (string-append "\tdd " (mangle-names (first methlst)) "\n") out)
                                                   (write-method-table out (add1 off) (rest methlst))]
     [else (printempty)(write-method-table out (add1 off) methlst)]))
 
@@ -69,7 +73,7 @@
   ;; method pointers
   (dis-list (list "\n\n"(mangle-names cenv) "METHODTABLE:\n"))
   (write-method-table out 0 (filter-not (compose1 (curry equal? "") funt-id codemeth-id) 
-                                        (reverse (codeenv-methods cenv))))
+                                        (sort (codeenv-methods cenv) < #:key codemeth-off)))
   
   ;; static variable pointers
   (display "\n" out)

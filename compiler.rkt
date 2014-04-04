@@ -176,6 +176,8 @@
 (for-each reachability final-info)
 
 (printf "~n~n=========== Code Generation ==========~n")
+;(info->codeenv final-info (find-info '("CompB") final-info))
+
 (gen-all-code (map (curry info->codeenv final-info) final-info))
 
 (compiled)
