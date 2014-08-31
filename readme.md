@@ -1,21 +1,17 @@
 <h1>Joos Complier For CS444</h1>  
 
-Members: <br>
+<h2>Course Website:</h2><br>
+https://www.student.cs.uwaterloo.ca/~cs444/
+<br>
+
+<h2>Joos Spec</h2><br>
+https://www.student.cs.uwaterloo.ca/~cs444/joos.html
+<br>
+
+<h2>Members:</h2><br>
 Nik Illerbrun   - nillerbr <br>
 Nick Fagan      - nmfagan  <br>
 Wesley Chalmers - wwchalme <br>
-<br>
-Having problems? you probably need to clear your cached files!
-<br>
-<strong>Assignment 1 written</strong><br>
-https://docs.google.com/document/d/1Xj1OAgKdJNSMbYoc4cHyMHV6wG1j4NEhSkIp_TK5bs0/edit?usp=sharing
-<br>
 
-<strong>Assignment 4 written</strong><br>
-https://docs.google.com/document/d/1wV_jODaORTP2pLpCLQSXW1TffoUt-E1LFd3h4P-pFqc/edit?usp=sharing
 <br>
-
-<strong>Assignment 5 Written</Strong><br>
-https://docs.google.com/document/d/14y5t-QxM-W9TEqV0sAcaIhHwCA0J_0K9JSgfXx6e3fk/edit?usp=sharing
-<br>
-
+Having weird errors? you probably need to clear your cached files!
